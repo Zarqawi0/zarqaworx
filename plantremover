@@ -1,0 +1,180 @@
+local LP = game:GetService("Players").LocalPlayer
+local LT = game:GetService("Lighting")
+local CG = game:GetService("CoreGui") or LP:WaitForChild("PlayerGui")
+local RS = game:GetService("RunService")
+local Gardens = workspace:WaitForChild("Gardens")
+
+-- Camera control variables
+local Camera = workspace.CurrentCamera
+local VoidPosition = CFrame.new(0, 50000, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+local CameraConnection = nil
+local FloorConnection = nil
+
+-- ---------- LOCAL ANTI-VOID SAFETY FLOOR ----------
+local SafetyFloor = Instance.new("Part")
+SafetyFloor.Name = "ClientAntiVoidFloor"
+SafetyFloor.Size = Vector3.new(200, 2, 200)
+SafetyFloor.Transparency = 1
+SafetyFloor.Anchored = true
+SafetyFloor.CanCollide = false
+SafetyFloor.Parent = workspace
+
+-- ==========================================
+-- SCREEN FRAME & CAM VOID TOGGLE
+-- ==========================================
+local ScreenGui = Instance.new("ScreenGui")
+local BlackFrame = Instance.new("Frame")
+local ToggleButton = Instance.new("TextButton")
+local UICorner = Instance.new("UICorner")
+
+ScreenGui.Name = "AbsoluteZeroLagFinal"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+if syn and syn.protect_gui then syn.protect_gui(ScreenGui) end
+ScreenGui.Parent = CG
+
+BlackFrame.Name = "BlackoutVoid"
+BlackFrame.Size = UDim2.new(1, 0, 1, 0)
+BlackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+BlackFrame.BorderSizePixel = 0
+BlackFrame.ZIndex = 999998
+BlackFrame.Visible = true
+BlackFrame.Parent = ScreenGui
+
+ToggleButton.Name = "BgToggleButton"
+ToggleButton.AnchorPoint = Vector2.new(0.5, 0) 
+ToggleButton.Position = UDim2.new(0.5, 0, 0, 15)
+ToggleButton.Size = UDim2.new(0, 100, 0, 35)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+ToggleButton.BackgroundTransparency = 0.1
+ToggleButton.ZIndex = 999999
+ToggleButton.Text = "Toggle BG"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.Font = Enum.Font.SourceSansBold
+ToggleButton.TextSize = 15
+ToggleButton.Parent = ScreenGui
+
+UICorner.CornerRadius = UDim.new(0, 6)
+UICorner.Parent = ToggleButton
+
+local function updateVoidState()
+    if BlackFrame.Visible then
+        Camera.CameraType = Enum.CameraType.Scriptable
+        Camera.CFrame = VoidPosition
+        if not CameraConnection then
+            CameraConnection = RS.RenderStepped:Connect(function()
+                Camera.CFrame = VoidPosition
+            end)
+        end
+        
+        -- Activate the local safety floor to catch the moving macro player if chunks unload
+        SafetyFloor.CanCollide = true
+        if not FloorConnection then
+            FloorConnection = RS.Heartbeat:Connect(function()
+                local char = LP.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                if root then
+                    SafetyFloor.CFrame = CFrame.new(root.Position.X, root.Position.Y - 3.6, root.Position.Z)
+                end
+            end)
+        end
+        
+        pcall(function() RS:Set3dRenderingEnabled(false) end)
+    else
+        if CameraConnection then
+            CameraConnection:Disconnect()
+            CameraConnection = nil
+        end
+        if FloorConnection then
+            FloorConnection:Disconnect()
+            FloorConnection = nil
+        end
+        
+        SafetyFloor.CanCollide = false
+        Camera.CameraType = Enum.CameraType.Custom
+        if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+            Camera.CameraSubject = LP.Character.Humanoid
+        end
+        pcall(function() RS:Set3dRenderingEnabled(true) end)
+    end
+end
+
+task.spawn(function()
+    task.wait(0.5)
+    updateVoidState()
+end)
+
+ToggleButton.MouseButton1Click:Connect(function()
+    BlackFrame.Visible = not BlackFrame.Visible
+    updateVoidState()
+end)
+-- ==========================================
+
+-- ---------- LIGHTING & SHADOW HARD LOCK ----------
+local function lockLighting()
+    LT.GlobalShadows = false
+    pcall(function() LT.Technology = Enum.Technology.Compatibility end)
+    pcall(function() LT.FogStart, LT.FogEnd = 100000, 100000 end)
+end
+lockLighting()
+LT:GetPropertyChangedSignal("GlobalShadows"):Connect(lockLighting)
+
+-- ---------- TRANSPARENCY HARD-LOCK LISTENER ----------
+local function forceInvisibleLock(part)
+    part.Transparency = 1
+    pcall(function()
+        part.Material = Enum.Material.SmoothPlastic
+        part.CastShadow = false
+    end)
+    
+    local connection
+    connection = part:GetPropertyChangedSignal("Transparency"):Connect(function()
+        if not part or not part.Parent then
+            connection:Disconnect()
+            return
+        end
+        if part.Transparency < 1 then
+            part.Transparency = 1
+        end
+    end)
+end
+
+-- ---------- GLOBAL ANTI-LAG ENGINE ----------
+local function wipeLagSpecs(obj)
+    if obj:IsDescendantOf(LP.Character) or obj == SafetyFloor then return end
+    local name = obj.Name:lower()
+
+    if obj:IsA("Highlight") or obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") or obj:IsA("Light") or obj:IsA("Animation") or obj:IsA("AnimationTrack") then
+        pcall(function() obj:Destroy() end)
+        return
+    end
+
+    if obj:IsA("Decal") or obj:IsA("Texture") or obj:IsA("SurfaceAppearance") then
+        pcall(function() obj:Destroy() end)
+        return
+    end
+
+    if obj:IsA("MeshPart") or obj:IsA("BasePart") then
+        if name ~= "terrain" and not name:find("floor") and not name:find("ground") then
+            forceInvisibleLock(obj)
+        end
+    end
+end
+
+workspace.DescendantAdded:Connect(wipeLagSpecs)
+
+task.spawn(function()
+    while true do
+        local descendants = workspace:GetDescendants()
+        for i = 1, #descendants do
+            local obj = descendants[i]
+            if obj and obj.Parent then
+                wipeLagSpecs(obj)
+            end
+            if i % 150 == 0 then
+                task.wait()
+            end
+        end
+        task.wait(0.2)
+    end
+end)
