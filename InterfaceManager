@@ -390,10 +390,7 @@ function Library:CreateWindow(options)
         end
 
         ----------------------------------------------------
-        -- 3. DROPDOWN COMPONENT (SINGLE & MULTI SELECT)
-        ----------------------------------------------------
-----------------------------------------------------
-        -- 3. DROPDOWN COMPONENT (SINGLE & MULTI SELECT)
+        -- 3. DROPDOWN COMPONENT (FIXED CLOSING ISSUE)
         ----------------------------------------------------
         function tabObj:CreateDropdown(titleText, optionsList, defaultOption, isMultiSelect, callback)
             optionsList = optionsList or {}
@@ -408,7 +405,7 @@ function Library:CreateWindow(options)
             local isOpen = false
             local selectedValues = {}
 
-            -- Initialize selection defaults
+            -- Initialize selections
             if isMultiSelect then
                 if type(defaultOption) == "table" then
                     for _, val in ipairs(defaultOption) do
@@ -437,12 +434,12 @@ function Library:CreateWindow(options)
             dStroke.Thickness = 1
             dStroke.Parent = dropdownContainer
 
-            -- Top Toggle Header
+            -- Top Toggle Bar (FIXED: Height strictly locked to 42 so it never covers list items below)
             local headerBtn = Instance.new("TextButton")
             headerBtn.Size = UDim2.new(1, 0, 0, 42)
             headerBtn.BackgroundTransparency = 1
             headerBtn.Text = ""
-            headerBtn.ZIndex = 2
+            headerBtn.ZIndex = 5
             headerBtn.Parent = dropdownContainer
 
             local label = Instance.new("TextLabel")
@@ -454,7 +451,7 @@ function Library:CreateWindow(options)
             label.TextColor3 = Color3.fromRGB(220, 220, 230)
             label.TextSize = 13
             label.TextXAlignment = Enum.TextXAlignment.Left
-            label.ZIndex = 2
+            label.ZIndex = 6
             label.Parent = headerBtn
 
             local selectedLabel = Instance.new("TextLabel")
@@ -465,7 +462,7 @@ function Library:CreateWindow(options)
             selectedLabel.TextColor3 = Window.AccentColor
             selectedLabel.TextSize = 12
             selectedLabel.TextXAlignment = Enum.TextXAlignment.Right
-            selectedLabel.ZIndex = 2
+            selectedLabel.ZIndex = 6
             selectedLabel.Parent = headerBtn
 
             local arrowIcon = Instance.new("TextLabel")
@@ -476,7 +473,7 @@ function Library:CreateWindow(options)
             arrowIcon.Text = "v"
             arrowIcon.TextColor3 = Color3.fromRGB(150, 150, 165)
             arrowIcon.TextSize = 12
-            arrowIcon.ZIndex = 2
+            arrowIcon.ZIndex = 6
             arrowIcon.Parent = headerBtn
 
             -- List Options Container
@@ -484,7 +481,7 @@ function Library:CreateWindow(options)
             optionListFrame.Size = UDim2.new(1, -16, 0, 0)
             optionListFrame.Position = UDim2.new(0, 8, 0, 42)
             optionListFrame.BackgroundTransparency = 1
-            optionListFrame.ZIndex = 3
+            optionListFrame.ZIndex = 10
             optionListFrame.Parent = dropdownContainer
 
             local listLayout = Instance.new("UIListLayout")
@@ -549,7 +546,7 @@ function Library:CreateWindow(options)
                     optBtn.TextSize = 12
                     optBtn.TextXAlignment = Enum.TextXAlignment.Left
                     optBtn.LayoutOrder = idx
-                    optBtn.ZIndex = 4
+                    optBtn.ZIndex = 11
                     optBtn.Parent = optionListFrame
 
                     local oCorner = Instance.new("UICorner")
@@ -558,20 +555,19 @@ function Library:CreateWindow(options)
 
                     optBtn.MouseButton1Click:Connect(function()
                         if isMultiSelect then
-                            -- Toggle state & keep open
+                            -- Toggle selected option and REMAIN OPEN
                             selectedValues[opt] = not selectedValues[opt]
                             updateHeaderLabel()
                             refreshList()
                             updateContainerHeight()
 
-                            -- Send updated list of items to callback
                             local selectedTable = {}
                             for item, sel in pairs(selectedValues) do
                                 if sel then table.insert(selectedTable, item) end
                             end
                             pcall(callback, selectedTable)
                         else
-                            -- Single select: set state & close dropdown smoothly
+                            -- Single select: update option and close smoothly
                             selectedValues = {[opt] = true}
                             updateHeaderLabel()
                             isOpen = false
@@ -587,7 +583,7 @@ function Library:CreateWindow(options)
             updateHeaderLabel()
             refreshList()
 
-            -- Toggle Open/Close Header Button
+            -- Header click toggles open/close
             headerBtn.MouseButton1Click:Connect(function()
                 isOpen = not isOpen
                 updateContainerHeight()
@@ -595,3 +591,11 @@ function Library:CreateWindow(options)
 
             return dropdownContainer
         end
+
+        return tabObj
+    end
+
+    return Window
+end
+
+return Library
