@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
@@ -199,12 +200,18 @@ function Library:CreateWindow(options)
         pageFrame.ScrollBarThickness = 4
         pageFrame.ScrollBarImageColor3 = Color3.fromRGB(50, 50, 65)
         pageFrame.Visible = false
+        pageFrame.ClipsDescendants = true
         pageFrame.Parent = Window.ContentArea
 
         local pageLayout = Instance.new("UIListLayout")
         pageLayout.SortOrder = Enum.SortOrder.LayoutOrder
         pageLayout.Padding = UDim.new(0, 8)
         pageLayout.Parent = pageFrame
+
+        local function updateCanvas()
+            pageFrame.CanvasSize = UDim2.new(0, 0, 0, pageLayout.AbsoluteContentSize.Y + 16)
+        end
+        pageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas)
 
         -- Sidebar Tab Button
         local tabBtn = Instance.new("TextButton")
@@ -236,7 +243,6 @@ function Library:CreateWindow(options)
 
         tabBtn.MouseButton1Click:Connect(activateTab)
 
-        -- Hover Animations
         tabBtn.MouseEnter:Connect(function()
             if Window.ActiveTab ~= tabObj then
                 TweenService:Create(tabBtn, TweenInfo.new(0.2), {
@@ -259,12 +265,13 @@ function Library:CreateWindow(options)
         tabObj.Button = tabBtn
         table.insert(Window.Tabs, tabObj)
 
-        -- Automatically select the first tab created
         if #Window.Tabs == 1 then
             activateTab()
         end
 
-        -- Tab Component Methods
+        ----------------------------------------------------
+        -- 1. BUTTON COMPONENT
+        ----------------------------------------------------
         function tabObj:CreateButton(btnText, callback)
             callback = callback or function() end
 
@@ -277,14 +284,14 @@ function Library:CreateWindow(options)
             actionBtn.TextSize = 13
             actionBtn.Parent = pageFrame
 
-            local btnCorner = Instance.new("UICorner")
-            btnCorner.CornerRadius = UDim.new(0, 6)
-            btnCorner.Parent = actionBtn
+            local bCorner = Instance.new("UICorner")
+            bCorner.CornerRadius = UDim.new(0, 6)
+            bCorner.Parent = actionBtn
 
-            local btnStroke = Instance.new("UIStroke")
-            btnStroke.Color = Color3.fromRGB(45, 45, 58)
-            btnStroke.Thickness = 1
-            btnStroke.Parent = actionBtn
+            local bStroke = Instance.new("UIStroke")
+            bStroke.Color = Color3.fromRGB(45, 45, 58)
+            bStroke.Thickness = 1
+            bStroke.Parent = actionBtn
 
             actionBtn.MouseEnter:Connect(function()
                 TweenService:Create(actionBtn, TweenInfo.new(0.15), {
@@ -299,7 +306,6 @@ function Library:CreateWindow(options)
             end)
 
             actionBtn.MouseButton1Click:Connect(function()
-                -- Click Feedback Animation
                 TweenService:Create(actionBtn, TweenInfo.new(0.08), {
                     Size = UDim2.new(1, -10, 0, 34)
                 }):Play()
@@ -311,9 +317,212 @@ function Library:CreateWindow(options)
                 pcall(callback)
             end)
 
-            -- Adjust canvas size for scrolling
-            pageFrame.CanvasSize = UDim2.new(0, 0, 0, pageLayout.AbsoluteContentSize.Y + 12)
             return actionBtn
+        end
+
+        ----------------------------------------------------
+        -- 2. INPUT TEXT COMPONENT
+        ----------------------------------------------------
+        function tabObj:CreateInput(titleText, placeholderText, callback)
+            callback = callback or function() end
+
+            local inputFrame = Instance.new("Frame")
+            inputFrame.Size = UDim2.new(1, -6, 0, 42)
+            inputFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+            inputFrame.Parent = pageFrame
+
+            local iCorner = Instance.new("UICorner")
+            iCorner.CornerRadius = UDim.new(0, 6)
+            iCorner.Parent = inputFrame
+
+            local iStroke = Instance.new("UIStroke")
+            iStroke.Color = Color3.fromRGB(45, 45, 58)
+            iStroke.Thickness = 1
+            iStroke.Parent = inputFrame
+
+            local label = Instance.new("TextLabel")
+            label.Size = UDim2.new(0.45, -12, 1, 0)
+            label.Position = UDim2.new(0, 12, 0, 0)
+            label.BackgroundTransparency = 1
+            label.Font = Enum.Font.GothamMedium
+            label.Text = titleText
+            label.TextColor3 = Color3.fromRGB(220, 220, 230)
+            label.TextSize = 13
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.Parent = inputFrame
+
+            local textBox = Instance.new("TextBox")
+            textBox.Size = UDim2.new(0.55, -12, 0, 28)
+            textBox.Position = UDim2.new(0.45, 0, 0.5, -14)
+            textBox.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
+            textBox.Font = Enum.Font.Gotham
+            textBox.PlaceholderText = placeholderText or "Enter text..."
+            textBox.PlaceholderColor3 = Color3.fromRGB(110, 110, 125)
+            textBox.Text = ""
+            textBox.TextColor3 = Color3.fromRGB(240, 240, 250)
+            textBox.TextSize = 12
+            textBox.ClearTextOnFocus = false
+            textBox.Parent = inputFrame
+
+            local boxCorner = Instance.new("UICorner")
+            boxCorner.CornerRadius = UDim.new(0, 4)
+            boxCorner.Parent = textBox
+
+            local boxStroke = Instance.new("UIStroke")
+            boxStroke.Color = Color3.fromRGB(45, 45, 55)
+            boxStroke.Thickness = 1
+            boxStroke.Parent = textBox
+
+            textBox.Focused:Connect(function()
+                TweenService:Create(boxStroke, TweenInfo.new(0.2), {
+                    Color = Window.AccentColor
+                }):Play()
+            end)
+
+            textBox.FocusLost:Connect(function(enterPressed)
+                TweenService:Create(boxStroke, TweenInfo.new(0.2), {
+                    Color = Color3.fromRGB(45, 45, 55)
+                }):Play()
+                pcall(callback, textBox.Text, enterPressed)
+            end)
+
+            return inputFrame
+        end
+
+        ----------------------------------------------------
+        -- 3. DROPDOWN COMPONENT
+        ----------------------------------------------------
+        function tabObj:CreateDropdown(titleText, optionsList, defaultOption, callback)
+            optionsList = optionsList or {}
+            callback = callback or function() end
+
+            local selectedValue = defaultOption or optionsList[1] or "Select..."
+            local isOpen = false
+
+            local dropdownContainer = Instance.new("Frame")
+            dropdownContainer.Size = UDim2.new(1, -6, 0, 42)
+            dropdownContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+            dropdownContainer.ClipsDescendants = true
+            dropdownContainer.Parent = pageFrame
+
+            local dCorner = Instance.new("UICorner")
+            dCorner.CornerRadius = UDim.new(0, 6)
+            dCorner.Parent = dropdownContainer
+
+            local dStroke = Instance.new("UIStroke")
+            dStroke.Color = Color3.fromRGB(45, 45, 58)
+            dStroke.Thickness = 1
+            dStroke.Parent = dropdownContainer
+
+            -- Top Toggle Button
+            local headerBtn = Instance.new("TextButton")
+            headerBtn.Size = UDim2.new(1, 0, 0, 42)
+            headerBtn.BackgroundTransparency = 1
+            headerBtn.Text = ""
+            headerBtn.Parent = dropdownContainer
+
+            local label = Instance.new("TextLabel")
+            label.Size = UDim2.new(0.5, -12, 1, 0)
+            label.Position = UDim2.new(0, 12, 0, 0)
+            label.BackgroundTransparency = 1
+            label.Font = Enum.Font.GothamMedium
+            label.Text = titleText
+            label.TextColor3 = Color3.fromRGB(220, 220, 230)
+            label.TextSize = 13
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.Parent = headerBtn
+
+            local selectedLabel = Instance.new("TextLabel")
+            selectedLabel.Size = UDim2.new(0.5, -28, 1, 0)
+            selectedLabel.Position = UDim2.new(0.5, 0, 0, 0)
+            selectedLabel.BackgroundTransparency = 1
+            selectedLabel.Font = Enum.Font.Gotham
+            selectedLabel.Text = tostring(selectedValue)
+            selectedLabel.TextColor3 = Window.AccentColor
+            selectedLabel.TextSize = 12
+            selectedLabel.TextXAlignment = Enum.TextXAlignment.Right
+            selectedLabel.Parent = headerBtn
+
+            local arrowIcon = Instance.new("TextLabel")
+            arrowIcon.Size = UDim2.new(0, 20, 1, 0)
+            arrowIcon.Position = UDim2.new(1, -24, 0, 0)
+            arrowIcon.BackgroundTransparency = 1
+            arrowIcon.Font = Enum.Font.GothamBold
+            arrowIcon.Text = "v"
+            arrowIcon.TextColor3 = Color3.fromRGB(150, 150, 165)
+            arrowIcon.TextSize = 12
+            arrowIcon.Parent = headerBtn
+
+            -- List Options Container
+            local optionListFrame = Instance.new("Frame")
+            optionListFrame.Size = UDim2.new(1, -16, 0, 0)
+            optionListFrame.Position = UDim2.new(0, 8, 0, 42)
+            optionListFrame.BackgroundTransparency = 1
+            optionListFrame.Parent = dropdownContainer
+
+            local listLayout = Instance.new("UIListLayout")
+            listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            listLayout.Padding = UDim.new(0, 4)
+            listLayout.Parent = optionListFrame
+
+            local function refreshList()
+                -- Clear existing items
+                for _, child in pairs(optionListFrame:GetChildren()) do
+                    if child:IsA("TextButton") then
+                        child:Destroy()
+                    end
+                end
+
+                for idx, opt in ipairs(optionsList) do
+                    local optBtn = Instance.new("TextButton")
+                    optBtn.Size = UDim2.new(1, 0, 0, 28)
+                    optBtn.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
+                    optBtn.Font = Enum.Font.Gotham
+                    optBtn.Text = "   " .. tostring(opt)
+                    optBtn.TextColor3 = (opt == selectedValue) and Window.AccentColor or Color3.fromRGB(180, 180, 195)
+                    optBtn.TextSize = 12
+                    optBtn.TextXAlignment = Enum.TextXAlignment.Left
+                    optBtn.LayoutOrder = idx
+                    optBtn.Parent = optionListFrame
+
+                    local oCorner = Instance.new("UICorner")
+                    oCorner.CornerRadius = UDim.new(0, 4)
+                    oCorner.Parent = optBtn
+
+                    optBtn.MouseButton1Click:Connect(function()
+                        selectedValue = opt
+                        selectedLabel.Text = tostring(selectedValue)
+                        isOpen = false
+                        
+                        TweenService:Create(dropdownContainer, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                            Size = UDim2.new(1, -6, 0, 42)
+                        }):Play()
+                        TweenService:Create(arrowIcon, TweenInfo.new(0.2), {Rotation = 0}):Play()
+
+                        refreshList()
+                        pcall(callback, selectedValue)
+                    end)
+                end
+            end
+
+            refreshList()
+
+            -- Toggle Open/Close
+            headerBtn.MouseButton1Click:Connect(function()
+                isOpen = not isOpen
+                local listHeight = listLayout.AbsoluteContentSize.Y
+                local targetHeight = isOpen and (48 + listHeight) or 42
+
+                TweenService:Create(dropdownContainer, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                    Size = UDim2.new(1, -6, 0, targetHeight)
+                }):Play()
+
+                TweenService:Create(arrowIcon, TweenInfo.new(0.2), {
+                    Rotation = isOpen and 180 or 0
+                }):Play()
+            end)
+
+            return dropdownContainer
         end
 
         return tabObj
