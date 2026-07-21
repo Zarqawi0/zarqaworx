@@ -219,7 +219,7 @@ function Library:CreateWindow(options)
         tabBtn.BackgroundColor3 = Window.AccentColor
         tabBtn.BackgroundTransparency = 1
         tabBtn.Font = Enum.Font.GothamMedium
-        tabBtn.Text = "   " .. tabName
+        tabBtn.Text = "    " .. tabName
         tabBtn.TextColor3 = Color3.fromRGB(160, 160, 175)
         tabBtn.TextSize = 13
         tabBtn.TextXAlignment = Enum.TextXAlignment.Left
@@ -390,14 +390,32 @@ function Library:CreateWindow(options)
         end
 
         ----------------------------------------------------
-        -- 3. DROPDOWN COMPONENT
+        -- 3. DROPDOWN COMPONENT (SINGLE & MULTI SELECT)
         ----------------------------------------------------
-        function tabObj:CreateDropdown(titleText, optionsList, defaultOption, callback)
+        function tabObj:CreateDropdown(titleText, optionsList, defaultOption, isMultiSelect, callback)
             optionsList = optionsList or {}
+            
+            -- Rearrange arguments if isMultiSelect was omitted (backward compatibility)
+            if type(isMultiSelect) == "function" then
+                callback = isMultiSelect
+                isMultiSelect = false
+            end
             callback = callback or function() end
 
-            local selectedValue = defaultOption or optionsList[1] or "Select..."
             local isOpen = false
+            local selectedValues = {}
+
+            -- Multi-Select or Single-Select Defaulting
+            if isMultiSelect then
+                if type(defaultOption) == "table" then
+                    for _, val in ipairs(defaultOption) do
+                        selectedValues[val] = true
+                    end
+                end
+            else
+                local initialVal = defaultOption or optionsList[1] or "Select..."
+                selectedValues[initialVal] = true
+            end
 
             local dropdownContainer = Instance.new("Frame")
             dropdownContainer.Size = UDim2.new(1, -6, 0, 42)
@@ -437,7 +455,6 @@ function Library:CreateWindow(options)
             selectedLabel.Position = UDim2.new(0.5, 0, 0, 0)
             selectedLabel.BackgroundTransparency = 1
             selectedLabel.Font = Enum.Font.Gotham
-            selectedLabel.Text = tostring(selectedValue)
             selectedLabel.TextColor3 = Window.AccentColor
             selectedLabel.TextSize = 12
             selectedLabel.TextXAlignment = Enum.TextXAlignment.Right
@@ -465,6 +482,28 @@ function Library:CreateWindow(options)
             listLayout.Padding = UDim.new(0, 4)
             listLayout.Parent = optionListFrame
 
+            local function updateHeaderLabel()
+                if isMultiSelect then
+                    local list = {}
+                    for opt, isSel in pairs(selectedValues) do
+                        if isSel then
+                            table.insert(list, tostring(opt))
+                        end
+                    end
+                    if #list == 0 then
+                        selectedLabel.Text = "None"
+                    else
+                        selectedLabel.Text = table.concat(list, ", ")
+                    end
+                else
+                    local current = "Select..."
+                    for opt, isSel in pairs(selectedValues) do
+                        if isSel then current = tostring(opt) break end
+                    end
+                    selectedLabel.Text = current
+                end
+            end
+
             local function refreshList()
                 -- Clear existing items
                 for _, child in pairs(optionListFrame:GetChildren()) do
@@ -474,12 +513,13 @@ function Library:CreateWindow(options)
                 end
 
                 for idx, opt in ipairs(optionsList) do
+                    local isSelected = selectedValues[opt] == true
                     local optBtn = Instance.new("TextButton")
                     optBtn.Size = UDim2.new(1, 0, 0, 28)
-                    optBtn.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
+                    optBtn.BackgroundColor3 = isSelected and Color3.fromRGB(35, 35, 45) or Color3.fromRGB(22, 22, 28)
                     optBtn.Font = Enum.Font.Gotham
-                    optBtn.Text = "   " .. tostring(opt)
-                    optBtn.TextColor3 = (opt == selectedValue) and Window.AccentColor or Color3.fromRGB(180, 180, 195)
+                    optBtn.Text = "    " .. (isSelected and (isMultiSelect and "✓ " or "") or "") .. tostring(opt)
+                    optBtn.TextColor3 = isSelected and Window.AccentColor or Color3.fromRGB(180, 180, 195)
                     optBtn.TextSize = 12
                     optBtn.TextXAlignment = Enum.TextXAlignment.Left
                     optBtn.LayoutOrder = idx
@@ -490,21 +530,44 @@ function Library:CreateWindow(options)
                     oCorner.Parent = optBtn
 
                     optBtn.MouseButton1Click:Connect(function()
-                        selectedValue = opt
-                        selectedLabel.Text = tostring(selectedValue)
-                        isOpen = false
-                        
-                        TweenService:Create(dropdownContainer, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-                            Size = UDim2.new(1, -6, 0, 42)
-                        }):Play()
-                        TweenService:Create(arrowIcon, TweenInfo.new(0.2), {Rotation = 0}):Play()
+                        if isMultiSelect then
+                            -- Toggle selection state
+                            selectedValues[opt] = not selectedValues[opt]
+                            updateHeaderLabel()
+                            refreshList()
 
-                        refreshList()
-                        pcall(callback, selectedValue)
+                            -- Extract list of currently selected items
+                            local selectedTable = {}
+                            for item, sel in pairs(selectedValues) do
+                                if sel then table.insert(selectedTable, item) end
+                            end
+
+                            -- Auto adjust container size dynamically
+                            if isOpen then
+                                local listHeight = listLayout.AbsoluteContentSize.Y
+                                dropdownContainer.Size = UDim2.new(1, -6, 0, 48 + listHeight)
+                            end
+
+                            pcall(callback, selectedTable)
+                        else
+                            -- Single selection
+                            selectedValues = {[opt] = true}
+                            updateHeaderLabel()
+                            isOpen = false
+
+                            TweenService:Create(dropdownContainer, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                                Size = UDim2.new(1, -6, 0, 42)
+                            }):Play()
+                            TweenService:Create(arrowIcon, TweenInfo.new(0.2), {Rotation = 0}):Play()
+
+                            refreshList()
+                            pcall(callback, opt)
+                        end
                     end)
                 end
             end
 
+            updateHeaderLabel()
             refreshList()
 
             -- Toggle Open/Close
