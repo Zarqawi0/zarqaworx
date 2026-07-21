@@ -390,7 +390,7 @@ function Library:CreateWindow(options)
         end
 
         ----------------------------------------------------
-        -- 3. DROPDOWN COMPONENT (ALWAYS STAYS OPEN)
+        -- 3. DROPDOWN COMPONENT
         ----------------------------------------------------
         function tabObj:CreateDropdown(titleText, optionsList, defaultOption, isMultiSelect, callback)
             optionsList = optionsList or {}
@@ -555,7 +555,6 @@ function Library:CreateWindow(options)
 
                     optBtn.MouseButton1Click:Connect(function()
                         if isMultiSelect then
-                            -- Multi-select toggle
                             selectedValues[opt] = not selectedValues[opt]
                             updateHeaderLabel()
                             refreshList()
@@ -567,7 +566,6 @@ function Library:CreateWindow(options)
                             end
                             pcall(callback, selectedTable)
                         else
-                            -- Single-select update (REMAINS OPEN)
                             selectedValues = {[opt] = true}
                             updateHeaderLabel()
                             refreshList()
@@ -582,13 +580,96 @@ function Library:CreateWindow(options)
             updateHeaderLabel()
             refreshList()
 
-            -- Header click explicitly toggles open/close
             headerBtn.MouseButton1Click:Connect(function()
                 isOpen = not isOpen
                 updateContainerHeight()
             end)
 
             return dropdownContainer
+        end
+
+        ----------------------------------------------------
+        -- 4. TOGGLE COMPONENT
+        ----------------------------------------------------
+        function tabObj:CreateToggle(titleText, defaultState, callback)
+            callback = callback or function() end
+            local toggled = defaultState or false
+
+            local toggleContainer = Instance.new("Frame")
+            toggleContainer.Size = UDim2.new(1, -6, 0, 42)
+            toggleContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+            toggleContainer.Parent = pageFrame
+
+            local tCorner = Instance.new("UICorner")
+            tCorner.CornerRadius = UDim.new(0, 6)
+            tCorner.Parent = toggleContainer
+
+            local tStroke = Instance.new("UIStroke")
+            tStroke.Color = Color3.fromRGB(45, 45, 58)
+            tStroke.Thickness = 1
+            tStroke.Parent = toggleContainer
+
+            local label = Instance.new("TextLabel")
+            label.Size = UDim2.new(0.7, -12, 1, 0)
+            label.Position = UDim2.new(0, 12, 0, 0)
+            label.BackgroundTransparency = 1
+            label.Font = Enum.Font.GothamMedium
+            label.Text = titleText
+            label.TextColor3 = Color3.fromRGB(220, 220, 230)
+            label.TextSize = 13
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.Parent = toggleContainer
+
+            -- Switch Track Button
+            local switchBtn = Instance.new("TextButton")
+            switchBtn.Size = UDim2.new(0, 42, 0, 22)
+            switchBtn.Position = UDim2.new(1, -52, 0.5, -11)
+            switchBtn.BackgroundColor3 = toggled and Window.AccentColor or Color3.fromRGB(20, 20, 26)
+            switchBtn.Text = ""
+            switchBtn.Parent = toggleContainer
+
+            local switchCorner = Instance.new("UICorner")
+            switchCorner.CornerRadius = UDim.new(1, 0)
+            switchCorner.Parent = switchBtn
+
+            local switchStroke = Instance.new("UIStroke")
+            switchStroke.Color = Color3.fromRGB(45, 45, 55)
+            switchStroke.Thickness = 1
+            switchStroke.Parent = switchBtn
+
+            -- Switch Circle Thumb
+            local circle = Instance.new("Frame")
+            circle.Size = UDim2.new(0, 16, 0, 16)
+            circle.Position = toggled and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+            circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            circle.Parent = switchBtn
+
+            local circleCorner = Instance.new("UICorner")
+            circleCorner.CornerRadius = UDim.new(1, 0)
+            circleCorner.Parent = circle
+
+            local function updateToggle()
+                local targetBg = toggled and Window.AccentColor or Color3.fromRGB(20, 20, 26)
+                local targetPos = toggled and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+
+                TweenService:Create(switchBtn, TweenInfo.new(0.2), {BackgroundColor3 = targetBg}):Play()
+                TweenService:Create(circle, TweenInfo.new(0.2), {Position = targetPos}):Play()
+            end
+
+            -- Entire row is clickable
+            local clickOverlay = Instance.new("TextButton")
+            clickOverlay.Size = UDim2.new(1, 0, 1, 0)
+            clickOverlay.BackgroundTransparency = 1
+            clickOverlay.Text = ""
+            clickOverlay.Parent = toggleContainer
+
+            clickOverlay.MouseButton1Click:Connect(function()
+                toggled = not toggled
+                updateToggle()
+                pcall(callback, toggled)
+            end)
+
+            return toggleContainer
         end
 
         return tabObj
