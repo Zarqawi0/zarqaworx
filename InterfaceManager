@@ -390,7 +390,7 @@ function Library:CreateWindow(options)
         end
 
         ----------------------------------------------------
-        -- 3. DROPDOWN COMPONENT (FIXED CLOSING ISSUE)
+        -- 3. DROPDOWN COMPONENT (ALWAYS STAYS OPEN)
         ----------------------------------------------------
         function tabObj:CreateDropdown(titleText, optionsList, defaultOption, isMultiSelect, callback)
             optionsList = optionsList or {}
@@ -434,7 +434,7 @@ function Library:CreateWindow(options)
             dStroke.Thickness = 1
             dStroke.Parent = dropdownContainer
 
-            -- Top Toggle Bar (FIXED: Height strictly locked to 42 so it never covers list items below)
+            -- Top Toggle Bar
             local headerBtn = Instance.new("TextButton")
             headerBtn.Size = UDim2.new(1, 0, 0, 42)
             headerBtn.BackgroundTransparency = 1
@@ -555,7 +555,7 @@ function Library:CreateWindow(options)
 
                     optBtn.MouseButton1Click:Connect(function()
                         if isMultiSelect then
-                            -- Toggle selected option and REMAIN OPEN
+                            -- Multi-select toggle
                             selectedValues[opt] = not selectedValues[opt]
                             updateHeaderLabel()
                             refreshList()
@@ -567,13 +567,12 @@ function Library:CreateWindow(options)
                             end
                             pcall(callback, selectedTable)
                         else
-                            -- Single select: update option and close smoothly
+                            -- Single-select update (REMAINS OPEN)
                             selectedValues = {[opt] = true}
                             updateHeaderLabel()
-                            isOpen = false
-                            
                             refreshList()
                             updateContainerHeight()
+
                             pcall(callback, opt)
                         end
                     end)
@@ -583,7 +582,7 @@ function Library:CreateWindow(options)
             updateHeaderLabel()
             refreshList()
 
-            -- Header click toggles open/close
+            -- Header click explicitly toggles open/close
             headerBtn.MouseButton1Click:Connect(function()
                 isOpen = not isOpen
                 updateContainerHeight()
