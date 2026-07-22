@@ -86,7 +86,7 @@ function Library:CreateWindow(options)
     subTitleLabel.Text = windowSubTitle
     subTitleLabel.Parent = titleContainer
 
-    -- Custom Dragging logic strictly bound to title header / sidebar area (White area is excluded)
+    -- Custom Dragging logic strictly bound to title header / sidebar area
     local dragging, dragInput, dragStart, startPos
     local function updateDrag(input)
         local delta = input.Position - dragStart
@@ -184,13 +184,13 @@ function Library:CreateWindow(options)
     keyStatusLabel.Text = "Lifetime Key"
     keyStatusLabel.Parent = userProfile
 
-    -- Content Area fixed: Size reduced with 10% Opacity (0.9 Transparency)
+    -- Content Area: 10% Opacity (0.9 Transparency) & contained within bounds
     local contentArea = Instance.new("Frame")
     contentArea.Name = "ContentArea"
     contentArea.Size = UDim2.new(1, -210, 1, -56)
     contentArea.Position = UDim2.new(0, 195, 0, 14)
     contentArea.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
-    contentArea.BackgroundTransparency = 0.9 -- Opacity 10%
+    contentArea.BackgroundTransparency = 0.9
     contentArea.BorderSizePixel = 0
     contentArea.ClipsDescendants = true
     contentArea.Parent = mainFrame
@@ -457,7 +457,6 @@ function Library:CreateWindow(options)
             boxStroke.Thickness = 1
             boxStroke.Parent = textBox
 
-            -- Clears Placeholder on Click/Focus (Image 3 Fix)
             textBox.Focused:Connect(function()
                 textBox.PlaceholderText = ""
                 TweenService:Create(boxStroke, TweenInfo.new(0.15), {
@@ -476,6 +475,439 @@ function Library:CreateWindow(options)
             end)
 
             return inputFrame
+        end
+
+        function tabObj:CreateDropdown(titleText, optionsList, defaultOption, isMultiSelect, callback, side)
+            optionsList = optionsList or {}
+            if type(isMultiSelect) == "function" then
+                side = callback
+                callback = isMultiSelect
+                isMultiSelect = false
+            end
+            callback = callback or function() end
+            local parentCol = getTargetParent(side)
+
+            local isOpen = false
+            local selectedValues = {}
+            local searchQuery = ""
+
+            if isMultiSelect then
+                if type(defaultOption) == "table" then
+                    for _, val in ipairs(defaultOption) do selectedValues[val] = true end
+                end
+            else
+                local initialVal = defaultOption or optionsList[1]
+                if initialVal then selectedValues[initialVal] = true end
+            end
+
+            local dropdownContainer = Instance.new("Frame")
+            dropdownContainer.Size = UDim2.new(1, 0, 0, 46)
+            dropdownContainer.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
+            dropdownContainer.ClipsDescendants = true
+            dropdownContainer.Parent = parentCol
+
+            local dCorner = Instance.new("UICorner")
+            dCorner.CornerRadius = UDim.new(0, 6)
+            dCorner.Parent = dropdownContainer
+
+            local dStroke = Instance.new("UIStroke")
+            dStroke.Color = Color3.fromRGB(35, 35, 45)
+            dStroke.Thickness = 1
+            dStroke.Parent = dropdownContainer
+
+            local headerBtn = Instance.new("TextButton")
+            headerBtn.Size = UDim2.new(1, 0, 0, 46)
+            headerBtn.BackgroundTransparency = 1
+            headerBtn.Text = ""
+            headerBtn.ZIndex = 5
+            headerBtn.Parent = dropdownContainer
+
+            local label = Instance.new("TextLabel")
+            label.Size = UDim2.new(0.42, -12, 1, 0)
+            label.Position = UDim2.new(0, 12, 0, 0)
+            label.BackgroundTransparency = 1
+            label.Font = Enum.Font.GothamMedium
+            label.Text = titleText
+            label.TextColor3 = Color3.fromRGB(210, 210, 220)
+            label.TextSize = 13
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.TextTruncate = Enum.TextTruncate.AtEnd
+            label.ZIndex = 6
+            label.Parent = headerBtn
+
+            local selectedLabel = Instance.new("TextLabel")
+            selectedLabel.Size = UDim2.new(0.58, -32, 1, 0)
+            selectedLabel.Position = UDim2.new(0.42, 0, 0, 0)
+            selectedLabel.BackgroundTransparency = 1
+            selectedLabel.Font = Enum.Font.Gotham
+            selectedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+            selectedLabel.TextSize = 12
+            selectedLabel.TextXAlignment = Enum.TextXAlignment.Right
+            selectedLabel.TextTruncate = Enum.TextTruncate.AtEnd
+            selectedLabel.ZIndex = 6
+            selectedLabel.Parent = headerBtn
+
+            local arrowIcon = Instance.new("TextLabel")
+            arrowIcon.Size = UDim2.new(0, 18, 1, 0)
+            arrowIcon.Position = UDim2.new(1, -22, 0, 0)
+            arrowIcon.BackgroundTransparency = 1
+            arrowIcon.Font = Enum.Font.GothamBold
+            arrowIcon.Text = "v"
+            arrowIcon.TextColor3 = Color3.fromRGB(130, 130, 145)
+            arrowIcon.TextSize = 12
+            arrowIcon.ZIndex = 6
+            arrowIcon.Parent = headerBtn
+
+            local searchBoxFrame = Instance.new("Frame")
+            searchBoxFrame.Size = UDim2.new(1, -16, 0, 28)
+            searchBoxFrame.Position = UDim2.new(0, 8, 0, 48)
+            searchBoxFrame.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
+            searchBoxFrame.ZIndex = 10
+            searchBoxFrame.Parent = dropdownContainer
+
+            local searchCorner = Instance.new("UICorner")
+            searchCorner.CornerRadius = UDim.new(0, 4)
+            searchCorner.Parent = searchBoxFrame
+
+            local searchStroke = Instance.new("UIStroke")
+            searchStroke.Color = Color3.fromRGB(35, 35, 45)
+            searchStroke.Thickness = 1
+            searchStroke.Parent = searchBoxFrame
+
+            local searchInput = Instance.new("TextBox")
+            searchInput.Size = UDim2.new(1, -12, 1, 0)
+            searchInput.Position = UDim2.new(0, 6, 0, 0)
+            searchInput.BackgroundTransparency = 1
+            searchInput.Font = Enum.Font.Gotham
+            searchInput.PlaceholderText = "Search..."
+            searchInput.PlaceholderColor3 = Color3.fromRGB(90, 90, 105)
+            searchInput.Text = ""
+            searchInput.TextColor3 = Color3.fromRGB(230, 230, 240)
+            searchInput.TextSize = 12
+            searchInput.TextXAlignment = Enum.TextXAlignment.Left
+            searchInput.ClearTextOnFocus = false
+            searchInput.ZIndex = 11
+            searchInput.Parent = searchBoxFrame
+
+            local optionListFrame = Instance.new("Frame")
+            optionListFrame.Size = UDim2.new(1, -16, 0, 0)
+            optionListFrame.Position = UDim2.new(0, 8, 0, 82)
+            optionListFrame.BackgroundTransparency = 1
+            optionListFrame.ZIndex = 10
+            optionListFrame.Parent = dropdownContainer
+
+            local listLayout = Instance.new("UIListLayout")
+            listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            listLayout.Padding = UDim.new(0, 4)
+            listLayout.Parent = optionListFrame
+
+            local function updateHeaderLabel()
+                if isMultiSelect then
+                    local list = {}
+                    for opt, isSel in pairs(selectedValues) do
+                        if isSel then table.insert(list, tostring(opt)) end
+                    end
+                    selectedLabel.Text = (#list == 0) and "None" or table.concat(list, ", ")
+                else
+                    local current = "Select..."
+                    for opt, isSel in pairs(selectedValues) do
+                        if isSel then current = tostring(opt) break end
+                    end
+                    selectedLabel.Text = current
+                end
+            end
+
+            local function updateContainerHeight()
+                local listHeight = listLayout.AbsoluteContentSize.Y
+                local targetHeight = isOpen and (90 + listHeight) or 46
+
+                TweenService:Create(dropdownContainer, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                    Size = UDim2.new(1, 0, 0, targetHeight)
+                }):Play()
+
+                TweenService:Create(arrowIcon, TweenInfo.new(0.2), {
+                    Rotation = isOpen and 180 or 0
+                }):Play()
+            end
+
+            local function refreshList()
+                for _, child in pairs(optionListFrame:GetChildren()) do
+                    if child:IsA("TextButton") then child:Destroy() end
+                end
+
+                for idx, opt in ipairs(optionsList) do
+                    local strOpt = tostring(opt)
+                    if searchQuery == "" or string.find(string.lower(strOpt), string.lower(searchQuery), 1, true) then
+                        local isSelected = selectedValues[opt] == true
+                        local optBtn = Instance.new("TextButton")
+                        optBtn.Size = UDim2.new(1, 0, 0, 26)
+                        optBtn.BackgroundColor3 = isSelected and Color3.fromRGB(30, 30, 40) or Color3.fromRGB(18, 18, 22)
+                        optBtn.Font = Enum.Font.Gotham
+                        optBtn.Text = "   " .. (isSelected and "• " or "") .. strOpt
+                        optBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+                        optBtn.TextSize = 12
+                        optBtn.TextXAlignment = Enum.TextXAlignment.Left
+                        optBtn.LayoutOrder = idx
+                        optBtn.ZIndex = 11
+                        optBtn.Parent = optionListFrame
+
+                        local oCorner = Instance.new("UICorner")
+                        oCorner.CornerRadius = UDim.new(0, 4)
+                        oCorner.Parent = optBtn
+
+                        optBtn.MouseButton1Click:Connect(function()
+                            if isMultiSelect then
+                                selectedValues[opt] = not selectedValues[opt]
+                                updateHeaderLabel()
+                                refreshList()
+                                updateContainerHeight()
+
+                                local selectedTable = {}
+                                for item, sel in pairs(selectedValues) do
+                                    if sel then table.insert(selectedTable, item) end
+                                end
+                                pcall(callback, selectedTable)
+                            else
+                                selectedValues = {[opt] = true}
+                                updateHeaderLabel()
+                                refreshList()
+                                updateContainerHeight()
+
+                                pcall(callback, opt)
+                            end
+                        end)
+                    end
+                end
+            end
+
+            searchInput:GetPropertyChangedSignal("Text"):Connect(function()
+                searchQuery = searchInput.Text
+                refreshList()
+                updateContainerHeight()
+            end)
+
+            updateHeaderLabel()
+            refreshList()
+
+            headerBtn.MouseButton1Click:Connect(function()
+                isOpen = not isOpen
+                updateContainerHeight()
+            end)
+
+            local DropdownController = {
+                Instance = dropdownContainer
+            }
+
+            function DropdownController:SetTitle(newTitle)
+                label.Text = tostring(newTitle)
+            end
+
+            function DropdownController:SetOptions(newList, newDefault)
+                optionsList = newList or {}
+                selectedValues = {}
+                if isMultiSelect then
+                    if type(newDefault) == "table" then
+                        for _, val in ipairs(newDefault) do selectedValues[val] = true end
+                    end
+                else
+                    local initialVal = newDefault or optionsList[1]
+                    if initialVal then selectedValues[initialVal] = true end
+                end
+                updateHeaderLabel()
+                refreshList()
+                updateContainerHeight()
+            end
+
+            function DropdownController:Refresh()
+                refreshList()
+                updateContainerHeight()
+            end
+
+            return DropdownController
+        end
+
+        function tabObj:CreateToggle(titleText, defaultState, callback, side)
+            callback = callback or function() end
+            local toggled = defaultState or false
+            local parentCol = getTargetParent(side)
+
+            local toggleContainer = Instance.new("Frame")
+            toggleContainer.Size = UDim2.new(1, 0, 0, 46)
+            toggleContainer.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
+            toggleContainer.Parent = parentCol
+
+            local tCorner = Instance.new("UICorner")
+            tCorner.CornerRadius = UDim.new(0, 6)
+            tCorner.Parent = toggleContainer
+
+            local tStroke = Instance.new("UIStroke")
+            tStroke.Color = Color3.fromRGB(35, 35, 45)
+            tStroke.Thickness = 1
+            tStroke.Parent = toggleContainer
+
+            local label = Instance.new("TextLabel")
+            label.Size = UDim2.new(0.7, -10, 1, 0)
+            label.Position = UDim2.new(0, 12, 0, 0)
+            label.BackgroundTransparency = 1
+            label.Font = Enum.Font.GothamMedium
+            label.Text = titleText
+            label.TextColor3 = Color3.fromRGB(210, 210, 220)
+            label.TextSize = 14
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.Parent = toggleContainer
+
+            local switchBtn = Instance.new("TextButton")
+            switchBtn.Size = UDim2.new(0, 38, 0, 20)
+            switchBtn.Position = UDim2.new(1, -48, 0.5, -10)
+            switchBtn.BackgroundColor3 = toggled and Window.AccentColor or Color3.fromRGB(16, 16, 20)
+            switchBtn.Text = ""
+            switchBtn.Parent = toggleContainer
+
+            local switchCorner = Instance.new("UICorner")
+            switchCorner.CornerRadius = UDim.new(1, 0)
+            switchCorner.Parent = switchBtn
+
+            local circle = Instance.new("Frame")
+            circle.Size = UDim2.new(0, 16, 0, 16)
+            circle.Position = toggled and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
+            circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            circle.Parent = switchBtn
+
+            local circleCorner = Instance.new("UICorner")
+            circleCorner.CornerRadius = UDim.new(1, 0)
+            circleCorner.Parent = circle
+
+            local function updateToggle()
+                local targetBg = toggled and Window.AccentColor or Color3.fromRGB(16, 16, 20)
+                local targetPos = toggled and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
+
+                TweenService:Create(switchBtn, TweenInfo.new(0.2), {BackgroundColor3 = targetBg}):Play()
+                TweenService:Create(circle, TweenInfo.new(0.2), {Position = targetPos}):Play()
+            end
+
+            local clickOverlay = Instance.new("TextButton")
+            clickOverlay.Size = UDim2.new(1, 0, 1, 0)
+            clickOverlay.BackgroundTransparency = 1
+            clickOverlay.Text = ""
+            clickOverlay.Parent = toggleContainer
+
+            clickOverlay.MouseButton1Click:Connect(function()
+                toggled = not toggled
+                updateToggle()
+                pcall(callback, toggled)
+            end)
+
+            return toggleContainer
+        end
+
+        function tabObj:CreateParagraph(titleText, contentText, side)
+            local parentCol = getTargetParent(side)
+
+            local paraFrame = Instance.new("Frame")
+            paraFrame.Size = UDim2.new(1, 0, 0, 0)
+            paraFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
+            paraFrame.Parent = parentCol
+
+            local pCorner = Instance.new("UICorner")
+            pCorner.CornerRadius = UDim.new(0, 6)
+            pCorner.Parent = paraFrame
+
+            local pStroke = Instance.new("UIStroke")
+            pStroke.Color = Color3.fromRGB(35, 35, 45)
+            pStroke.Thickness = 1
+            pStroke.Parent = paraFrame
+
+            local titleLabel = Instance.new("TextLabel")
+            titleLabel.Size = UDim2.new(1, -28, 0, 22)
+            titleLabel.Position = UDim2.new(0, 14, 0, 14)
+            titleLabel.BackgroundTransparency = 1
+            titleLabel.Font = Enum.Font.GothamBold
+            titleLabel.Text = titleText
+            titleLabel.TextColor3 = Color3.fromRGB(230, 230, 240)
+            titleLabel.TextSize = 15
+            titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+            titleLabel.Parent = paraFrame
+
+            local contentLabel = Instance.new("TextLabel")
+            contentLabel.Size = UDim2.new(1, -28, 0, 0)
+            contentLabel.Position = UDim2.new(0, 14, 0, 40)
+            contentLabel.BackgroundTransparency = 1
+            contentLabel.Font = Enum.Font.Gotham
+            contentLabel.Text = contentText
+            contentLabel.TextColor3 = Color3.fromRGB(180, 180, 195)
+            contentLabel.TextSize = 14
+            contentLabel.TextXAlignment = Enum.TextXAlignment.Left
+            contentLabel.TextYAlignment = Enum.TextYAlignment.Top
+            contentLabel.TextWrapped = true
+            contentLabel.Parent = paraFrame
+
+            local function resize()
+                contentLabel.Size = UDim2.new(1, -28, 0, contentLabel.TextBounds.Y)
+                paraFrame.Size = UDim2.new(1, 0, 0, contentLabel.TextBounds.Y + 56)
+            end
+            contentLabel:GetPropertyChangedSignal("TextBounds"):Connect(resize)
+            task.spawn(resize)
+
+            return paraFrame
+        end
+
+        function tabObj:CreateImageParagraph(titleText, contentText, imageId, side)
+            local parentCol = getTargetParent(side)
+
+            local paraFrame = Instance.new("Frame")
+            paraFrame.Size = UDim2.new(1, 0, 0, 0)
+            paraFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
+            paraFrame.Parent = parentCol
+
+            local pCorner = Instance.new("UICorner")
+            pCorner.CornerRadius = UDim.new(0, 6)
+            pCorner.Parent = paraFrame
+
+            local pStroke = Instance.new("UIStroke")
+            pStroke.Color = Color3.fromRGB(35, 35, 45)
+            pStroke.Thickness = 1
+            pStroke.Parent = paraFrame
+
+            local imgLabel = Instance.new("ImageLabel")
+            imgLabel.Size = UDim2.new(0, 32, 0, 32)
+            imgLabel.Position = UDim2.new(0, 14, 0, 14)
+            imgLabel.BackgroundTransparency = 1
+            imgLabel.Image = imageId or ""
+            imgLabel.Parent = paraFrame
+
+            local titleLabel = Instance.new("TextLabel")
+            titleLabel.Size = UDim2.new(1, -64, 0, 22)
+            titleLabel.Position = UDim2.new(0, 54, 0, 14)
+            titleLabel.BackgroundTransparency = 1
+            titleLabel.Font = Enum.Font.GothamBold
+            titleLabel.Text = titleText
+            titleLabel.TextColor3 = Color3.fromRGB(230, 230, 240)
+            titleLabel.TextSize = 15
+            titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+            titleLabel.Parent = paraFrame
+
+            local contentLabel = Instance.new("TextLabel")
+            contentLabel.Size = UDim2.new(1, -64, 0, 0)
+            contentLabel.Position = UDim2.new(0, 54, 0, 40)
+            contentLabel.BackgroundTransparency = 1
+            contentLabel.Font = Enum.Font.Gotham
+            contentLabel.Text = contentText
+            contentLabel.TextColor3 = Color3.fromRGB(180, 180, 195)
+            contentLabel.TextSize = 14
+            contentLabel.TextXAlignment = Enum.TextXAlignment.Left
+            contentLabel.TextYAlignment = Enum.TextYAlignment.Top
+            contentLabel.TextWrapped = true
+            contentLabel.Parent = paraFrame
+
+            local function resize()
+                contentLabel.Size = UDim2.new(1, -64, 0, contentLabel.TextBounds.Y)
+                local calculatedHeight = math.max(contentLabel.TextBounds.Y + 56, 72)
+                paraFrame.Size = UDim2.new(1, 0, 0, calculatedHeight)
+            end
+            contentLabel:GetPropertyChangedSignal("TextBounds"):Connect(resize)
+            task.spawn(resize)
+
+            return paraFrame
         end
 
         function tabObj:CreateSlider(titleText, minVal, maxVal, defaultVal, callback, side)
@@ -518,7 +950,7 @@ function Library:CreateWindow(options)
             valInput.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
             valInput.Font = Enum.Font.Gotham
             valInput.Text = tostring(currentVal)
-            valInput.TextColor3 = Color3.fromRGB(255, 255, 255) -- White Font (Image 2 Fix)
+            valInput.TextColor3 = Color3.fromRGB(255, 255, 255)
             valInput.TextSize = 12
             valInput.ClearTextOnFocus = false
             valInput.Parent = sliderContainer
