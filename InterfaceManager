@@ -450,6 +450,8 @@ function Library:CreateWindow(options)
             textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
             textBox.TextSize = 13
             textBox.ClearTextOnFocus = false
+            textBox.CursorColor = Color3.fromRGB(255, 255, 255)
+            textBox.SelectionStart = -1
             textBox.Parent = inputFrame
 
             local boxCorner = Instance.new("UICorner")
@@ -594,6 +596,7 @@ function Library:CreateWindow(options)
             searchInput.TextSize = 12
             searchInput.TextXAlignment = Enum.TextXAlignment.Left
             searchInput.ClearTextOnFocus = false
+            searchInput.CursorColor = Color3.fromRGB(255, 255, 255)
             searchInput.ZIndex = 11
             searchInput.Parent = searchBoxFrame
 
@@ -977,6 +980,7 @@ function Library:CreateWindow(options)
             valInput.TextColor3 = Color3.fromRGB(255, 255, 255)
             valInput.TextSize = 12
             valInput.ClearTextOnFocus = false
+            valInput.CursorColor = Color3.fromRGB(255, 255, 255)
             valInput.Parent = sliderContainer
 
             local valCorner = Instance.new("UICorner")
