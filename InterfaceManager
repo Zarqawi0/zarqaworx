@@ -86,7 +86,6 @@ function Library:CreateWindow(options)
     subTitleLabel.Text = windowSubTitle
     subTitleLabel.Parent = titleContainer
 
-    -- Custom Dragging logic bound to sidebar / header area
     local dragging, dragInput, dragStart, startPos
     local function updateDrag(input)
         local delta = input.Position - dragStart
@@ -184,7 +183,6 @@ function Library:CreateWindow(options)
     keyStatusLabel.Text = "Lifetime Key"
     keyStatusLabel.Parent = userProfile
 
-    -- Content Area: 10% Opacity (0.9 Transparency) & bound properly
     local contentArea = Instance.new("Frame")
     contentArea.Name = "ContentArea"
     contentArea.Size = UDim2.new(1, -210, 1, -56)
@@ -237,6 +235,14 @@ function Library:CreateWindow(options)
         pageFrame.Visible = false
         pageFrame.ClipsDescendants = true
         pageFrame.Parent = Window.ContentArea
+
+        -- Image 1 Fix: Padding added inside scrolling frame to push elements clear of the scrollbar
+        local pagePadding = Instance.new("UIPadding")
+        pagePadding.PaddingRight = UDim.new(0, 10)
+        pagePadding.PaddingLeft = UDim.new(0, 2)
+        pagePadding.PaddingTop = UDim.new(0, 2)
+        pagePadding.PaddingBottom = UDim.new(0, 2)
+        pagePadding.Parent = pageFrame
 
         local fullContainer = Instance.new("Frame")
         fullContainer.Name = "FullContainer"
@@ -310,7 +316,6 @@ function Library:CreateWindow(options)
         padding.PaddingLeft = UDim.new(0, 14)
         padding.Parent = tabBtn
 
-        -- Active tab highlight style matching dark filled button background (Image 3/4 Fix)
         local function activateTab()
             for _, t in pairs(Window.Tabs) do
                 t.Page.Visible = false
@@ -446,7 +451,7 @@ function Library:CreateWindow(options)
             textBox.PlaceholderText = savedPlaceholder
             textBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 165)
             textBox.Text = ""
-            textBox.TextColor3 = Color3.fromRGB(255, 255, 255) -- White text color (Image 2 Fix)
+            textBox.TextColor3 = Color3.fromRGB(255, 255, 255) -- Image 4 Fix: White font color
             textBox.TextSize = 13
             textBox.ClearTextOnFocus = false
             textBox.Parent = inputFrame
@@ -460,7 +465,7 @@ function Library:CreateWindow(options)
             boxStroke.Thickness = 1
             boxStroke.Parent = textBox
 
-            -- Placeholder disappears when clicked (Image 2 Fix)
+            -- Image 4 Fix: Clear placeholder when clicked/focused
             textBox.Focused:Connect(function()
                 textBox.PlaceholderText = ""
                 TweenService:Create(boxStroke, TweenInfo.new(0.15), {
@@ -500,8 +505,9 @@ function Library:CreateWindow(options)
                     for _, val in ipairs(defaultOption) do selectedValues[val] = true end
                 end
             else
-                local initialVal = defaultOption or optionsList[1]
-                if initialVal then selectedValues[initialVal] = true end
+                if defaultOption then
+                    selectedValues[defaultOption] = true
+                end
             end
 
             local dropdownContainer = Instance.new("Frame")
@@ -613,7 +619,7 @@ function Library:CreateWindow(options)
                     end
                     selectedLabel.Text = (#list == 0) and "None" or table.concat(list, ", ")
                 else
-                    local current = "Select..."
+                    local current = "None"
                     for opt, isSel in pairs(selectedValues) do
                         if isSel then current = tostring(opt) break end
                     end
@@ -645,7 +651,10 @@ function Library:CreateWindow(options)
                         local isSelected = selectedValues[opt] == true
                         local optBtn = Instance.new("TextButton")
                         optBtn.Size = UDim2.new(1, 0, 0, 26)
-                        optBtn.BackgroundColor3 = isSelected and Color3.fromRGB(30, 30, 40) or Color3.fromRGB(18, 18, 22)
+                        
+                        -- Image 2 & 3 Fix: Highlight color matching dark-blue tab background when selected
+                        optBtn.BackgroundColor3 = isSelected and Window.AccentColor or Color3.fromRGB(18, 18, 22)
+                        optBtn.BackgroundTransparency = isSelected and 0.88 or 0
                         optBtn.Font = Enum.Font.Gotham
                         optBtn.Text = "   " .. (isSelected and "• " or "") .. strOpt
                         optBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -672,12 +681,21 @@ function Library:CreateWindow(options)
                                 end
                                 pcall(callback, selectedTable)
                             else
-                                selectedValues = {[opt] = true}
+                                -- Image 2 Fix: Toggle selection. Re-clicking currently active item deselects it -> "None"
+                                if selectedValues[opt] then
+                                    selectedValues = {}
+                                else
+                                    selectedValues = {[opt] = true}
+                                end
                                 updateHeaderLabel()
                                 refreshList()
                                 updateContainerHeight()
 
-                                pcall(callback, opt)
+                                local currentSelected = nil
+                                for item, sel in pairs(selectedValues) do
+                                    if sel then currentSelected = item break end
+                                end
+                                pcall(callback, currentSelected)
                             end
                         end)
                     end
@@ -714,8 +732,7 @@ function Library:CreateWindow(options)
                         for _, val in ipairs(newDefault) do selectedValues[val] = true end
                     end
                 else
-                    local initialVal = newDefault or optionsList[1]
-                    if initialVal then selectedValues[initialVal] = true end
+                    if newDefault then selectedValues[newDefault] = true end
                 end
                 updateHeaderLabel()
                 refreshList()
@@ -954,7 +971,7 @@ function Library:CreateWindow(options)
             valInput.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
             valInput.Font = Enum.Font.Gotham
             valInput.Text = tostring(currentVal)
-            valInput.TextColor3 = Color3.fromRGB(255, 255, 255) -- White text color (Image 1 Fix)
+            valInput.TextColor3 = Color3.fromRGB(255, 255, 255)
             valInput.TextSize = 12
             valInput.ClearTextOnFocus = false
             valInput.Parent = sliderContainer
