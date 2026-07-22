@@ -313,12 +313,12 @@ function Library:CreateWindow(options)
         tabBtn.TextColor3 = Color3.fromRGB(150, 150, 165)
         tabBtn.TextSize = 14
         tabBtn.TextXAlignment = Enum.TextXAlignment.Left
-        tabBtn.Text = "   " .. tabName
+        tabBtn.Text = "        " .. tabName -- Added spaces to prevent text-icon overlap
         tabBtn.Parent = Window.TabContainer
 
         local tabIcon = Instance.new("ImageLabel")
-        tabIcon.Size = UDim2.new(0, 16, 0, 16)
-        tabIcon.Position = UDim2.new(0, 10, 0.5, -8)
+        tabIcon.Size = UDim2.new(0, 18, 0, 18) -- Increased icon size slightly for clarity
+        tabIcon.Position = UDim2.new(0, 10, 0.5, -9)
         tabIcon.BackgroundTransparency = 1
         tabIcon.Image = "rbxassetid://6034818375" -- Lucide icon layout proxy
         tabIcon.ImageColor3 = Color3.fromRGB(150, 150, 165)
@@ -329,7 +329,7 @@ function Library:CreateWindow(options)
         btnCorner.Parent = tabBtn
 
         local padding = Instance.new("UIPadding")
-        padding.PaddingLeft = UDim.new(0, 12)
+        padding.PaddingLeft = UDim.new(0, 6)
         padding.Parent = tabBtn
 
         local function activateTab()
