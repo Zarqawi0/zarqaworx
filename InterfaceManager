@@ -57,16 +57,16 @@ function Library:CreateWindow(options)
 
     local titleContainer = Instance.new("Frame")
     titleContainer.Name = "TitleContainer"
-    titleContainer.Size = UDim2.new(1, -24, 0, 50)
-    titleContainer.Position = UDim2.new(0, 12, 0, 14)
+    titleContainer.Size = UDim2.new(1, -24, 0, 56)
+    titleContainer.Position = UDim2.new(0, 12, 0, 12)
     titleContainer.BackgroundTransparency = 1
     titleContainer.Parent = sidebar
 
     local mainTitleLabel = Instance.new("TextLabel")
-    mainTitleLabel.Size = UDim2.new(1, 0, 0, 26)
+    mainTitleLabel.Size = UDim2.new(1, 0, 0, 30)
     mainTitleLabel.BackgroundTransparency = 1
     mainTitleLabel.Font = Enum.Font.GothamBold
-    mainTitleLabel.TextSize = 22
+    mainTitleLabel.TextSize = 26 -- Increased Title Font Size
     mainTitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     mainTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
     mainTitleLabel.RichText = true
@@ -76,11 +76,11 @@ function Library:CreateWindow(options)
     mainTitleLabel.Parent = titleContainer
 
     local subTitleLabel = Instance.new("TextLabel")
-    subTitleLabel.Size = UDim2.new(1, 0, 0, 16)
-    subTitleLabel.Position = UDim2.new(0, 0, 0, 26)
+    subTitleLabel.Size = UDim2.new(1, 0, 0, 20)
+    subTitleLabel.Position = UDim2.new(0, 0, 0, 30)
     subTitleLabel.BackgroundTransparency = 1
     subTitleLabel.Font = Enum.Font.Gotham
-    subTitleLabel.TextSize = 12
+    subTitleLabel.TextSize = 15 -- Increased Subtitle Font Size
     subTitleLabel.TextColor3 = Color3.fromRGB(120, 120, 130)
     subTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
     subTitleLabel.Text = windowSubTitle
@@ -119,8 +119,8 @@ function Library:CreateWindow(options)
 
     local tabContainer = Instance.new("ScrollingFrame")
     tabContainer.Name = "TabContainer"
-    tabContainer.Size = UDim2.new(1, -12, 1, -130)
-    tabContainer.Position = UDim2.new(0, 6, 0, 70)
+    tabContainer.Size = UDim2.new(1, -12, 1, -136)
+    tabContainer.Position = UDim2.new(0, 6, 0, 76)
     tabContainer.BackgroundTransparency = 1
     tabContainer.BorderSizePixel = 0
     tabContainer.ScrollBarThickness = 3
@@ -297,12 +297,12 @@ function Library:CreateWindow(options)
         rightLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateLayoutPositions)
 
         local tabBtn = Instance.new("TextButton")
-        tabBtn.Size = UDim2.new(1, -6, 0, 38)
+        tabBtn.Size = UDim2.new(1, -6, 0, 42) -- Increased size for larger text
         tabBtn.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
         tabBtn.BackgroundTransparency = 1
         tabBtn.Font = Enum.Font.GothamMedium
         tabBtn.TextColor3 = Color3.fromRGB(150, 150, 165)
-        tabBtn.TextSize = 14
+        tabBtn.TextSize = 16 -- Increased Sidebar Font Size
         tabBtn.TextXAlignment = Enum.TextXAlignment.Left
         tabBtn.Text = tabName
         tabBtn.Parent = Window.TabContainer
@@ -450,7 +450,7 @@ function Library:CreateWindow(options)
             textBox.PlaceholderText = savedPlaceholder
             textBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 165)
             textBox.Text = ""
-            textBox.TextColor3 = Color3.fromRGB(255, 255, 255) -- Image 1 Fix: Pure White text color
+            textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
             textBox.TextSize = 13
             textBox.ClearTextOnFocus = false
             textBox.Parent = inputFrame
@@ -966,7 +966,7 @@ function Library:CreateWindow(options)
             valInput.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
             valInput.Font = Enum.Font.Gotham
             valInput.Text = tostring(currentVal)
-            valInput.TextColor3 = Color3.fromRGB(255, 255, 255) -- Image 2 Fix: Pure White text color for slider text box
+            valInput.TextColor3 = Color3.fromRGB(255, 255, 255)
             valInput.TextSize = 12
             valInput.ClearTextOnFocus = false
             valInput.Parent = sliderContainer
