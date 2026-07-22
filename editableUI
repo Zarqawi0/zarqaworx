@@ -313,14 +313,14 @@ function Library:CreateWindow(options)
         tabBtn.TextColor3 = Color3.fromRGB(150, 150, 165)
         tabBtn.TextSize = 14
         tabBtn.TextXAlignment = Enum.TextXAlignment.Left
-        tabBtn.Text = "        " .. tabName -- Added spaces to prevent text-icon overlap
+        tabBtn.Text = "        " .. tabName
         tabBtn.Parent = Window.TabContainer
 
         local tabIcon = Instance.new("ImageLabel")
-        tabIcon.Size = UDim2.new(0, 18, 0, 18) -- Increased icon size slightly for clarity
+        tabIcon.Size = UDim2.new(0, 18, 0, 18)
         tabIcon.Position = UDim2.new(0, 10, 0.5, -9)
         tabIcon.BackgroundTransparency = 1
-        tabIcon.Image = "rbxassetid://6034818375" -- Lucide icon layout proxy
+        tabIcon.Image = "rbxassetid://6034818375"
         tabIcon.ImageColor3 = Color3.fromRGB(150, 150, 165)
         tabIcon.Parent = tabBtn
 
@@ -955,10 +955,23 @@ function Library:CreateWindow(options)
             contentLabel.Parent = paraFrame
 
             local function resize()
-                contentLabel.Size = UDim2.new(1, -28, 0, contentLabel.TextBounds.Y)
-                paraFrame.Size = UDim2.new(1, 0, 0, contentLabel.TextBounds.Y + 56)
+                -- Calculate height properly based on available width constraint
+                local availableWidth = paraFrame.AbsoluteSize.X - 28
+                if availableWidth <= 0 then availableWidth = 200 end
+                
+                local textBounds = game:GetService("TextService"):GetTextSize(
+                    contentText, 
+                    14, 
+                    Enum.Font.Gotham, -- Fallback text size check metric
+                    Vector2.new(availableWidth, 999999)
+                )
+                
+                local targetHeight = math.max(textBounds.Y + 54, 60)
+                contentLabel.Size = UDim2.new(1, -28, 0, textBounds.Y)
+                paraFrame.Size = UDim2.new(1, 0, 0, targetHeight)
             end
-            contentLabel:GetPropertyChangedSignal("TextBounds"):Connect(resize)
+
+            paraFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize)
             task.spawn(resize)
 
             return paraFrame
@@ -1013,11 +1026,22 @@ function Library:CreateWindow(options)
             contentLabel.Parent = paraFrame
 
             local function resize()
-                contentLabel.Size = UDim2.new(1, -70, 0, contentLabel.TextBounds.Y)
-                local calculatedHeight = math.max(contentLabel.TextBounds.Y + 48, 66)
+                local availableWidth = paraFrame.AbsoluteSize.X - 70
+                if availableWidth <= 0 then availableWidth = 150 end
+
+                local textBounds = game:GetService("TextService"):GetTextSize(
+                    contentText, 
+                    14, 
+                    Enum.Font.Gotham, 
+                    Vector2.new(availableWidth, 999999)
+                )
+
+                contentLabel.Size = UDim2.new(1, -70, 0, textBounds.Y)
+                local calculatedHeight = math.max(textBounds.Y + 48, 66)
                 paraFrame.Size = UDim2.new(1, 0, 0, calculatedHeight)
             end
-            contentLabel:GetPropertyChangedSignal("TextBounds"):Connect(resize)
+
+            paraFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize)
             task.spawn(resize)
 
             return paraFrame
