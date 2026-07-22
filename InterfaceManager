@@ -236,7 +236,6 @@ function Library:CreateWindow(options)
         pageFrame.ClipsDescendants = true
         pageFrame.Parent = Window.ContentArea
 
-        -- Image 1 Fix: Padding added inside scrolling frame to push elements clear of the scrollbar
         local pagePadding = Instance.new("UIPadding")
         pagePadding.PaddingRight = UDim.new(0, 10)
         pagePadding.PaddingLeft = UDim.new(0, 2)
@@ -451,7 +450,7 @@ function Library:CreateWindow(options)
             textBox.PlaceholderText = savedPlaceholder
             textBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 165)
             textBox.Text = ""
-            textBox.TextColor3 = Color3.fromRGB(255, 255, 255) -- Image 4 Fix: White font color
+            textBox.TextColor3 = Color3.fromRGB(255, 255, 255) -- Image 1 Fix: Pure White text color
             textBox.TextSize = 13
             textBox.ClearTextOnFocus = false
             textBox.Parent = inputFrame
@@ -465,7 +464,6 @@ function Library:CreateWindow(options)
             boxStroke.Thickness = 1
             boxStroke.Parent = textBox
 
-            -- Image 4 Fix: Clear placeholder when clicked/focused
             textBox.Focused:Connect(function()
                 textBox.PlaceholderText = ""
                 TweenService:Create(boxStroke, TweenInfo.new(0.15), {
@@ -651,8 +649,6 @@ function Library:CreateWindow(options)
                         local isSelected = selectedValues[opt] == true
                         local optBtn = Instance.new("TextButton")
                         optBtn.Size = UDim2.new(1, 0, 0, 26)
-                        
-                        -- Image 2 & 3 Fix: Highlight color matching dark-blue tab background when selected
                         optBtn.BackgroundColor3 = isSelected and Window.AccentColor or Color3.fromRGB(18, 18, 22)
                         optBtn.BackgroundTransparency = isSelected and 0.88 or 0
                         optBtn.Font = Enum.Font.Gotham
@@ -681,7 +677,6 @@ function Library:CreateWindow(options)
                                 end
                                 pcall(callback, selectedTable)
                             else
-                                -- Image 2 Fix: Toggle selection. Re-clicking currently active item deselects it -> "None"
                                 if selectedValues[opt] then
                                     selectedValues = {}
                                 else
@@ -971,7 +966,7 @@ function Library:CreateWindow(options)
             valInput.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
             valInput.Font = Enum.Font.Gotham
             valInput.Text = tostring(currentVal)
-            valInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+            valInput.TextColor3 = Color3.fromRGB(255, 255, 255) -- Image 2 Fix: Pure White text color for slider text box
             valInput.TextSize = 12
             valInput.ClearTextOnFocus = false
             valInput.Parent = sliderContainer
