@@ -26,7 +26,6 @@ function Library:CreateWindow(options)
         screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     end
 
-    -- Window enlarged to 780x480 (Sidebar expanded to 170)
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
     mainFrame.Size = UDim2.new(0, 780, 0, 480)
@@ -46,7 +45,6 @@ function Library:CreateWindow(options)
     mainStroke.Thickness = 1
     mainStroke.Parent = mainFrame
 
-    -- Sidebar Fixed at 170 width
     local sidebar = Instance.new("Frame")
     sidebar.Name = "Sidebar"
     sidebar.Size = UDim2.new(0, 170, 1, 0)
@@ -144,7 +142,6 @@ function Library:CreateWindow(options)
     keyStatusLabel.Text = "Lifetime Key"
     keyStatusLabel.Parent = userProfile
 
-    -- Expanded Content Area Container
     local contentArea = Instance.new("Frame")
     contentArea.Name = "ContentArea"
     contentArea.Size = UDim2.new(1, -182, 1, -40)
@@ -184,7 +181,6 @@ function Library:CreateWindow(options)
     function Window:CreateTab(tabName, iconAsset)
         local tabObj = {}
         
-        -- Partition Layout Scroll Container
         local pageFrame = Instance.new("ScrollingFrame")
         pageFrame.Name = tabName .. "Page"
         pageFrame.Size = UDim2.new(1, -16, 1, -16)
@@ -197,7 +193,6 @@ function Library:CreateWindow(options)
         pageFrame.ClipsDescendants = true
         pageFrame.Parent = Window.ContentArea
 
-        -- Full Width Stack Container
         local fullContainer = Instance.new("Frame")
         fullContainer.Name = "FullContainer"
         fullContainer.Size = UDim2.new(1, 0, 0, 0)
@@ -209,7 +204,6 @@ function Library:CreateWindow(options)
         fullLayout.Padding = UDim.new(0, 8)
         fullLayout.Parent = fullContainer
 
-        -- Left Partition Column (Expanded)
         local leftCol = Instance.new("Frame")
         leftCol.Name = "LeftColumn"
         leftCol.Size = UDim2.new(0.5, -6, 0, 0)
@@ -222,7 +216,6 @@ function Library:CreateWindow(options)
         leftLayout.Padding = UDim.new(0, 8)
         leftLayout.Parent = leftCol
 
-        -- Right Partition Column (Expanded)
         local rightCol = Instance.new("Frame")
         rightCol.Name = "RightColumn"
         rightCol.Size = UDim2.new(0.5, -6, 0, 0)
@@ -253,13 +246,12 @@ function Library:CreateWindow(options)
         leftLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateLayoutPositions)
         rightLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateLayoutPositions)
 
-        -- Larger Tab Button (38px height)
+        -- Tab Button setup with fix for icon/text alignment
         local tabBtn = Instance.new("TextButton")
         tabBtn.Size = UDim2.new(1, 0, 0, 38)
         tabBtn.BackgroundColor3 = Window.AccentColor
         tabBtn.BackgroundTransparency = 1
         tabBtn.Font = Enum.Font.GothamMedium
-        tabBtn.Text = tabName
         tabBtn.TextColor3 = Color3.fromRGB(150, 150, 165)
         tabBtn.TextSize = 13
         tabBtn.TextXAlignment = Enum.TextXAlignment.Left
@@ -285,7 +277,6 @@ function Library:CreateWindow(options)
 
             tabIcon.Parent = tabBtn
 
-            -- Add padding for text when icon exists
             local padding = Instance.new("UIPadding")
             padding.PaddingLeft = UDim.new(0, 36)
             padding.Parent = tabBtn
@@ -294,6 +285,8 @@ function Library:CreateWindow(options)
             padding.PaddingLeft = UDim.new(0, 12)
             padding.Parent = tabBtn
         end
+
+        tabBtn.Text = tabName
 
         local function activateTab()
             for _, t in pairs(Window.Tabs) do
@@ -352,7 +345,6 @@ function Library:CreateWindow(options)
             activateTab()
         end
 
-        -- Helper function to route components into partitions
         local function getTargetParent(side)
             if side == "right" or side == 2 or side == "Right" then
                 return rightCol
@@ -520,8 +512,9 @@ function Library:CreateWindow(options)
             headerBtn.ZIndex = 5
             headerBtn.Parent = dropdownContainer
 
+            -- Fixed Title Label Size to avoid overlap
             local label = Instance.new("TextLabel")
-            label.Size = UDim2.new(0.5, -8, 1, 0)
+            label.Size = UDim2.new(0.42, -10, 1, 0)
             label.Position = UDim2.new(0, 10, 0, 0)
             label.BackgroundTransparency = 1
             label.Font = Enum.Font.GothamMedium
@@ -529,17 +522,20 @@ function Library:CreateWindow(options)
             label.TextColor3 = Color3.fromRGB(210, 210, 220)
             label.TextSize = 12
             label.TextXAlignment = Enum.TextXAlignment.Left
+            label.TextTruncate = Enum.TextTruncate.AtEnd
             label.ZIndex = 6
             label.Parent = headerBtn
 
+            -- Fixed Selected Text Label Position and Truncation
             local selectedLabel = Instance.new("TextLabel")
-            selectedLabel.Size = UDim2.new(0.5, -24, 1, 0)
-            selectedLabel.Position = UDim2.new(0.5, 0, 0, 0)
+            selectedLabel.Size = UDim2.new(0.58, -30, 1, 0)
+            selectedLabel.Position = UDim2.new(0.42, 0, 0, 0)
             selectedLabel.BackgroundTransparency = 1
             selectedLabel.Font = Enum.Font.Gotham
             selectedLabel.TextColor3 = Window.AccentColor
             selectedLabel.TextSize = 11
             selectedLabel.TextXAlignment = Enum.TextXAlignment.Right
+            selectedLabel.TextTruncate = Enum.TextTruncate.AtEnd
             selectedLabel.ZIndex = 6
             selectedLabel.Parent = headerBtn
 
