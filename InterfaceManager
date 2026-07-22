@@ -438,46 +438,80 @@ function Library:CreateWindow(options)
             label.TextXAlignment = Enum.TextXAlignment.Left
             label.Parent = inputFrame
 
+            local displayBg = Instance.new("Frame")
+            displayBg.Size = UDim2.new(0.55, -12, 0, 30)
+            displayBg.Position = UDim2.new(0.45, 0, 0.5, -15)
+            displayBg.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
+            displayBg.ClipsDescendants = true
+            displayBg.Parent = inputFrame
+
+            local displayCorner = Instance.new("UICorner")
+            displayCorner.CornerRadius = UDim.new(0, 4)
+            displayCorner.Parent = displayBg
+
+            local displayStroke = Instance.new("UIStroke")
+            displayStroke.Color = Color3.fromRGB(35, 35, 45)
+            displayStroke.Thickness = 1
+            displayStroke.Parent = displayBg
+
+            local displayText = Instance.new("TextLabel")
+            displayText.Size = UDim2.new(1, -8, 1, 0)
+            displayText.Position = UDim2.new(0, 4, 0, 0)
+            displayText.BackgroundTransparency = 1
+            displayText.Font = Enum.Font.Gotham
+            displayText.Text = savedPlaceholder
+            displayText.TextColor3 = Color3.fromRGB(150, 150, 165)
+            displayText.TextSize = 13
+            displayText.TextXAlignment = Enum.TextXAlignment.Left
+            displayText.Parent = displayBg
+
             local textBox = Instance.new("TextBox")
-            textBox.Size = UDim2.new(0.55, -12, 0, 30)
-            textBox.Position = UDim2.new(0.45, 0, 0.5, -15)
-            textBox.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
-            textBox.ClipsDescendants = true
+            textBox.Size = UDim2.new(1, 0, 1, 0)
+            textBox.BackgroundTransparency = 1
             textBox.Font = Enum.Font.Gotham
-            textBox.PlaceholderText = savedPlaceholder
-            textBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 165)
+            textBox.PlaceholderText = ""
             textBox.Text = ""
+            textBox.TextTransparency = 1
             textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
             textBox.TextSize = 13
+            textBox.TextXAlignment = Enum.TextXAlignment.Left
             textBox.ClearTextOnFocus = false
-            textBox.Parent = inputFrame
-
-            local boxCorner = Instance.new("UICorner")
-            boxCorner.CornerRadius = UDim.new(0, 4)
-            boxCorner.Parent = textBox
-
-            local boxStroke = Instance.new("UIStroke")
-            boxStroke.Color = Color3.fromRGB(35, 35, 45)
-            boxStroke.Thickness = 1
-            boxStroke.Parent = textBox
+            textBox.ZIndex = 3
+            textBox.Parent = displayBg
 
             textBox.Focused:Connect(function()
-                textBox.PlaceholderText = ""
-                textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-                TweenService:Create(boxStroke, TweenInfo.new(0.15), {
+                if textBox.Text == "" then
+                    displayText.Text = "|"
+                    displayText.TextColor3 = Color3.fromRGB(255, 255, 255)
+                end
+                TweenService:Create(displayStroke, TweenInfo.new(0.15), {
                     Color = Window.AccentColor
                 }):Play()
             end)
 
             textBox.FocusLost:Connect(function(enterPressed)
                 if textBox.Text == "" then
-                    textBox.PlaceholderText = savedPlaceholder
+                    displayText.Text = savedPlaceholder
+                    displayText.TextColor3 = Color3.fromRGB(150, 150, 165)
+                else
+                    displayText.Text = textBox.Text
+                    displayText.TextColor3 = Color3.fromRGB(255, 255, 255)
                 end
-                textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-                TweenService:Create(boxStroke, TweenInfo.new(0.15), {
+                TweenService:Create(displayStroke, TweenInfo.new(0.15), {
                     Color = Color3.fromRGB(35, 35, 45)
                 }):Play()
                 pcall(callback, textBox.Text, enterPressed)
+            end)
+
+            textBox:GetPropertyChangedSignal("Text"):Connect(function()
+                if textBox:IsFocused() then
+                    if textBox.Text == "" then
+                        displayText.Text = "|"
+                    else
+                        displayText.Text = textBox.Text .. "|"
+                    end
+                    displayText.TextColor3 = Color3.fromRGB(255, 255, 255)
+                end
             end)
 
             return inputFrame
@@ -581,31 +615,57 @@ function Library:CreateWindow(options)
             searchStroke.Thickness = 1
             searchStroke.Parent = searchBoxFrame
 
+            local searchDisplayText = Instance.new("TextLabel")
+            searchDisplayText.Size = UDim2.new(1, -8, 1, 0)
+            searchDisplayText.Position = UDim2.new(0, 4, 0, 0)
+            searchDisplayText.BackgroundTransparency = 1
+            searchDisplayText.Font = Enum.Font.Gotham
+            searchDisplayText.Text = "Search..."
+            searchDisplayText.TextColor3 = Color3.fromRGB(90, 90, 105)
+            searchDisplayText.TextSize = 12
+            searchDisplayText.TextXAlignment = Enum.TextXAlignment.Left
+            searchDisplayText.ZIndex = 11
+            searchDisplayText.Parent = searchBoxFrame
+
             local searchInput = Instance.new("TextBox")
-            searchInput.Size = UDim2.new(1, -12, 1, 0)
-            searchInput.Position = UDim2.new(0, 6, 0, 0)
+            searchInput.Size = UDim2.new(1, 0, 1, 0)
             searchInput.BackgroundTransparency = 1
             searchInput.ClipsDescendants = true
             searchInput.Font = Enum.Font.Gotham
-            searchInput.PlaceholderText = "Search..."
-            searchInput.PlaceholderColor3 = Color3.fromRGB(90, 90, 105)
+            searchInput.PlaceholderText = ""
             searchInput.Text = ""
+            searchInput.TextTransparency = 1
             searchInput.TextColor3 = Color3.fromRGB(230, 230, 240)
             searchInput.TextSize = 12
             searchInput.TextXAlignment = Enum.TextXAlignment.Left
             searchInput.ClearTextOnFocus = false
-            searchInput.ZIndex = 11
+            searchInput.ZIndex = 12
             searchInput.Parent = searchBoxFrame
 
             searchInput.Focused:Connect(function()
-                searchInput.PlaceholderText = ""
-                searchInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+                if searchInput.Text == "" then
+                    searchDisplayText.Text = "|"
+                    searchDisplayText.TextColor3 = Color3.fromRGB(255, 255, 255)
+                end
             end)
             searchInput.FocusLost:Connect(function()
                 if searchInput.Text == "" then
-                    searchInput.PlaceholderText = "Search..."
+                    searchDisplayText.Text = "Search..."
+                    searchDisplayText.TextColor3 = Color3.fromRGB(90, 90, 105)
+                else
+                    searchDisplayText.Text = searchInput.Text
+                    searchDisplayText.TextColor3 = Color3.fromRGB(230, 230, 240)
                 end
-                searchInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+            end)
+            searchInput:GetPropertyChangedSignal("Text"):Connect(function()
+                if searchInput:IsFocused() then
+                    if searchInput.Text == "" then
+                        searchDisplayText.Text = "|"
+                    else
+                        searchDisplayText.Text = searchInput.Text .. "|"
+                    end
+                    searchDisplayText.TextColor3 = Color3.fromRGB(255, 255, 255)
+                end
             end)
 
             local optionListFrame = Instance.new("Frame")
@@ -945,7 +1005,6 @@ function Library:CreateWindow(options)
 
             local parentCol = getTargetParent(side)
             local currentVal = defaultVal
-            local savedPlaceholder = tostring(currentVal)
 
             local sliderContainer = Instance.new("Frame")
             sliderContainer.Size = UDim2.new(1, 0, 0, 52)
@@ -972,28 +1031,46 @@ function Library:CreateWindow(options)
             label.TextXAlignment = Enum.TextXAlignment.Left
             label.Parent = sliderContainer
 
+            local valDisplayBg = Instance.new("Frame")
+            valDisplayBg.Size = UDim2.new(0, 56, 0, 22)
+            valDisplayBg.Position = UDim2.new(1, -68, 0, 6)
+            valDisplayBg.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
+            valDisplayBg.ClipsDescendants = true
+            valDisplayBg.Parent = sliderContainer
+
+            local valDisplayCorner = Instance.new("UICorner")
+            valDisplayCorner.CornerRadius = UDim.new(0, 4)
+            valDisplayCorner.Parent = valDisplayBg
+
+            local valDisplayStroke = Instance.new("UIStroke")
+            valDisplayStroke.Color = Color3.fromRGB(35, 35, 45)
+            valDisplayStroke.Thickness = 1
+            valDisplayStroke.Parent = valDisplayBg
+
+            local valDisplayText = Instance.new("TextLabel")
+            valDisplayText.Size = UDim2.new(1, -6, 1, 0)
+            valDisplayText.Position = UDim2.new(0, 3, 0, 0)
+            valDisplayText.BackgroundTransparency = 1
+            valDisplayText.Font = Enum.Font.Gotham
+            valDisplayText.Text = tostring(currentVal)
+            valDisplayText.TextColor3 = Color3.fromRGB(255, 255, 255)
+            valDisplayText.TextSize = 12
+            valDisplayText.TextXAlignment = Enum.TextXAlignment.Left
+            valDisplayText.Parent = valDisplayBg
+
             local valInput = Instance.new("TextBox")
-            valInput.Size = UDim2.new(0, 56, 0, 22)
-            valInput.Position = UDim2.new(1, -68, 0, 6)
-            valInput.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
-            valInput.ClipsDescendants = true
+            valInput.Size = UDim2.new(1, 0, 1, 0)
+            valInput.BackgroundTransparency = 1
             valInput.Font = Enum.Font.Gotham
-            valInput.PlaceholderText = savedPlaceholder
-            valInput.PlaceholderColor3 = Color3.fromRGB(150, 150, 165)
-            valInput.Text = tostring(currentVal)
+            valInput.PlaceholderText = ""
+            valInput.Text = ""
+            valInput.TextTransparency = 1
             valInput.TextColor3 = Color3.fromRGB(255, 255, 255)
             valInput.TextSize = 12
+            valInput.TextXAlignment = Enum.TextXAlignment.Left
             valInput.ClearTextOnFocus = false
-            valInput.Parent = sliderContainer
-
-            local valCorner = Instance.new("UICorner")
-            valCorner.CornerRadius = UDim.new(0, 4)
-            valCorner.Parent = valInput
-
-            local valStroke = Instance.new("UIStroke")
-            valStroke.Color = Color3.fromRGB(35, 35, 45)
-            valStroke.Thickness = 1
-            valStroke.Parent = valInput
+            valInput.ZIndex = 3
+            valInput.Parent = valDisplayBg
 
             local sliderBar = Instance.new("Frame")
             sliderBar.Size = UDim2.new(1, -24, 0, 6)
@@ -1011,6 +1088,7 @@ function Library:CreateWindow(options)
             fill.Parent = sliderBar
 
             local fillCorner = Instance.new("UICorner")
+            fillCorner.CornerRadius = UDiv.new(1, 0) -- wait, UDim.new(1, 0)
             fillCorner.CornerRadius = UDim.new(1, 0)
             fillCorner.Parent = fill
 
@@ -1032,39 +1110,43 @@ function Library:CreateWindow(options)
                 local percent = posX / sliderBar.AbsoluteSize.X
                 currentVal = math.floor(minVal + (maxVal - minVal) * percent)
 
-                valInput.Text = tostring(currentVal)
-                savedPlaceholder = tostring(currentVal)
+                valDisplayText.Text = tostring(currentVal)
                 fill.Size = UDim2.new(percent, 0, 1, 0)
                 knob.Position = UDim2.new(percent, 0, 0.5, 0)
                 pcall(callback, currentVal)
             end
 
             valInput.Focused:Connect(function()
-                valInput.PlaceholderText = ""
-                TweenService:Create(valStroke, TweenInfo.new(0.15), {
+                valDisplayText.Text = "|"
+                TweenService:Create(valDisplayStroke, TweenInfo.new(0.15), {
                     Color = Window.AccentColor
                 }):Play()
-                valInput.TextColor3 = Color3.fromRGB(255, 255, 255)
             end)
 
             valInput.FocusLost:Connect(function()
-                if valInput.Text == "" then
-                    valInput.PlaceholderText = savedPlaceholder
-                end
-                TweenService:Create(valStroke, TweenInfo.new(0.15), {
-                    Color = Color3.fromRGB(35, 35, 45)
-                }):Play()
                 local num = tonumber(valInput.Text)
                 if num then
                     currentVal = math.clamp(math.floor(num), minVal, maxVal)
                 end
-                valInput.Text = tostring(currentVal)
-                savedPlaceholder = tostring(currentVal)
-                valInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+                valInput.Text = ""
+                valDisplayText.Text = tostring(currentVal)
+                TweenService:Create(valDisplayStroke, TweenInfo.new(0.15), {
+                    Color = Color3.fromRGB(35, 35, 45)
+                }):Play()
                 local percent = (currentVal - minVal) / (maxVal - minVal)
                 fill.Size = UDim2.new(percent, 0, 1, 0)
                 knob.Position = UDim2.new(percent, 0, 0.5, 0)
                 pcall(callback, currentVal)
+            end)
+
+            valInput:GetPropertyChangedSignal("Text"):Connect(function()
+                if valInput:IsFocused() then
+                    if valInput.Text == "" then
+                        valDisplayText.Text = "|"
+                    else
+                        valDisplayText.Text = valInput.Text .. "|"
+                    end
+                end
             end)
 
             sliderBar.InputBegan:Connect(function(input)
