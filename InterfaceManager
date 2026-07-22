@@ -44,9 +44,10 @@ function Library:CreateWindow(options)
     mainStroke.Thickness = 1
     mainStroke.Parent = mainFrame
 
+    -- THINNER SIDEBAR (Width reduced to 150)
     local sidebar = Instance.new("Frame")
     sidebar.Name = "Sidebar"
-    sidebar.Size = UDim2.new(0, 180, 1, 0)
+    sidebar.Size = UDim2.new(0, 150, 1, 0)
     sidebar.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
     sidebar.BorderSizePixel = 0
     sidebar.Parent = mainFrame
@@ -66,7 +67,7 @@ function Library:CreateWindow(options)
     mainTitleLabel.Size = UDim2.new(1, 0, 0, 30)
     mainTitleLabel.BackgroundTransparency = 1
     mainTitleLabel.Font = Enum.Font.GothamBold
-    mainTitleLabel.TextSize = 26 -- Increased Title Font Size
+    mainTitleLabel.TextSize = 24
     mainTitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     mainTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
     mainTitleLabel.RichText = true
@@ -80,7 +81,7 @@ function Library:CreateWindow(options)
     subTitleLabel.Position = UDim2.new(0, 0, 0, 30)
     subTitleLabel.BackgroundTransparency = 1
     subTitleLabel.Font = Enum.Font.Gotham
-    subTitleLabel.TextSize = 15 -- Increased Subtitle Font Size
+    subTitleLabel.TextSize = 13
     subTitleLabel.TextColor3 = Color3.fromRGB(120, 120, 130)
     subTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
     subTitleLabel.Text = windowSubTitle
@@ -177,16 +178,17 @@ function Library:CreateWindow(options)
     keyStatusLabel.Position = UDim2.new(0, 36, 0, 0)
     keyStatusLabel.BackgroundTransparency = 1
     keyStatusLabel.Font = Enum.Font.GothamMedium
-    keyStatusLabel.TextSize = 12
+    keyStatusLabel.TextSize = 11
     keyStatusLabel.TextColor3 = Color3.fromRGB(180, 180, 190)
     keyStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
     keyStatusLabel.Text = "Lifetime Key"
     keyStatusLabel.Parent = userProfile
 
+    -- ADJUSTED CONTENT AREA FOR THINNER SIDEBAR
     local contentArea = Instance.new("Frame")
     contentArea.Name = "ContentArea"
-    contentArea.Size = UDim2.new(1, -210, 1, -56)
-    contentArea.Position = UDim2.new(0, 195, 0, 14)
+    contentArea.Size = UDim2.new(1, -180, 1, -56)
+    contentArea.Position = UDim2.new(0, 165, 0, 14)
     contentArea.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
     contentArea.BackgroundTransparency = 0.9
     contentArea.BorderSizePixel = 0
@@ -297,12 +299,12 @@ function Library:CreateWindow(options)
         rightLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateLayoutPositions)
 
         local tabBtn = Instance.new("TextButton")
-        tabBtn.Size = UDim2.new(1, -6, 0, 42) -- Increased size for larger text
+        tabBtn.Size = UDim2.new(1, -6, 0, 38)
         tabBtn.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
         tabBtn.BackgroundTransparency = 1
         tabBtn.Font = Enum.Font.GothamMedium
         tabBtn.TextColor3 = Color3.fromRGB(150, 150, 165)
-        tabBtn.TextSize = 16 -- Increased Sidebar Font Size
+        tabBtn.TextSize = 14
         tabBtn.TextXAlignment = Enum.TextXAlignment.Left
         tabBtn.Text = tabName
         tabBtn.Parent = Window.TabContainer
@@ -312,7 +314,7 @@ function Library:CreateWindow(options)
         btnCorner.Parent = tabBtn
 
         local padding = Instance.new("UIPadding")
-        padding.PaddingLeft = UDim.new(0, 14)
+        padding.PaddingLeft = UDim.new(0, 12)
         padding.Parent = tabBtn
 
         local function activateTab()
@@ -464,7 +466,15 @@ function Library:CreateWindow(options)
             boxStroke.Thickness = 1
             boxStroke.Parent = textBox
 
+            -- NO BLUE TEXT HIGHLIGHT
+            textBox:GetPropertyChangedSignal("SelectionStart"):Connect(function()
+                if textBox.SelectionStart ~= -1 then
+                    textBox.SelectionStart = -1
+                end
+            end)
+
             textBox.Focused:Connect(function()
+                textBox.SelectionStart = -1
                 textBox.PlaceholderText = ""
                 TweenService:Create(boxStroke, TweenInfo.new(0.15), {
                     Color = Window.AccentColor
@@ -867,6 +877,7 @@ function Library:CreateWindow(options)
             return paraFrame
         end
 
+        -- MORE SPACE FOR IMAGE PARAGRAPH (3rd Image Fix)
         function tabObj:CreateImageParagraph(titleText, contentText, imageId, side)
             local parentCol = getTargetParent(side)
 
@@ -884,16 +895,18 @@ function Library:CreateWindow(options)
             pStroke.Thickness = 1
             pStroke.Parent = paraFrame
 
+            -- Larger Image Container Size (42x42)
             local imgLabel = Instance.new("ImageLabel")
-            imgLabel.Size = UDim2.new(0, 32, 0, 32)
-            imgLabel.Position = UDim2.new(0, 14, 0, 14)
+            imgLabel.Size = UDim2.new(0, 42, 0, 42)
+            imgLabel.Position = UDim2.new(0, 12, 0, 12)
             imgLabel.BackgroundTransparency = 1
             imgLabel.Image = imageId or ""
             imgLabel.Parent = paraFrame
 
+            -- Shifted text labels to give the image enough room
             local titleLabel = Instance.new("TextLabel")
-            titleLabel.Size = UDim2.new(1, -64, 0, 22)
-            titleLabel.Position = UDim2.new(0, 54, 0, 14)
+            titleLabel.Size = UDim2.new(1, -70, 0, 22)
+            titleLabel.Position = UDim2.new(0, 64, 0, 12)
             titleLabel.BackgroundTransparency = 1
             titleLabel.Font = Enum.Font.GothamBold
             titleLabel.Text = titleText
@@ -903,8 +916,8 @@ function Library:CreateWindow(options)
             titleLabel.Parent = paraFrame
 
             local contentLabel = Instance.new("TextLabel")
-            contentLabel.Size = UDim2.new(1, -64, 0, 0)
-            contentLabel.Position = UDim2.new(0, 54, 0, 40)
+            contentLabel.Size = UDim2.new(1, -70, 0, 0)
+            contentLabel.Position = UDim2.new(0, 64, 0, 36)
             contentLabel.BackgroundTransparency = 1
             contentLabel.Font = Enum.Font.Gotham
             contentLabel.Text = contentText
@@ -916,8 +929,8 @@ function Library:CreateWindow(options)
             contentLabel.Parent = paraFrame
 
             local function resize()
-                contentLabel.Size = UDim2.new(1, -64, 0, contentLabel.TextBounds.Y)
-                local calculatedHeight = math.max(contentLabel.TextBounds.Y + 56, 72)
+                contentLabel.Size = UDim2.new(1, -70, 0, contentLabel.TextBounds.Y)
+                local calculatedHeight = math.max(contentLabel.TextBounds.Y + 48, 66)
                 paraFrame.Size = UDim2.new(1, 0, 0, calculatedHeight)
             end
             contentLabel:GetPropertyChangedSignal("TextBounds"):Connect(resize)
@@ -926,6 +939,7 @@ function Library:CreateWindow(options)
             return paraFrame
         end
 
+        -- SLIDER PREVENTS BLUE SELECTION & CLEARS TEXT ON CLICK (1st Image Fix)
         function tabObj:CreateSlider(titleText, minVal, maxVal, defaultVal, callback, side)
             callback = callback or function() end
             minVal = minVal or 0
@@ -1023,7 +1037,16 @@ function Library:CreateWindow(options)
                 pcall(callback, currentVal)
             end
 
+            -- NO BLUE TEXT HIGHLIGHT
+            valInput:GetPropertyChangedSignal("SelectionStart"):Connect(function()
+                if valInput.SelectionStart ~= -1 then
+                    valInput.SelectionStart = -1
+                end
+            end)
+
             valInput.Focused:Connect(function()
+                valInput.SelectionStart = -1
+                valInput.Text = "" -- CLEARS EXISTING TEXT WHEN CLICKED
                 TweenService:Create(valStroke, TweenInfo.new(0.15), {
                     Color = Window.AccentColor
                 }):Play()
