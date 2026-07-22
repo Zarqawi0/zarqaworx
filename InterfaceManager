@@ -768,19 +768,19 @@ function Library:CreateWindow(options)
             pStroke.Parent = paraFrame
 
             local titleLabel = Instance.new("TextLabel")
-            titleLabel.Size = UDim2.new(1, -24, 0, 20)
-            titleLabel.Position = UDim2.new(0, 12, 0, 10)
+            titleLabel.Size = UDim2.new(1, -28, 0, 22)
+            titleLabel.Position = UDim2.new(0, 14, 0, 14)
             titleLabel.BackgroundTransparency = 1
             titleLabel.Font = Enum.Font.GothamBold
             titleLabel.Text = titleText
             titleLabel.TextColor3 = Color3.fromRGB(230, 230, 240)
-            titleLabel.TextSize = 14
+            titleLabel.TextSize = 15
             titleLabel.TextXAlignment = Enum.TextXAlignment.Left
             titleLabel.Parent = paraFrame
 
             local contentLabel = Instance.new("TextLabel")
-            contentLabel.Size = UDim2.new(1, -24, 0, 0)
-            contentLabel.Position = UDim2.new(0, 12, 0, 32)
+            contentLabel.Size = UDim2.new(1, -28, 0, 0)
+            contentLabel.Position = UDim2.new(0, 14, 0, 40)
             contentLabel.BackgroundTransparency = 1
             contentLabel.Font = Enum.Font.Gotham
             contentLabel.Text = contentText
@@ -792,8 +792,8 @@ function Library:CreateWindow(options)
             contentLabel.Parent = paraFrame
 
             local function resize()
-                contentLabel.Size = UDim2.new(1, -24, 0, contentLabel.TextBounds.Y)
-                paraFrame.Size = UDim2.new(1, 0, 0, contentLabel.TextBounds.Y + 42)
+                contentLabel.Size = UDim2.new(1, -28, 0, contentLabel.TextBounds.Y)
+                paraFrame.Size = UDim2.new(1, 0, 0, contentLabel.TextBounds.Y + 56)
             end
             contentLabel:GetPropertyChangedSignal("TextBounds"):Connect(resize)
             task.spawn(resize)
@@ -820,25 +820,25 @@ function Library:CreateWindow(options)
 
             local imgLabel = Instance.new("ImageLabel")
             imgLabel.Size = UDim2.new(0, 32, 0, 32)
-            imgLabel.Position = UDim2.new(0, 12, 0, 12)
+            imgLabel.Position = UDim2.new(0, 14, 0, 14)
             imgLabel.BackgroundTransparency = 1
             imgLabel.Image = imageId or ""
             imgLabel.Parent = paraFrame
 
             local titleLabel = Instance.new("TextLabel")
-            titleLabel.Size = UDim2.new(1, -60, 0, 20)
-            titleLabel.Position = UDim2.new(0, 52, 0, 10)
+            titleLabel.Size = UDim2.new(1, -64, 0, 22)
+            titleLabel.Position = UDim2.new(0, 54, 0, 14)
             titleLabel.BackgroundTransparency = 1
             titleLabel.Font = Enum.Font.GothamBold
             titleLabel.Text = titleText
             titleLabel.TextColor3 = Color3.fromRGB(230, 230, 240)
-            titleLabel.TextSize = 14
+            titleLabel.TextSize = 15
             titleLabel.TextXAlignment = Enum.TextXAlignment.Left
             titleLabel.Parent = paraFrame
 
             local contentLabel = Instance.new("TextLabel")
-            contentLabel.Size = UDim2.new(1, -60, 0, 0)
-            contentLabel.Position = UDim2.new(0, 52, 0, 32)
+            contentLabel.Size = UDim2.new(1, -64, 0, 0)
+            contentLabel.Position = UDim2.new(0, 54, 0, 40)
             contentLabel.BackgroundTransparency = 1
             contentLabel.Font = Enum.Font.Gotham
             contentLabel.Text = contentText
@@ -850,8 +850,8 @@ function Library:CreateWindow(options)
             contentLabel.Parent = paraFrame
 
             local function resize()
-                contentLabel.Size = UDim2.new(1, -60, 0, contentLabel.TextBounds.Y)
-                local calculatedHeight = math.max(contentLabel.TextBounds.Y + 42, 56)
+                contentLabel.Size = UDim2.new(1, -64, 0, contentLabel.TextBounds.Y)
+                local calculatedHeight = math.max(contentLabel.TextBounds.Y + 56, 72)
                 paraFrame.Size = UDim2.new(1, 0, 0, calculatedHeight)
             end
             contentLabel:GetPropertyChangedSignal("TextBounds"):Connect(resize)
@@ -870,7 +870,7 @@ function Library:CreateWindow(options)
             local currentVal = defaultVal
 
             local sliderContainer = Instance.new("Frame")
-            sliderContainer.Size = UDim2.new(1, 0, 0, 50)
+            sliderContainer.Size = UDim2.new(1, 0, 0, 52)
             sliderContainer.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
             sliderContainer.Parent = parentCol
 
@@ -884,7 +884,7 @@ function Library:CreateWindow(options)
             sStroke.Parent = sliderContainer
 
             local label = Instance.new("TextLabel")
-            label.Size = UDim2.new(0.6, -12, 0, 20)
+            label.Size = UDim2.new(0.6, -12, 0, 24)
             label.Position = UDim2.new(0, 12, 0, 6)
             label.BackgroundTransparency = 1
             label.Font = Enum.Font.GothamMedium
@@ -894,22 +894,30 @@ function Library:CreateWindow(options)
             label.TextXAlignment = Enum.TextXAlignment.Left
             label.Parent = sliderContainer
 
-            -- Editable Input TextBox next to title label
+            -- Editable Input TextBox with background box
             local valInput = Instance.new("TextBox")
-            valInput.Size = UDim2.new(0, 50, 0, 20)
-            valInput.Position = UDim2.new(1, -62, 0, 6)
-            valInput.BackgroundTransparency = 1
+            valInput.Size = UDim2.new(0, 56, 0, 22)
+            valInput.Position = UDim2.new(1, -68, 0, 6)
+            valInput.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
             valInput.Font = Enum.Font.Gotham
             valInput.Text = tostring(currentVal)
             valInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-            valInput.TextSize = 13
-            valInput.TextXAlignment = Enum.TextXAlignment.Right
+            valInput.TextSize = 12
             valInput.ClearTextOnFocus = false
             valInput.Parent = sliderContainer
 
+            local valCorner = Instance.new("UICorner")
+            valCorner.CornerRadius = UDim.new(0, 4)
+            valCorner.Parent = valInput
+
+            local valStroke = Instance.new("UIStroke")
+            valStroke.Color = Color3.fromRGB(35, 35, 45)
+            valStroke.Thickness = 1
+            valStroke.Parent = valInput
+
             local sliderBar = Instance.new("Frame")
             sliderBar.Size = UDim2.new(1, -24, 0, 6)
-            sliderBar.Position = UDim2.new(0, 12, 0, 32)
+            sliderBar.Position = UDim2.new(0, 12, 0, 36)
             sliderBar.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
             sliderBar.Parent = sliderContainer
 
@@ -951,7 +959,16 @@ function Library:CreateWindow(options)
                 pcall(callback, currentVal)
             end
 
+            valInput.Focused:Connect(function()
+                TweenService:Create(valStroke, TweenInfo.new(0.15), {
+                    Color = Window.AccentColor
+                }):Play()
+            end)
+
             valInput.FocusLost:Connect(function()
+                TweenService:Create(valStroke, TweenInfo.new(0.15), {
+                    Color = Color3.fromRGB(35, 35, 45)
+                }):Play()
                 local num = tonumber(valInput.Text)
                 if num then
                     currentVal = math.clamp(math.floor(num), minVal, maxVal)
