@@ -8,21 +8,12 @@ local LocalPlayer = Players.LocalPlayer
 local Library = {}
 Library.__index = Library
 
-local FONT_FAMILY = "rbxassetid://12187365364" -- Inter font asset ID proxy for Roblox
-
-local function applyFont(instance, weight, style)
-    style = style or Enum.FontStyle.Normal
-    if instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox") then
-        instance.FontFace = Font.new(FONT_FAMILY, weight, style)
-    end
-end
-
 function Library:CreateWindow(options)
     options = options or {}
     local windowTitle = options.Title or "JayHub"
     local windowSubTitle = options.SubTitle or "Grow a Garden 2"
     local windowVersion = options.Version or "v1.3.9 • Free"
-    local accentColor = Color3.fromRGB(0, 150, 255)
+    local accentColor = options.AccentColor or Color3.fromRGB(27, 78, 245)
 
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = windowTitle .. "UI"
@@ -74,10 +65,10 @@ function Library:CreateWindow(options)
     local mainTitleLabel = Instance.new("TextLabel")
     mainTitleLabel.Size = UDim2.new(1, 0, 0, 30)
     mainTitleLabel.BackgroundTransparency = 1
-    applyFont(mainTitleLabel, Enum.FontWeight.Bold)
+    mainTitleLabel.Font = Enum.Font.GothamBold
     mainTitleLabel.TextSize = 24
     mainTitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    mainTitleLabel.TextXAlignment = Enum.TextXAlignment.Center
+    mainTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
     mainTitleLabel.RichText = true
     
     local colorR, colorG, colorB = math.floor(accentColor.R * 255), math.floor(accentColor.G * 255), math.floor(accentColor.B * 255)
@@ -88,10 +79,10 @@ function Library:CreateWindow(options)
     subTitleLabel.Size = UDim2.new(1, 0, 0, 20)
     subTitleLabel.Position = UDim2.new(0, 0, 0, 30)
     subTitleLabel.BackgroundTransparency = 1
-    applyFont(subTitleLabel, Enum.FontWeight.Regular)
+    subTitleLabel.Font = Enum.Font.Gotham
     subTitleLabel.TextSize = 13
     subTitleLabel.TextColor3 = Color3.fromRGB(120, 120, 130)
-    subTitleLabel.TextXAlignment = Enum.TextXAlignment.Center
+    subTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
     subTitleLabel.Text = windowSubTitle
     subTitleLabel.Parent = titleContainer
 
@@ -185,7 +176,7 @@ function Library:CreateWindow(options)
     keyStatusLabel.Size = UDim2.new(1, -38, 1, 0)
     keyStatusLabel.Position = UDim2.new(0, 36, 0, 0)
     keyStatusLabel.BackgroundTransparency = 1
-    applyFont(keyStatusLabel, Enum.FontWeight.Medium)
+    keyStatusLabel.Font = Enum.Font.GothamMedium
     keyStatusLabel.TextSize = 11
     keyStatusLabel.TextColor3 = Color3.fromRGB(180, 180, 190)
     keyStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -215,7 +206,7 @@ function Library:CreateWindow(options)
     versionLabel.Size = UDim2.new(0, 120, 0, 24)
     versionLabel.Position = UDim2.new(1, -128, 1, -28)
     versionLabel.BackgroundTransparency = 1
-    applyFont(versionLabel, Enum.FontWeight.Medium)
+    versionLabel.Font = Enum.Font.GothamMedium
     versionLabel.TextSize = 12
     versionLabel.TextColor3 = Color3.fromRGB(100, 100, 115)
     versionLabel.TextXAlignment = Enum.TextXAlignment.Right
@@ -309,27 +300,19 @@ function Library:CreateWindow(options)
         tabBtn.Size = UDim2.new(1, -6, 0, 38)
         tabBtn.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
         tabBtn.BackgroundTransparency = 1
-        applyFont(tabBtn, Enum.FontWeight.Medium)
+        tabBtn.Font = Enum.Font.GothamMedium
         tabBtn.TextColor3 = Color3.fromRGB(150, 150, 165)
         tabBtn.TextSize = 14
         tabBtn.TextXAlignment = Enum.TextXAlignment.Left
-        tabBtn.Text = "        " .. tabName
+        tabBtn.Text = tabName
         tabBtn.Parent = Window.TabContainer
-
-        local tabIcon = Instance.new("ImageLabel")
-        tabIcon.Size = UDim2.new(0, 18, 0, 18)
-        tabIcon.Position = UDim2.new(0, 10, 0.5, -9)
-        tabIcon.BackgroundTransparency = 1
-        tabIcon.Image = "rbxassetid://6034818375"
-        tabIcon.ImageColor3 = Color3.fromRGB(150, 150, 165)
-        tabIcon.Parent = tabBtn
 
         local btnCorner = Instance.new("UICorner")
         btnCorner.CornerRadius = UDim.new(0, 6)
         btnCorner.Parent = tabBtn
 
         local padding = Instance.new("UIPadding")
-        padding.PaddingLeft = UDim.new(0, 6)
+        padding.PaddingLeft = UDim.new(0, 12)
         padding.Parent = tabBtn
 
         local function activateTab()
@@ -338,13 +321,11 @@ function Library:CreateWindow(options)
                 t.Button.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
                 t.Button.BackgroundTransparency = 1
                 t.Button.TextColor3 = Color3.fromRGB(150, 150, 165)
-                t.Icon.ImageColor3 = Color3.fromRGB(150, 150, 165)
             end
             pageFrame.Visible = true
             tabBtn.BackgroundColor3 = Window.AccentColor
             tabBtn.BackgroundTransparency = 0.88
             tabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            tabIcon.ImageColor3 = Color3.fromRGB(255, 255, 255)
             Window.ActiveTab = tabObj
         end
 
@@ -370,7 +351,6 @@ function Library:CreateWindow(options)
 
         tabObj.Page = pageFrame
         tabObj.Button = tabBtn
-        tabObj.Icon = tabIcon
         table.insert(Window.Tabs, tabObj)
 
         if #Window.Tabs == 1 then
@@ -394,7 +374,7 @@ function Library:CreateWindow(options)
             local actionBtn = Instance.new("TextButton")
             actionBtn.Size = UDim2.new(1, 0, 0, 46)
             actionBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
-            applyFont(actionBtn, Enum.FontWeight.Medium)
+            actionBtn.Font = Enum.Font.GothamMedium
             actionBtn.Text = btnText
             actionBtn.TextColor3 = Color3.fromRGB(210, 210, 220)
             actionBtn.TextSize = 14
@@ -451,87 +431,53 @@ function Library:CreateWindow(options)
             label.Size = UDim2.new(0.45, -10, 1, 0)
             label.Position = UDim2.new(0, 12, 0, 0)
             label.BackgroundTransparency = 1
-            applyFont(label, Enum.FontWeight.Medium)
+            label.Font = Enum.Font.GothamMedium
             label.Text = titleText
             label.TextColor3 = Color3.fromRGB(210, 210, 220)
             label.TextSize = 13
             label.TextXAlignment = Enum.TextXAlignment.Left
             label.Parent = inputFrame
 
-            local displayBg = Instance.new("Frame")
-            displayBg.Size = UDim2.new(0.55, -12, 0, 30)
-            displayBg.Position = UDim2.new(0.45, 0, 0.5, -15)
-            displayBg.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
-            displayBg.ClipsDescendants = true
-            displayBg.Parent = inputFrame
-
-            local displayCorner = Instance.new("UICorner")
-            displayCorner.CornerRadius = UDim.new(0, 4)
-            displayCorner.Parent = displayBg
-
-            local displayStroke = Instance.new("UIStroke")
-            displayStroke.Color = Color3.fromRGB(35, 35, 45)
-            displayStroke.Thickness = 1
-            displayStroke.Parent = displayBg
-
-            local displayText = Instance.new("TextLabel")
-            displayText.Size = UDim2.new(1, -8, 1, 0)
-            displayText.Position = UDim2.new(0, 4, 0, 0)
-            displayText.BackgroundTransparency = 1
-            applyFont(displayText, Enum.FontWeight.Regular)
-            displayText.Text = savedPlaceholder
-            displayText.TextColor3 = Color3.fromRGB(150, 150, 165)
-            displayText.TextSize = 13
-            displayText.TextXAlignment = Enum.TextXAlignment.Left
-            displayText.Parent = displayBg
-
             local textBox = Instance.new("TextBox")
-            textBox.Size = UDim2.new(1, 0, 1, 0)
-            textBox.BackgroundTransparency = 1
-            applyFont(textBox, Enum.FontWeight.Regular)
-            textBox.PlaceholderText = ""
+            textBox.Size = UDim2.new(0.55, -12, 0, 30)
+            textBox.Position = UDim2.new(0.45, 0, 0.5, -15)
+            textBox.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
+            textBox.ClipsDescendants = true
+            textBox.Font = Enum.Font.Gotham
+            textBox.PlaceholderText = savedPlaceholder
+            textBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 165)
             textBox.Text = ""
-            textBox.TextTransparency = 1
             textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
             textBox.TextSize = 13
-            textBox.TextXAlignment = Enum.TextXAlignment.Left
             textBox.ClearTextOnFocus = false
-            textBox.ZIndex = 3
-            textBox.Parent = displayBg
+            textBox.Parent = inputFrame
+
+            local boxCorner = Instance.new("UICorner")
+            boxCorner.CornerRadius = UDim.new(0, 4)
+            boxCorner.Parent = textBox
+
+            local boxStroke = Instance.new("UIStroke")
+            boxStroke.Color = Color3.fromRGB(35, 35, 45)
+            boxStroke.Thickness = 1
+            boxStroke.Parent = textBox
 
             textBox.Focused:Connect(function()
-                if textBox.Text == "" then
-                    displayText.Text = "|"
-                    displayText.TextColor3 = Color3.fromRGB(255, 255, 255)
-                end
-                TweenService:Create(displayStroke, TweenInfo.new(0.15), {
+                textBox.PlaceholderText = ""
+                textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+                TweenService:Create(boxStroke, TweenInfo.new(0.15), {
                     Color = Window.AccentColor
                 }):Play()
             end)
 
             textBox.FocusLost:Connect(function(enterPressed)
                 if textBox.Text == "" then
-                    displayText.Text = savedPlaceholder
-                    displayText.TextColor3 = Color3.fromRGB(150, 150, 165)
-                else
-                    displayText.Text = textBox.Text
-                    displayText.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    textBox.PlaceholderText = savedPlaceholder
                 end
-                TweenService:Create(displayStroke, TweenInfo.new(0.15), {
+                textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+                TweenService:Create(boxStroke, TweenInfo.new(0.15), {
                     Color = Color3.fromRGB(35, 35, 45)
                 }):Play()
                 pcall(callback, textBox.Text, enterPressed)
-            end)
-
-            textBox:GetPropertyChangedSignal("Text"):Connect(function()
-                if textBox:IsFocused() then
-                    if textBox.Text == "" then
-                        displayText.Text = "|"
-                    else
-                        displayText.Text = textBox.Text .. "|"
-                    end
-                    displayText.TextColor3 = Color3.fromRGB(255, 255, 255)
-                end
             end)
 
             return inputFrame
@@ -562,7 +508,7 @@ function Library:CreateWindow(options)
             end
 
             local dropdownContainer = Instance.new("Frame")
-            dropdownContainer.Size = UDim2.new(1, 0, 0, 52)
+            dropdownContainer.Size = UDim2.new(1, 0, 0, 46)
             dropdownContainer.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
             dropdownContainer.ClipsDescendants = true
             dropdownContainer.Parent = parentCol
@@ -577,7 +523,7 @@ function Library:CreateWindow(options)
             dStroke.Parent = dropdownContainer
 
             local headerBtn = Instance.new("TextButton")
-            headerBtn.Size = UDim2.new(1, 0, 0, 52)
+            headerBtn.Size = UDim2.new(1, 0, 0, 46)
             headerBtn.BackgroundTransparency = 1
             headerBtn.Text = ""
             headerBtn.ZIndex = 5
@@ -585,12 +531,12 @@ function Library:CreateWindow(options)
 
             local label = Instance.new("TextLabel")
             label.Size = UDim2.new(0.42, -12, 1, 0)
-            label.Position = UDim2.new(0, 14, 0, 0)
+            label.Position = UDim2.new(0, 12, 0, 0)
             label.BackgroundTransparency = 1
-            applyFont(label, Enum.FontWeight.Medium)
+            label.Font = Enum.Font.GothamMedium
             label.Text = titleText
             label.TextColor3 = Color3.fromRGB(210, 210, 220)
-            label.TextSize = 14
+            label.TextSize = 13
             label.TextXAlignment = Enum.TextXAlignment.Left
             label.TextTruncate = Enum.TextTruncate.AtEnd
             label.ZIndex = 6
@@ -600,9 +546,9 @@ function Library:CreateWindow(options)
             selectedLabel.Size = UDim2.new(0.58, -32, 1, 0)
             selectedLabel.Position = UDim2.new(0.42, 0, 0, 0)
             selectedLabel.BackgroundTransparency = 1
-            applyFont(selectedLabel, Enum.FontWeight.Regular)
+            selectedLabel.Font = Enum.Font.Gotham
             selectedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-            selectedLabel.TextSize = 13
+            selectedLabel.TextSize = 12
             selectedLabel.TextXAlignment = Enum.TextXAlignment.Right
             selectedLabel.TextTruncate = Enum.TextTruncate.AtEnd
             selectedLabel.ZIndex = 6
@@ -612,16 +558,16 @@ function Library:CreateWindow(options)
             arrowIcon.Size = UDim2.new(0, 18, 1, 0)
             arrowIcon.Position = UDim2.new(1, -22, 0, 0)
             arrowIcon.BackgroundTransparency = 1
-            applyFont(arrowIcon, Enum.FontWeight.Bold)
+            arrowIcon.Font = Enum.Font.GothamBold
             arrowIcon.Text = "v"
             arrowIcon.TextColor3 = Color3.fromRGB(130, 130, 145)
-            arrowIcon.TextSize = 13
+            arrowIcon.TextSize = 12
             arrowIcon.ZIndex = 6
             arrowIcon.Parent = headerBtn
 
             local searchBoxFrame = Instance.new("Frame")
-            searchBoxFrame.Size = UDim2.new(1, -16, 0, 32)
-            searchBoxFrame.Position = UDim2.new(0, 8, 0, 56)
+            searchBoxFrame.Size = UDim2.new(1, -16, 0, 28)
+            searchBoxFrame.Position = UDim2.new(0, 8, 0, 48)
             searchBoxFrame.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
             searchBoxFrame.ZIndex = 10
             searchBoxFrame.Parent = dropdownContainer
@@ -635,68 +581,36 @@ function Library:CreateWindow(options)
             searchStroke.Thickness = 1
             searchStroke.Parent = searchBoxFrame
 
-            local searchDisplayText = Instance.new("TextLabel")
-            searchDisplayText.Size = UDim2.new(1, -8, 1, 0)
-            searchDisplayText.Position = UDim2.new(0, 6, 0, 0)
-            searchDisplayText.BackgroundTransparency = 1
-            applyFont(searchDisplayText, Enum.FontWeight.Regular)
-            searchDisplayText.Text = "Search..."
-            searchDisplayText.TextColor3 = Color3.fromRGB(90, 90, 105)
-            searchDisplayText.TextSize = 13
-            searchDisplayText.TextXAlignment = Enum.TextXAlignment.Left
-            searchDisplayText.ZIndex = 11
-            searchDisplayText.Parent = searchBoxFrame
-
             local searchInput = Instance.new("TextBox")
-            searchInput.Size = UDim2.new(1, 0, 1, 0)
+            searchInput.Size = UDim2.new(1, -12, 1, 0)
+            searchInput.Position = UDim2.new(0, 6, 0, 0)
             searchInput.BackgroundTransparency = 1
             searchInput.ClipsDescendants = true
-            applyFont(searchInput, Enum.FontWeight.Regular)
-            searchInput.PlaceholderText = ""
+            searchInput.Font = Enum.Font.Gotham
+            searchInput.PlaceholderText = "Search..."
+            searchInput.PlaceholderColor3 = Color3.fromRGB(90, 90, 105)
             searchInput.Text = ""
-            searchInput.TextTransparency = 1
             searchInput.TextColor3 = Color3.fromRGB(230, 230, 240)
-            searchInput.TextSize = 13
+            searchInput.TextSize = 12
             searchInput.TextXAlignment = Enum.TextXAlignment.Left
             searchInput.ClearTextOnFocus = false
-            searchInput.ZIndex = 12
+            searchInput.ZIndex = 11
             searchInput.Parent = searchBoxFrame
 
             searchInput.Focused:Connect(function()
-                if searchInput.Text == "" then
-                    searchDisplayText.Text = "|"
-                    searchDisplayText.TextColor3 = Color3.fromRGB(255, 255, 255)
-                end
-                TweenService:Create(searchStroke, TweenInfo.new(0.15), {
-                    Color = Window.AccentColor
-                }):Play()
+                searchInput.PlaceholderText = ""
+                searchInput.TextColor3 = Color3.fromRGB(255, 255, 255)
             end)
             searchInput.FocusLost:Connect(function()
                 if searchInput.Text == "" then
-                    searchDisplayText.Text = "Search..."
-                    searchDisplayText.TextColor3 = Color3.fromRGB(90, 90, 105)
-                else
-                    searchDisplayText.Text = searchInput.Text
-                    searchDisplayText.TextColor3 = Color3.fromRGB(230, 230, 240)
+                    searchInput.PlaceholderText = "Search..."
                 end
-                TweenService:Create(searchStroke, TweenInfo.new(0.15), {
-                    Color = Color3.fromRGB(35, 35, 45)
-                }):Play()
-            end)
-            searchInput:GetPropertyChangedSignal("Text"):Connect(function()
-                if searchInput:IsFocused() then
-                    if searchInput.Text == "" then
-                        searchDisplayText.Text = "|"
-                    else
-                        searchDisplayText.Text = searchInput.Text .. "|"
-                    end
-                    searchDisplayText.TextColor3 = Color3.fromRGB(255, 255, 255)
-                end
+                searchInput.TextColor3 = Color3.fromRGB(255, 255, 255)
             end)
 
             local optionListFrame = Instance.new("Frame")
             optionListFrame.Size = UDim2.new(1, -16, 0, 0)
-            optionListFrame.Position = UDim2.new(0, 8, 0, 96)
+            optionListFrame.Position = UDim2.new(0, 8, 0, 82)
             optionListFrame.BackgroundTransparency = 1
             optionListFrame.ZIndex = 10
             optionListFrame.Parent = dropdownContainer
@@ -724,7 +638,7 @@ function Library:CreateWindow(options)
 
             local function updateContainerHeight()
                 local listHeight = listLayout.AbsoluteContentSize.Y
-                local targetHeight = isOpen and (104 + listHeight) or 52
+                local targetHeight = isOpen and (90 + listHeight) or 46
 
                 TweenService:Create(dropdownContainer, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
                     Size = UDim2.new(1, 0, 0, targetHeight)
@@ -745,13 +659,13 @@ function Library:CreateWindow(options)
                     if searchQuery == "" or string.find(string.lower(strOpt), string.lower(searchQuery), 1, true) then
                         local isSelected = selectedValues[opt] == true
                         local optBtn = Instance.new("TextButton")
-                        optBtn.Size = UDim2.new(1, 0, 0, 32)
+                        optBtn.Size = UDim2.new(1, 0, 0, 26)
                         optBtn.BackgroundColor3 = isSelected and Window.AccentColor or Color3.fromRGB(18, 18, 22)
                         optBtn.BackgroundTransparency = isSelected and 0.88 or 0
-                        applyFont(optBtn, Enum.FontWeight.Regular)
+                        optBtn.Font = Enum.Font.Gotham
                         optBtn.Text = "   " .. (isSelected and "• " or "") .. strOpt
                         optBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-                        optBtn.TextSize = 13
+                        optBtn.TextSize = 12
                         optBtn.TextXAlignment = Enum.TextXAlignment.Left
                         optBtn.LayoutOrder = idx
                         optBtn.ZIndex = 11
@@ -862,7 +776,7 @@ function Library:CreateWindow(options)
             label.Size = UDim2.new(0.7, -10, 1, 0)
             label.Position = UDim2.new(0, 12, 0, 0)
             label.BackgroundTransparency = 1
-            applyFont(label, Enum.FontWeight.Medium)
+            label.Font = Enum.Font.GothamMedium
             label.Text = titleText
             label.TextColor3 = Color3.fromRGB(210, 210, 220)
             label.TextSize = 14
@@ -934,7 +848,7 @@ function Library:CreateWindow(options)
             titleLabel.Size = UDim2.new(1, -28, 0, 22)
             titleLabel.Position = UDim2.new(0, 14, 0, 14)
             titleLabel.BackgroundTransparency = 1
-            applyFont(titleLabel, Enum.FontWeight.Bold)
+            titleLabel.Font = Enum.Font.GothamBold
             titleLabel.Text = titleText
             titleLabel.TextColor3 = Color3.fromRGB(230, 230, 240)
             titleLabel.TextSize = 15
@@ -945,32 +859,20 @@ function Library:CreateWindow(options)
             contentLabel.Size = UDim2.new(1, -28, 0, 0)
             contentLabel.Position = UDim2.new(0, 14, 0, 40)
             contentLabel.BackgroundTransparency = 1
-            applyFont(contentLabel, Enum.FontWeight.Regular)
+            contentLabel.Font = Enum.Font.Gotham
             contentLabel.Text = contentText
             contentLabel.TextColor3 = Color3.fromRGB(180, 180, 195)
-            contentLabel.TextSize = 16 -- Increased paragraph font size to 16
+            contentLabel.TextSize = 14
             contentLabel.TextXAlignment = Enum.TextXAlignment.Left
             contentLabel.TextYAlignment = Enum.TextYAlignment.Top
             contentLabel.TextWrapped = true
             contentLabel.Parent = paraFrame
 
             local function resize()
-                local availableWidth = paraFrame.AbsoluteSize.X - 28
-                if availableWidth <= 0 then availableWidth = 200 end
-                
-                local textBounds = game:GetService("TextService"):GetTextSize(
-                    contentText, 
-                    16, -- Updated calculation size to match 16
-                    Enum.Font.Gotham,
-                    Vector2.new(availableWidth, 999999)
-                )
-                
-                local targetHeight = math.max(textBounds.Y + 54, 60)
-                contentLabel.Size = UDim2.new(1, -28, 0, textBounds.Y)
-                paraFrame.Size = UDim2.new(1, 0, 0, targetHeight)
+                contentLabel.Size = UDim2.new(1, -28, 0, contentLabel.TextBounds.Y)
+                paraFrame.Size = UDim2.new(1, 0, 0, contentLabel.TextBounds.Y + 56)
             end
-
-            paraFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize)
+            contentLabel:GetPropertyChangedSignal("TextBounds"):Connect(resize)
             task.spawn(resize)
 
             return paraFrame
@@ -1004,7 +906,7 @@ function Library:CreateWindow(options)
             titleLabel.Size = UDim2.new(1, -70, 0, 22)
             titleLabel.Position = UDim2.new(0, 64, 0, 12)
             titleLabel.BackgroundTransparency = 1
-            applyFont(titleLabel, Enum.FontWeight.Bold)
+            titleLabel.Font = Enum.Font.GothamBold
             titleLabel.Text = titleText
             titleLabel.TextColor3 = Color3.fromRGB(230, 230, 240)
             titleLabel.TextSize = 15
@@ -1015,32 +917,21 @@ function Library:CreateWindow(options)
             contentLabel.Size = UDim2.new(1, -70, 0, 0)
             contentLabel.Position = UDim2.new(0, 64, 0, 36)
             contentLabel.BackgroundTransparency = 1
-            applyFont(contentLabel, Enum.FontWeight.Regular)
+            contentLabel.Font = Enum.Font.Gotham
             contentLabel.Text = contentText
             contentLabel.TextColor3 = Color3.fromRGB(180, 180, 195)
-            contentLabel.TextSize = 16 -- Increased paragraph font size to 16
+            contentLabel.TextSize = 14
             contentLabel.TextXAlignment = Enum.TextXAlignment.Left
             contentLabel.TextYAlignment = Enum.TextYAlignment.Top
             contentLabel.TextWrapped = true
             contentLabel.Parent = paraFrame
 
             local function resize()
-                local availableWidth = paraFrame.AbsoluteSize.X - 70
-                if availableWidth <= 0 then availableWidth = 150 end
-
-                local textBounds = game:GetService("TextService"):GetTextSize(
-                    contentText, 
-                    16, -- Updated calculation size to match 16
-                    Enum.Font.Gotham, 
-                    Vector2.new(availableWidth, 999999)
-                )
-
-                contentLabel.Size = UDim2.new(1, -70, 0, textBounds.Y)
-                local calculatedHeight = math.max(textBounds.Y + 48, 66)
+                contentLabel.Size = UDim2.new(1, -70, 0, contentLabel.TextBounds.Y)
+                local calculatedHeight = math.max(contentLabel.TextBounds.Y + 48, 66)
                 paraFrame.Size = UDim2.new(1, 0, 0, calculatedHeight)
             end
-
-            paraFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize)
+            contentLabel:GetPropertyChangedSignal("TextBounds"):Connect(resize)
             task.spawn(resize)
 
             return paraFrame
@@ -1054,6 +945,7 @@ function Library:CreateWindow(options)
 
             local parentCol = getTargetParent(side)
             local currentVal = defaultVal
+            local savedPlaceholder = tostring(currentVal)
 
             local sliderContainer = Instance.new("Frame")
             sliderContainer.Size = UDim2.new(1, 0, 0, 52)
@@ -1073,53 +965,35 @@ function Library:CreateWindow(options)
             label.Size = UDim2.new(0.6, -12, 0, 24)
             label.Position = UDim2.new(0, 12, 0, 6)
             label.BackgroundTransparency = 1
-            applyFont(label, Enum.FontWeight.Medium)
+            label.Font = Enum.Font.GothamMedium
             label.Text = titleText
             label.TextColor3 = Color3.fromRGB(210, 210, 220)
             label.TextSize = 13
             label.TextXAlignment = Enum.TextXAlignment.Left
             label.Parent = sliderContainer
 
-            local valDisplayBg = Instance.new("Frame")
-            valDisplayBg.Size = UDim2.new(0, 56, 0, 22)
-            valDisplayBg.Position = UDim2.new(1, -68, 0, 6)
-            valDisplayBg.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
-            valDisplayBg.ClipsDescendants = true
-            valDisplayBg.Parent = sliderContainer
-
-            local valDisplayCorner = Instance.new("UICorner")
-            valDisplayCorner.CornerRadius = UDim.new(0, 4)
-            valDisplayCorner.Parent = valDisplayBg
-
-            local valDisplayStroke = Instance.new("UIStroke")
-            valDisplayStroke.Color = Color3.fromRGB(35, 35, 45)
-            valDisplayStroke.Thickness = 1
-            valDisplayStroke.Parent = valDisplayBg
-
-            local valDisplayText = Instance.new("TextLabel")
-            valDisplayText.Size = UDim2.new(1, -6, 1, 0)
-            valDisplayText.Position = UDim2.new(0, 3, 0, 0)
-            valDisplayText.BackgroundTransparency = 1
-            applyFont(valDisplayText, Enum.FontWeight.Regular)
-            valDisplayText.Text = tostring(currentVal)
-            valDisplayText.TextColor3 = Color3.fromRGB(255, 255, 255)
-            valDisplayText.TextSize = 12
-            valDisplayText.TextXAlignment = Enum.TextXAlignment.Left
-            valDisplayText.Parent = valDisplayBg
-
             local valInput = Instance.new("TextBox")
-            valInput.Size = UDim2.new(1, 0, 1, 0)
-            valInput.BackgroundTransparency = 1
-            applyFont(valInput, Enum.FontWeight.Regular)
-            valInput.PlaceholderText = ""
-            valInput.Text = ""
-            valInput.TextTransparency = 1
+            valInput.Size = UDim2.new(0, 56, 0, 22)
+            valInput.Position = UDim2.new(1, -68, 0, 6)
+            valInput.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
+            valInput.ClipsDescendants = true
+            valInput.Font = Enum.Font.Gotham
+            valInput.PlaceholderText = savedPlaceholder
+            valInput.PlaceholderColor3 = Color3.fromRGB(150, 150, 165)
+            valInput.Text = tostring(currentVal)
             valInput.TextColor3 = Color3.fromRGB(255, 255, 255)
             valInput.TextSize = 12
-            valInput.TextXAlignment = Enum.TextXAlignment.Left
             valInput.ClearTextOnFocus = false
-            valInput.ZIndex = 3
-            valInput.Parent = valDisplayBg
+            valInput.Parent = sliderContainer
+
+            local valCorner = Instance.new("UICorner")
+            valCorner.CornerRadius = UDim.new(0, 4)
+            valCorner.Parent = valInput
+
+            local valStroke = Instance.new("UIStroke")
+            valStroke.Color = Color3.fromRGB(35, 35, 45)
+            valStroke.Thickness = 1
+            valStroke.Parent = valInput
 
             local sliderBar = Instance.new("Frame")
             sliderBar.Size = UDim2.new(1, -24, 0, 6)
@@ -1158,49 +1032,56 @@ function Library:CreateWindow(options)
                 local percent = posX / sliderBar.AbsoluteSize.X
                 currentVal = math.floor(minVal + (maxVal - minVal) * percent)
 
-                valDisplayText.Text = tostring(currentVal)
+                valInput.Text = tostring(currentVal)
+                savedPlaceholder = tostring(currentVal)
                 fill.Size = UDim2.new(percent, 0, 1, 0)
                 knob.Position = UDim2.new(percent, 0, 0.5, 0)
                 pcall(callback, currentVal)
             end
 
             valInput.Focused:Connect(function()
-                valDisplayText.Text = "|"
-                TweenService:Create(valDisplayStroke, TweenInfo.new(0.15), {
+                valInput.PlaceholderText = ""
+                TweenService:Create(valStroke, TweenInfo.new(0.15), {
                     Color = Window.AccentColor
                 }):Play()
+                valInput.TextColor3 = Color3.fromRGB(255, 255, 255)
             end)
 
             valInput.FocusLost:Connect(function()
+                if valInput.Text == "" then
+                    valInput.PlaceholderText = savedPlaceholder
+                end
+                TweenService:Create(valStroke, TweenInfo.new(0.15), {
+                    Color = Color3.fromRGB(35, 35, 45)
+                }):Play()
                 local num = tonumber(valInput.Text)
                 if num then
                     currentVal = math.clamp(math.floor(num), minVal, maxVal)
                 end
-                valInput.Text = ""
-                valDisplayText.Text = tostring(currentVal)
-                TweenService:Create(valDisplayStroke, TweenInfo.new(0.15), {
-                    Color = Color3.fromRGB(35, 35, 45)
-                }):Play()
-                valInput.Text = ""
+                valInput.Text = tostring(currentVal)
+                savedPlaceholder = tostring(currentVal)
+                valInput.TextColor3 = Color3.fromRGB(255, 255, 255)
                 local percent = (currentVal - minVal) / (maxVal - minVal)
                 fill.Size = UDim2.new(percent, 0, 1, 0)
                 knob.Position = UDim2.new(percent, 0, 0.5, 0)
                 pcall(callback, currentVal)
             end)
 
-            valInput:GetPropertyChangedSignal("Text"):Connect(function()
-                if valInput:IsFocused() then
-                    if valInput.Text == "" then
-                        valDisplayText.Text = "|"
-                    else
-                        valDisplayText.Text = valInput.Text .. "|"
-                    end
-                end
-            end)
-
             sliderBar.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                     isDragging = true
+                    updateValue(input)
+                end
+            end)
+
+            UserInputService.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    isDragging = false
+                end
+            end)
+
+            UserInputService.InputChanged:Connect(function(input)
+                if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
                     updateValue(input)
                 end
             end)
