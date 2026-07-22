@@ -948,21 +948,20 @@ function Library:CreateWindow(options)
             applyFont(contentLabel, Enum.FontWeight.Regular)
             contentLabel.Text = contentText
             contentLabel.TextColor3 = Color3.fromRGB(180, 180, 195)
-            contentLabel.TextSize = 14
+            contentLabel.TextSize = 15 -- Increased font size from 14 to 15
             contentLabel.TextXAlignment = Enum.TextXAlignment.Left
             contentLabel.TextYAlignment = Enum.TextYAlignment.Top
             contentLabel.TextWrapped = true
             contentLabel.Parent = paraFrame
 
             local function resize()
-                -- Calculate height properly based on available width constraint
                 local availableWidth = paraFrame.AbsoluteSize.X - 28
                 if availableWidth <= 0 then availableWidth = 200 end
                 
                 local textBounds = game:GetService("TextService"):GetTextSize(
                     contentText, 
-                    14, 
-                    Enum.Font.Gotham, -- Fallback text size check metric
+                    15, -- Updated calculation size to match 15
+                    Enum.Font.Gotham,
                     Vector2.new(availableWidth, 999999)
                 )
                 
@@ -1019,7 +1018,7 @@ function Library:CreateWindow(options)
             applyFont(contentLabel, Enum.FontWeight.Regular)
             contentLabel.Text = contentText
             contentLabel.TextColor3 = Color3.fromRGB(180, 180, 195)
-            contentLabel.TextSize = 14
+            contentLabel.TextSize = 15 -- Increased font size from 14 to 15
             contentLabel.TextXAlignment = Enum.TextXAlignment.Left
             contentLabel.TextYAlignment = Enum.TextYAlignment.Top
             contentLabel.TextWrapped = true
@@ -1031,7 +1030,7 @@ function Library:CreateWindow(options)
 
                 local textBounds = game:GetService("TextService"):GetTextSize(
                     contentText, 
-                    14, 
+                    15, -- Updated calculation size to match 15
                     Enum.Font.Gotham, 
                     Vector2.new(availableWidth, 999999)
                 )
@@ -1202,18 +1201,6 @@ function Library:CreateWindow(options)
             sliderBar.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                     isDragging = true
-                    updateValue(input)
-                end
-            end)
-
-            UserInputService.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    isDragging = false
-                end
-            end)
-
-            UserInputService.InputChanged:Connect(function(input)
-                if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
                     updateValue(input)
                 end
             end)
