@@ -26,11 +26,11 @@ function Library:CreateWindow(options)
         screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     end
 
-    -- Window Size
+    -- Window enlarged to 780x480 (Sidebar expanded to 170)
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 750, 0, 460)
-    mainFrame.Position = UDim2.new(0.5, -375, 0.5, -230)
+    mainFrame.Size = UDim2.new(0, 780, 0, 480)
+    mainFrame.Position = UDim2.new(0.5, -390, 0.5, -240)
     mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
     mainFrame.BorderSizePixel = 0
     mainFrame.Active = true
@@ -46,10 +46,10 @@ function Library:CreateWindow(options)
     mainStroke.Thickness = 1
     mainStroke.Parent = mainFrame
 
-    -- Sidebar
+    -- Sidebar Fixed at 170 width
     local sidebar = Instance.new("Frame")
     sidebar.Name = "Sidebar"
-    sidebar.Size = UDim2.new(0, 160, 1, 0)
+    sidebar.Size = UDim2.new(0, 170, 1, 0)
     sidebar.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
     sidebar.BorderSizePixel = 0
     sidebar.Parent = mainFrame
@@ -97,7 +97,7 @@ function Library:CreateWindow(options)
 
     local tabLayout = Instance.new("UIListLayout")
     tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    tabLayout.Padding = UDim.new(0, 6) -- Spacing between bigger tabs
+    tabLayout.Padding = UDim.new(0, 6)
     tabLayout.Parent = tabContainer
 
     local userProfile = Instance.new("Frame")
@@ -144,11 +144,11 @@ function Library:CreateWindow(options)
     keyStatusLabel.Text = "Lifetime Key"
     keyStatusLabel.Parent = userProfile
 
-    -- Content Area
+    -- Expanded Content Area Container
     local contentArea = Instance.new("Frame")
     contentArea.Name = "ContentArea"
-    contentArea.Size = UDim2.new(1, -172, 1, -40)
-    contentArea.Position = UDim2.new(0, 166, 0, 8)
+    contentArea.Size = UDim2.new(1, -182, 1, -40)
+    contentArea.Position = UDim2.new(0, 176, 0, 8)
     contentArea.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
     contentArea.BorderSizePixel = 0
     contentArea.Parent = mainFrame
@@ -181,10 +181,10 @@ function Library:CreateWindow(options)
         AccentColor = accentColor
     }
 
-    -- Modified CreateTab function (Bigger tabs + Logo/Icon Support)
-    function Window:CreateTab(tabName, iconId)
+    function Window:CreateTab(tabName, iconAsset)
         local tabObj = {}
         
+        -- Partition Layout Scroll Container
         local pageFrame = Instance.new("ScrollingFrame")
         pageFrame.Name = tabName .. "Page"
         pageFrame.Size = UDim2.new(1, -16, 1, -16)
@@ -197,6 +197,7 @@ function Library:CreateWindow(options)
         pageFrame.ClipsDescendants = true
         pageFrame.Parent = Window.ContentArea
 
+        -- Full Width Stack Container
         local fullContainer = Instance.new("Frame")
         fullContainer.Name = "FullContainer"
         fullContainer.Size = UDim2.new(1, 0, 0, 0)
@@ -205,39 +206,41 @@ function Library:CreateWindow(options)
 
         local fullLayout = Instance.new("UIListLayout")
         fullLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        fullLayout.Padding = UDim.new(0, 6)
+        fullLayout.Padding = UDim.new(0, 8)
         fullLayout.Parent = fullContainer
 
+        -- Left Partition Column (Expanded)
         local leftCol = Instance.new("Frame")
         leftCol.Name = "LeftColumn"
-        leftCol.Size = UDim2.new(0.5, -4, 0, 0)
+        leftCol.Size = UDim2.new(0.5, -6, 0, 0)
         leftCol.Position = UDim2.new(0, 0, 0, 0)
         leftCol.BackgroundTransparency = 1
         leftCol.Parent = pageFrame
 
         local leftLayout = Instance.new("UIListLayout")
         leftLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        leftLayout.Padding = UDim.new(0, 6)
+        leftLayout.Padding = UDim.new(0, 8)
         leftLayout.Parent = leftCol
 
+        -- Right Partition Column (Expanded)
         local rightCol = Instance.new("Frame")
         rightCol.Name = "RightColumn"
-        rightCol.Size = UDim2.new(0.5, -4, 0, 0)
-        rightCol.Position = UDim2.new(0.5, 4, 0, 0)
+        rightCol.Size = UDim2.new(0.5, -6, 0, 0)
+        rightCol.Position = UDim2.new(0.5, 6, 0, 0)
         rightCol.BackgroundTransparency = 1
         rightCol.Parent = pageFrame
 
         local rightLayout = Instance.new("UIListLayout")
         rightLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        rightLayout.Padding = UDim.new(0, 6)
+        rightLayout.Padding = UDim.new(0, 8)
         rightLayout.Parent = rightCol
 
         local function updateLayoutPositions()
             local fullH = fullLayout.AbsoluteContentSize.Y
-            if fullH > 0 then fullH = fullH + 6 end
+            if fullH > 0 then fullH = fullH + 8 end
 
             leftCol.Position = UDim2.new(0, 0, 0, fullH)
-            rightCol.Position = UDim2.new(0.5, 4, 0, fullH)
+            rightCol.Position = UDim2.new(0.5, 6, 0, fullH)
 
             local leftH = leftLayout.AbsoluteContentSize.Y
             local rightH = rightLayout.AbsoluteContentSize.Y
@@ -250,67 +253,62 @@ function Library:CreateWindow(options)
         leftLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateLayoutPositions)
         rightLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateLayoutPositions)
 
-        -- Increased Tab height from 30 to 36 for larger clickable tabs
+        -- Larger Tab Button (38px height)
         local tabBtn = Instance.new("TextButton")
-        tabBtn.Size = UDim2.new(1, 0, 0, 36)
+        tabBtn.Size = UDim2.new(1, 0, 0, 38)
         tabBtn.BackgroundColor3 = Window.AccentColor
         tabBtn.BackgroundTransparency = 1
         tabBtn.Font = Enum.Font.GothamMedium
-        tabBtn.Text = ""
+        tabBtn.Text = tabName
         tabBtn.TextColor3 = Color3.fromRGB(150, 150, 165)
         tabBtn.TextSize = 13
+        tabBtn.TextXAlignment = Enum.TextXAlignment.Left
         tabBtn.Parent = Window.TabContainer
 
         local btnCorner = Instance.new("UICorner")
         btnCorner.CornerRadius = UDim.new(0, 6)
         btnCorner.Parent = tabBtn
 
-        local textOffsetX = 12
-        local tabIconImage = nil
+        local tabIcon = nil
+        if iconAsset then
+            tabIcon = Instance.new("ImageLabel")
+            tabIcon.Size = UDim2.new(0, 18, 0, 18)
+            tabIcon.Position = UDim2.new(0, 10, 0.5, -9)
+            tabIcon.BackgroundTransparency = 1
+            tabIcon.ImageColor3 = Color3.fromRGB(150, 150, 165)
 
-        -- Optional Logo / Icon Setup
-        if iconId then
-            tabIconImage = Instance.new("ImageLabel")
-            tabIconImage.Size = UDim2.new(0, 18, 0, 18)
-            tabIconImage.Position = UDim2.new(0, 10, 0.5, -9)
-            tabIconImage.BackgroundTransparency = 1
-            tabIconImage.ImageColor3 = Color3.fromRGB(150, 150, 165)
-            tabIconImage.Parent = tabBtn
-
-            if type(iconId) == "number" or (type(iconId) == "string" and not string.find(iconId, "rbxassetid://")) then
-                tabIconImage.Image = "rbxassetid://" .. tostring(iconId)
+            if type(iconAsset) == "number" or (type(iconAsset) == "string" and not string.find(iconAsset, "rbxassetid://")) then
+                tabIcon.Image = "rbxassetid://" .. tostring(iconAsset)
             else
-                tabIconImage.Image = tostring(iconId)
+                tabIcon.Image = tostring(iconAsset)
             end
 
-            textOffsetX = 34
-        end
+            tabIcon.Parent = tabBtn
 
-        local tabLabel = Instance.new("TextLabel")
-        tabLabel.Size = UDim2.new(1, -textOffsetX, 1, 0)
-        tabLabel.Position = UDim2.new(0, textOffsetX, 0, 0)
-        tabLabel.BackgroundTransparency = 1
-        tabLabel.Font = Enum.Font.GothamMedium
-        tabLabel.Text = tabName
-        tabLabel.TextColor3 = Color3.fromRGB(150, 150, 165)
-        tabLabel.TextSize = 13
-        tabLabel.TextXAlignment = Enum.TextXAlignment.Left
-        tabLabel.Parent = tabBtn
+            -- Add padding for text when icon exists
+            local padding = Instance.new("UIPadding")
+            padding.PaddingLeft = UDim.new(0, 36)
+            padding.Parent = tabBtn
+        else
+            local padding = Instance.new("UIPadding")
+            padding.PaddingLeft = UDim.new(0, 12)
+            padding.Parent = tabBtn
+        end
 
         local function activateTab()
             for _, t in pairs(Window.Tabs) do
                 t.Page.Visible = false
                 t.Button.BackgroundTransparency = 1
-                t.Label.TextColor3 = Color3.fromRGB(150, 150, 165)
+                t.Button.TextColor3 = Color3.fromRGB(150, 150, 165)
                 if t.Icon then
                     t.Icon.ImageColor3 = Color3.fromRGB(150, 150, 165)
                 end
             end
             pageFrame.Visible = true
             tabBtn.BackgroundTransparency = 0.88
-            tabLabel.TextColor3 = Window.AccentColor
-            if tabIconImage then
-                tabIconImage.ImageColor3 = Window.AccentColor
+            tabBtn.TextColor3 = Window.AccentColor
+            if tabIcon then
+                tabIcon.ImageColor3 = Window.AccentColor
             end
             Window.ActiveTab = tabObj
         end
@@ -319,34 +317,42 @@ function Library:CreateWindow(options)
 
         tabBtn.MouseEnter:Connect(function()
             if Window.ActiveTab ~= tabObj then
-                TweenService:Create(tabBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.94}):Play()
-                TweenService:Create(tabLabel, TweenInfo.new(0.15), {TextColor3 = Color3.fromRGB(220, 220, 230)}):Play()
-                if tabIconImage then
-                    TweenService:Create(tabIconImage, TweenInfo.new(0.15), {ImageColor3 = Color3.fromRGB(220, 220, 230)}):Play()
+                TweenService:Create(tabBtn, TweenInfo.new(0.15), {
+                    BackgroundTransparency = 0.94,
+                    TextColor3 = Color3.fromRGB(220, 220, 230)
+                }):Play()
+                if tabIcon then
+                    TweenService:Create(tabIcon, TweenInfo.new(0.15), {
+                        ImageColor3 = Color3.fromRGB(220, 220, 230)
+                    }):Play()
                 end
             end
         end)
 
         tabBtn.MouseLeave:Connect(function()
             if Window.ActiveTab ~= tabObj then
-                TweenService:Create(tabBtn, TweenInfo.new(0.15), {BackgroundTransparency = 1}):Play()
-                TweenService:Create(tabLabel, TweenInfo.new(0.15), {TextColor3 = Color3.fromRGB(150, 150, 165)}):Play()
-                if tabIconImage then
-                    TweenService:Create(tabIconImage, TweenInfo.new(0.15), {ImageColor3 = Color3.fromRGB(150, 150, 165)}):Play()
+                TweenService:Create(tabBtn, TweenInfo.new(0.15), {
+                    BackgroundTransparency = 1,
+                    TextColor3 = Color3.fromRGB(150, 150, 165)
+                }):Play()
+                if tabIcon then
+                    TweenService:Create(tabIcon, TweenInfo.new(0.15), {
+                        ImageColor3 = Color3.fromRGB(150, 150, 165)
+                    }):Play()
                 end
             end
         end)
 
         tabObj.Page = pageFrame
         tabObj.Button = tabBtn
-        tabObj.Label = tabLabel
-        tabObj.Icon = tabIconImage
+        tabObj.Icon = tabIcon
         table.insert(Window.Tabs, tabObj)
 
         if #Window.Tabs == 1 then
             activateTab()
         end
 
+        -- Helper function to route components into partitions
         local function getTargetParent(side)
             if side == "right" or side == 2 or side == "Right" then
                 return rightCol
@@ -366,7 +372,7 @@ function Library:CreateWindow(options)
             local parentCol = getTargetParent(side)
 
             local actionBtn = Instance.new("TextButton")
-            actionBtn.Size = UDim2.new(1, 0, 0, 34)
+            actionBtn.Size = UDim2.new(1, 0, 0, 36)
             actionBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
             actionBtn.Font = Enum.Font.GothamMedium
             actionBtn.Text = btnText
@@ -384,11 +390,15 @@ function Library:CreateWindow(options)
             bStroke.Parent = actionBtn
 
             actionBtn.MouseEnter:Connect(function()
-                TweenService:Create(actionBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(30, 30, 38)}):Play()
+                TweenService:Create(actionBtn, TweenInfo.new(0.15), {
+                    BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+                }):Play()
             end)
 
             actionBtn.MouseLeave:Connect(function()
-                TweenService:Create(actionBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(24, 24, 30)}):Play()
+                TweenService:Create(actionBtn, TweenInfo.new(0.15), {
+                    BackgroundColor3 = Color3.fromRGB(24, 24, 30)
+                }):Play()
             end)
 
             actionBtn.MouseButton1Click:Connect(function()
@@ -403,7 +413,7 @@ function Library:CreateWindow(options)
             local parentCol = getTargetParent(side)
 
             local inputFrame = Instance.new("Frame")
-            inputFrame.Size = UDim2.new(1, 0, 0, 38)
+            inputFrame.Size = UDim2.new(1, 0, 0, 40)
             inputFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
             inputFrame.Parent = parentCol
 
@@ -428,8 +438,8 @@ function Library:CreateWindow(options)
             label.Parent = inputFrame
 
             local textBox = Instance.new("TextBox")
-            textBox.Size = UDim2.new(0.55, -8, 0, 24)
-            textBox.Position = UDim2.new(0.45, 0, 0.5, -12)
+            textBox.Size = UDim2.new(0.55, -8, 0, 26)
+            textBox.Position = UDim2.new(0.45, 0, 0.5, -13)
             textBox.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
             textBox.Font = Enum.Font.Gotham
             textBox.PlaceholderText = placeholderText or "Enter..."
@@ -450,11 +460,15 @@ function Library:CreateWindow(options)
             boxStroke.Parent = textBox
 
             textBox.Focused:Connect(function()
-                TweenService:Create(boxStroke, TweenInfo.new(0.15), {Color = Window.AccentColor}):Play()
+                TweenService:Create(boxStroke, TweenInfo.new(0.15), {
+                    Color = Window.AccentColor
+                }):Play()
             end)
 
             textBox.FocusLost:Connect(function(enterPressed)
-                TweenService:Create(boxStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(35, 35, 45)}):Play()
+                TweenService:Create(boxStroke, TweenInfo.new(0.15), {
+                    Color = Color3.fromRGB(35, 35, 45)
+                }):Play()
                 pcall(callback, textBox.Text, enterPressed)
             end)
 
@@ -485,7 +499,7 @@ function Library:CreateWindow(options)
             end
 
             local dropdownContainer = Instance.new("Frame")
-            dropdownContainer.Size = UDim2.new(1, 0, 0, 38)
+            dropdownContainer.Size = UDim2.new(1, 0, 0, 40)
             dropdownContainer.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
             dropdownContainer.ClipsDescendants = true
             dropdownContainer.Parent = parentCol
@@ -500,7 +514,7 @@ function Library:CreateWindow(options)
             dStroke.Parent = dropdownContainer
 
             local headerBtn = Instance.new("TextButton")
-            headerBtn.Size = UDim2.new(1, 0, 0, 38)
+            headerBtn.Size = UDim2.new(1, 0, 0, 40)
             headerBtn.BackgroundTransparency = 1
             headerBtn.Text = ""
             headerBtn.ZIndex = 5
@@ -542,7 +556,7 @@ function Library:CreateWindow(options)
 
             local searchBoxFrame = Instance.new("Frame")
             searchBoxFrame.Size = UDim2.new(1, -12, 0, 26)
-            searchBoxFrame.Position = UDim2.new(0, 6, 0, 40)
+            searchBoxFrame.Position = UDim2.new(0, 6, 0, 42)
             searchBoxFrame.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
             searchBoxFrame.ZIndex = 10
             searchBoxFrame.Parent = dropdownContainer
@@ -573,7 +587,7 @@ function Library:CreateWindow(options)
 
             local optionListFrame = Instance.new("Frame")
             optionListFrame.Size = UDim2.new(1, -12, 0, 0)
-            optionListFrame.Position = UDim2.new(0, 6, 0, 72)
+            optionListFrame.Position = UDim2.new(0, 6, 0, 74)
             optionListFrame.BackgroundTransparency = 1
             optionListFrame.ZIndex = 10
             optionListFrame.Parent = dropdownContainer
@@ -601,13 +615,15 @@ function Library:CreateWindow(options)
 
             local function updateContainerHeight()
                 local listHeight = listLayout.AbsoluteContentSize.Y
-                local targetHeight = isOpen and (78 + listHeight) or 38
+                local targetHeight = isOpen and (80 + listHeight) or 40
 
                 TweenService:Create(dropdownContainer, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
                     Size = UDim2.new(1, 0, 0, targetHeight)
                 }):Play()
 
-                TweenService:Create(arrowIcon, TweenInfo.new(0.2), {Rotation = isOpen and 180 or 0}):Play()
+                TweenService:Create(arrowIcon, TweenInfo.new(0.2), {
+                    Rotation = isOpen and 180 or 0
+                }):Play()
             end
 
             local function refreshList()
@@ -683,7 +699,7 @@ function Library:CreateWindow(options)
             local parentCol = getTargetParent(side)
 
             local toggleContainer = Instance.new("Frame")
-            toggleContainer.Size = UDim2.new(1, 0, 0, 38)
+            toggleContainer.Size = UDim2.new(1, 0, 0, 40)
             toggleContainer.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
             toggleContainer.Parent = parentCol
 
@@ -876,7 +892,7 @@ function Library:CreateWindow(options)
             local currentVal = defaultVal
 
             local sliderContainer = Instance.new("Frame")
-            sliderContainer.Size = UDim2.new(1, 0, 0, 42)
+            sliderContainer.Size = UDim2.new(1, 0, 0, 44)
             sliderContainer.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
             sliderContainer.Parent = parentCol
 
@@ -919,7 +935,7 @@ function Library:CreateWindow(options)
 
             local barCorner = Instance.new("UICorner")
             barCorner.CornerRadius = UDim.new(1, 0)
-            barCorner.Parent = barCorner
+            barCorner.Parent = sliderBar
 
             local fill = Instance.new("Frame")
             fill.Size = UDim2.new((currentVal - minVal) / (maxVal - minVal), 0, 1, 0)
