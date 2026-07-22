@@ -8,6 +8,19 @@ local LocalPlayer = Players.LocalPlayer
 local Library = {}
 Library.__index = Library
 
+-- Helper function to resolve icon asset paths (FontAwesome URLs, Web Links, or Asset IDs)
+local function resolveIconAsset(iconAsset)
+    if not iconAsset then return nil end
+    local str = tostring(iconAsset)
+    if string.find(str, "http://") or string.find(str, "https://") or string.find(str, "rbxassetid://") then
+        return str
+    elseif tonumber(str) then
+        return "rbxassetid://" .. str
+    else
+        return str
+    end
+end
+
 function Library:CreateWindow(options)
     options = options or {}
     local windowTitle = options.Title or "JayHub"
@@ -47,7 +60,7 @@ function Library:CreateWindow(options)
 
     local sidebar = Instance.new("Frame")
     sidebar.Name = "Sidebar"
-    sidebar.Size = UDim2.new(0, 175, 1, 0)
+    sidebar.Size = UDim2.new(0, 180, 1, 0)
     sidebar.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
     sidebar.BorderSizePixel = 0
     sidebar.Parent = mainFrame
@@ -57,7 +70,7 @@ function Library:CreateWindow(options)
     sidebarCorner.Parent = sidebar
 
     local titleContainer = Instance.new("Frame")
-    titleContainer.Size = UDim2.new(1, -20, 0, 50)
+    titleContainer.Size = UDim2.new(1, -24, 0, 50)
     titleContainer.Position = UDim2.new(0, 12, 0, 14)
     titleContainer.BackgroundTransparency = 1
     titleContainer.Parent = sidebar
@@ -144,8 +157,8 @@ function Library:CreateWindow(options)
 
     local contentArea = Instance.new("Frame")
     contentArea.Name = "ContentArea"
-    contentArea.Size = UDim2.new(1, -189, 1, -40)
-    contentArea.Position = UDim2.new(0, 181, 0, 8)
+    contentArea.Size = UDim2.new(1, -194, 1, -40)
+    contentArea.Position = UDim2.new(0, 186, 0, 8)
     contentArea.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
     contentArea.BorderSizePixel = 0
     contentArea.Parent = mainFrame
@@ -261,23 +274,20 @@ function Library:CreateWindow(options)
         btnCorner.Parent = tabBtn
 
         local tabIcon = nil
-        if iconAsset then
+        local resolvedAsset = resolveIconAsset(iconAsset)
+
+        if resolvedAsset then
             tabIcon = Instance.new("ImageLabel")
             tabIcon.Size = UDim2.new(0, 18, 0, 18)
             tabIcon.Position = UDim2.new(0, 10, 0.5, -9)
             tabIcon.BackgroundTransparency = 1
             tabIcon.ImageColor3 = Color3.fromRGB(150, 150, 165)
-
-            if type(iconAsset) == "number" or (type(iconAsset) == "string" and not string.find(iconAsset, "rbxassetid://")) then
-                tabIcon.Image = "rbxassetid://" .. tostring(iconAsset)
-            else
-                tabIcon.Image = tostring(iconAsset)
-            end
-
+            tabIcon.Image = resolvedAsset
+            tabIcon.ZIndex = 3
             tabIcon.Parent = tabBtn
 
             local padding = Instance.new("UIPadding")
-            padding.PaddingLeft = UDim.new(0, 36)
+            padding.PaddingLeft = UDim.new(0, 38)
             padding.Parent = tabBtn
         else
             local padding = Instance.new("UIPadding")
@@ -355,7 +365,7 @@ function Library:CreateWindow(options)
         end
 
         ------------------------------------------------------------------------
-        -- ELEMENT CREATORS (ENLARGED)
+        -- ELEMENT CREATORS
         ------------------------------------------------------------------------
 
         function tabObj:CreateButton(btnText, callback, side)
@@ -832,13 +842,8 @@ function Library:CreateWindow(options)
             iconImg.Size = UDim2.new(0, 28, 0, 28)
             iconImg.Position = UDim2.new(0, 10, 0, 10)
             iconImg.BackgroundTransparency = 1
+            iconImg.Image = resolveIconAsset(assetId) or ""
             iconImg.Parent = paraFrame
-
-            if type(assetId) == "number" or (type(assetId) == "string" and not string.find(assetId, "rbxassetid://")) then
-                iconImg.Image = "rbxassetid://" .. tostring(assetId)
-            else
-                iconImg.Image = tostring(assetId)
-            end
 
             local titleLabel = Instance.new("TextLabel")
             titleLabel.Size = UDim2.new(1, -54, 0, 20)
