@@ -463,6 +463,7 @@ function Library:CreateWindow(options)
 
             textBox.Focused:Connect(function()
                 textBox.PlaceholderText = ""
+                textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
                 TweenService:Create(boxStroke, TweenInfo.new(0.15), {
                     Color = Window.AccentColor
                 }):Play()
@@ -472,6 +473,7 @@ function Library:CreateWindow(options)
                 if textBox.Text == "" then
                     textBox.PlaceholderText = savedPlaceholder
                 end
+                textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
                 TweenService:Create(boxStroke, TweenInfo.new(0.15), {
                     Color = Color3.fromRGB(35, 35, 45)
                 }):Play()
@@ -594,6 +596,13 @@ function Library:CreateWindow(options)
             searchInput.ClearTextOnFocus = false
             searchInput.ZIndex = 11
             searchInput.Parent = searchBoxFrame
+
+            searchInput.Focused:Connect(function()
+                searchInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+            end)
+            searchInput.FocusLost:Connect(function()
+                searchInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+            end)
 
             local optionListFrame = Instance.new("Frame")
             optionListFrame.Size = UDim2.new(1, -16, 0, 0)
@@ -1026,6 +1035,7 @@ function Library:CreateWindow(options)
                 TweenService:Create(valStroke, TweenInfo.new(0.15), {
                     Color = Window.AccentColor
                 }):Play()
+                valInput.TextColor3 = Color3.fromRGB(255, 255, 255)
             end)
 
             valInput.FocusLost:Connect(function()
@@ -1037,6 +1047,7 @@ function Library:CreateWindow(options)
                     currentVal = math.clamp(math.floor(num), minVal, maxVal)
                 end
                 valInput.Text = tostring(currentVal)
+                valInput.TextColor3 = Color3.fromRGB(255, 255, 255)
                 local percent = (currentVal - minVal) / (maxVal - minVal)
                 fill.Size = UDim2.new(percent, 0, 1, 0)
                 knob.Position = UDim2.new(percent, 0, 0.5, 0)
