@@ -598,9 +598,13 @@ function Library:CreateWindow(options)
             searchInput.Parent = searchBoxFrame
 
             searchInput.Focused:Connect(function()
+                searchInput.PlaceholderText = ""
                 searchInput.TextColor3 = Color3.fromRGB(255, 255, 255)
             end)
             searchInput.FocusLost:Connect(function()
+                if searchInput.Text == "" then
+                    searchInput.PlaceholderText = "Search..."
+                end
                 searchInput.TextColor3 = Color3.fromRGB(255, 255, 255)
             end)
 
@@ -941,6 +945,7 @@ function Library:CreateWindow(options)
 
             local parentCol = getTargetParent(side)
             local currentVal = defaultVal
+            local savedPlaceholder = tostring(currentVal)
 
             local sliderContainer = Instance.new("Frame")
             sliderContainer.Size = UDim2.new(1, 0, 0, 52)
@@ -973,6 +978,8 @@ function Library:CreateWindow(options)
             valInput.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
             valInput.ClipsDescendants = true
             valInput.Font = Enum.Font.Gotham
+            valInput.PlaceholderText = savedPlaceholder
+            valInput.PlaceholderColor3 = Color3.fromRGB(150, 150, 165)
             valInput.Text = tostring(currentVal)
             valInput.TextColor3 = Color3.fromRGB(255, 255, 255)
             valInput.TextSize = 12
@@ -1026,12 +1033,14 @@ function Library:CreateWindow(options)
                 currentVal = math.floor(minVal + (maxVal - minVal) * percent)
 
                 valInput.Text = tostring(currentVal)
+                savedPlaceholder = tostring(currentVal)
                 fill.Size = UDim2.new(percent, 0, 1, 0)
                 knob.Position = UDim2.new(percent, 0, 0.5, 0)
                 pcall(callback, currentVal)
             end
 
             valInput.Focused:Connect(function()
+                valInput.PlaceholderText = ""
                 TweenService:Create(valStroke, TweenInfo.new(0.15), {
                     Color = Window.AccentColor
                 }):Play()
@@ -1039,6 +1048,9 @@ function Library:CreateWindow(options)
             end)
 
             valInput.FocusLost:Connect(function()
+                if valInput.Text == "" then
+                    valInput.PlaceholderText = savedPlaceholder
+                end
                 TweenService:Create(valStroke, TweenInfo.new(0.15), {
                     Color = Color3.fromRGB(35, 35, 45)
                 }):Play()
@@ -1047,6 +1059,7 @@ function Library:CreateWindow(options)
                     currentVal = math.clamp(math.floor(num), minVal, maxVal)
                 end
                 valInput.Text = tostring(currentVal)
+                savedPlaceholder = tostring(currentVal)
                 valInput.TextColor3 = Color3.fromRGB(255, 255, 255)
                 local percent = (currentVal - minVal) / (maxVal - minVal)
                 fill.Size = UDim2.new(percent, 0, 1, 0)
