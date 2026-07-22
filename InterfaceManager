@@ -1088,7 +1088,6 @@ function Library:CreateWindow(options)
             fill.Parent = sliderBar
 
             local fillCorner = Instance.new("UICorner")
-            fillCorner.CornerRadius = UDiv.new(1, 0) -- wait, UDim.new(1, 0)
             fillCorner.CornerRadius = UDim.new(1, 0)
             fillCorner.Parent = fill
 
