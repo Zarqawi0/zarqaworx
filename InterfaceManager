@@ -8,6 +8,19 @@ local LocalPlayer = Players.LocalPlayer
 local Library = {}
 Library.__index = Library
 
+-- Helper function to resolve icon asset paths (FontAwesome URLs, Web Links, or Asset IDs)
+local function resolveIconAsset(iconAsset)
+    if not iconAsset then return nil end
+    local str = tostring(iconAsset)
+    if string.find(str, "http://") or string.find(str, "https://") or string.find(str, "rbxassetid://") then
+        return str
+    elseif tonumber(str) then
+        return "rbxassetid://" .. str
+    else
+        return str
+    end
+end
+
 function Library:CreateWindow(options)
     options = options or {}
     local windowTitle = options.Title or "JayHub"
@@ -178,7 +191,7 @@ function Library:CreateWindow(options)
         AccentColor = accentColor
     }
 
-    function Window:CreateTab(tabName)
+    function Window:CreateTab(tabName, iconAsset)
         local tabObj = {}
         
         local pageFrame = Instance.new("ScrollingFrame")
@@ -254,26 +267,51 @@ function Library:CreateWindow(options)
         tabBtn.TextColor3 = Color3.fromRGB(150, 150, 165)
         tabBtn.TextSize = 13
         tabBtn.TextXAlignment = Enum.TextXAlignment.Left
-        tabBtn.Text = tabName
         tabBtn.Parent = Window.TabContainer
 
         local btnCorner = Instance.new("UICorner")
         btnCorner.CornerRadius = UDim.new(0, 6)
         btnCorner.Parent = tabBtn
 
-        local padding = Instance.new("UIPadding")
-        padding.PaddingLeft = UDim.new(0, 16)
-        padding.Parent = tabBtn
+        local tabIcon = nil
+        local resolvedAsset = resolveIconAsset(iconAsset)
+
+        if resolvedAsset then
+            tabIcon = Instance.new("ImageLabel")
+            tabIcon.Size = UDim2.new(0, 18, 0, 18)
+            tabIcon.Position = UDim2.new(0, 10, 0.5, -9)
+            tabIcon.BackgroundTransparency = 1
+            tabIcon.ImageColor3 = Color3.fromRGB(150, 150, 165)
+            tabIcon.Image = resolvedAsset
+            tabIcon.ZIndex = 3
+            tabIcon.Parent = tabBtn
+
+            local padding = Instance.new("UIPadding")
+            padding.PaddingLeft = UDim.new(0, 38)
+            padding.Parent = tabBtn
+        else
+            local padding = Instance.new("UIPadding")
+            padding.PaddingLeft = UDim.new(0, 12)
+            padding.Parent = tabBtn
+        end
+
+        tabBtn.Text = tabName
 
         local function activateTab()
             for _, t in pairs(Window.Tabs) do
                 t.Page.Visible = false
                 t.Button.BackgroundTransparency = 1
                 t.Button.TextColor3 = Color3.fromRGB(150, 150, 165)
+                if t.Icon then
+                    t.Icon.ImageColor3 = Color3.fromRGB(150, 150, 165)
+                end
             end
             pageFrame.Visible = true
             tabBtn.BackgroundTransparency = 0.88
             tabBtn.TextColor3 = Window.AccentColor
+            if tabIcon then
+                tabIcon.ImageColor3 = Window.AccentColor
+            end
             Window.ActiveTab = tabObj
         end
 
@@ -285,6 +323,11 @@ function Library:CreateWindow(options)
                     BackgroundTransparency = 0.94,
                     TextColor3 = Color3.fromRGB(220, 220, 230)
                 }):Play()
+                if tabIcon then
+                    TweenService:Create(tabIcon, TweenInfo.new(0.15), {
+                        ImageColor3 = Color3.fromRGB(220, 220, 230)
+                    }):Play()
+                end
             end
         end)
 
@@ -294,11 +337,17 @@ function Library:CreateWindow(options)
                     BackgroundTransparency = 1,
                     TextColor3 = Color3.fromRGB(150, 150, 165)
                 }):Play()
+                if tabIcon then
+                    TweenService:Create(tabIcon, TweenInfo.new(0.15), {
+                        ImageColor3 = Color3.fromRGB(150, 150, 165)
+                    }):Play()
+                end
             end
         end)
 
         tabObj.Page = pageFrame
         tabObj.Button = tabBtn
+        tabObj.Icon = tabIcon
         table.insert(Window.Tabs, tabObj)
 
         if #Window.Tabs == 1 then
@@ -765,6 +814,65 @@ function Library:CreateWindow(options)
             local function resize()
                 contentLabel.Size = UDim2.new(1, -24, 0, contentLabel.TextBounds.Y)
                 paraFrame.Size = UDim2.new(1, 0, 0, contentLabel.TextBounds.Y + 42)
+            end
+            contentLabel:GetPropertyChangedSignal("TextBounds"):Connect(resize)
+            task.spawn(resize)
+
+            return paraFrame
+        end
+
+        function tabObj:CreateImageParagraph(titleText, contentText, assetId, side)
+            local parentCol = getTargetParent(side)
+
+            local paraFrame = Instance.new("Frame")
+            paraFrame.Size = UDim2.new(1, 0, 0, 0)
+            paraFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
+            paraFrame.Parent = parentCol
+
+            local pCorner = Instance.new("UICorner")
+            pCorner.CornerRadius = UDim.new(0, 6)
+            pCorner.Parent = paraFrame
+
+            local pStroke = Instance.new("UIStroke")
+            pStroke.Color = Color3.fromRGB(35, 35, 45)
+            pStroke.Thickness = 1
+            pStroke.Parent = paraFrame
+
+            local iconImg = Instance.new("ImageLabel")
+            iconImg.Size = UDim2.new(0, 28, 0, 28)
+            iconImg.Position = UDim2.new(0, 10, 0, 10)
+            iconImg.BackgroundTransparency = 1
+            iconImg.Image = resolveIconAsset(assetId) or ""
+            iconImg.Parent = paraFrame
+
+            local titleLabel = Instance.new("TextLabel")
+            titleLabel.Size = UDim2.new(1, -54, 0, 20)
+            titleLabel.Position = UDim2.new(0, 46, 0, 8)
+            titleLabel.BackgroundTransparency = 1
+            titleLabel.Font = Enum.Font.GothamBold
+            titleLabel.Text = titleText
+            titleLabel.TextColor3 = Color3.fromRGB(230, 230, 240)
+            titleLabel.TextSize = 12
+            titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+            titleLabel.Parent = paraFrame
+
+            local contentLabel = Instance.new("TextLabel")
+            contentLabel.Size = UDim2.new(1, -54, 0, 0)
+            contentLabel.Position = UDim2.new(0, 46, 0, 28)
+            contentLabel.BackgroundTransparency = 1
+            contentLabel.Font = Enum.Font.Gotham
+            contentLabel.Text = contentText
+            contentLabel.TextColor3 = Color3.fromRGB(140, 140, 155)
+            contentLabel.TextSize = 11
+            contentLabel.TextXAlignment = Enum.TextXAlignment.Left
+            contentLabel.TextYAlignment = Enum.TextYAlignment.Top
+            contentLabel.TextWrapped = true
+            contentLabel.Parent = paraFrame
+
+            local function resize()
+                local calculatedHeight = math.max(32, contentLabel.TextBounds.Y + 28)
+                contentLabel.Size = UDim2.new(1, -54, 0, contentLabel.TextBounds.Y)
+                paraFrame.Size = UDim2.new(1, 0, 0, calculatedHeight + 16)
             end
             contentLabel:GetPropertyChangedSignal("TextBounds"):Connect(resize)
             task.spawn(resize)
