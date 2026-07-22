@@ -948,7 +948,7 @@ function Library:CreateWindow(options)
             applyFont(contentLabel, Enum.FontWeight.Regular)
             contentLabel.Text = contentText
             contentLabel.TextColor3 = Color3.fromRGB(180, 180, 195)
-            contentLabel.TextSize = 15 -- Increased font size from 14 to 15
+            contentLabel.TextSize = 20 -- Increased paragraph font size significantly
             contentLabel.TextXAlignment = Enum.TextXAlignment.Left
             contentLabel.TextYAlignment = Enum.TextYAlignment.Top
             contentLabel.TextWrapped = true
@@ -960,12 +960,12 @@ function Library:CreateWindow(options)
                 
                 local textBounds = game:GetService("TextService"):GetTextSize(
                     contentText, 
-                    15, -- Updated calculation size to match 15
+                    20, -- Updated calculation size to match 20
                     Enum.Font.Gotham,
                     Vector2.new(availableWidth, 999999)
                 )
                 
-                local targetHeight = math.max(textBounds.Y + 54, 60)
+                local targetHeight = math.max(textBounds.Y + 58, 64)
                 contentLabel.Size = UDim2.new(1, -28, 0, textBounds.Y)
                 paraFrame.Size = UDim2.new(1, 0, 0, targetHeight)
             end
@@ -1018,7 +1018,7 @@ function Library:CreateWindow(options)
             applyFont(contentLabel, Enum.FontWeight.Regular)
             contentLabel.Text = contentText
             contentLabel.TextColor3 = Color3.fromRGB(180, 180, 195)
-            contentLabel.TextSize = 15 -- Increased font size from 14 to 15
+            contentLabel.TextSize = 20 -- Increased paragraph font size significantly
             contentLabel.TextXAlignment = Enum.TextXAlignment.Left
             contentLabel.TextYAlignment = Enum.TextYAlignment.Top
             contentLabel.TextWrapped = true
@@ -1030,13 +1030,13 @@ function Library:CreateWindow(options)
 
                 local textBounds = game:GetService("TextService"):GetTextSize(
                     contentText, 
-                    15, -- Updated calculation size to match 15
+                    20, -- Updated calculation size to match 20
                     Enum.Font.Gotham, 
                     Vector2.new(availableWidth, 999999)
                 )
 
                 contentLabel.Size = UDim2.new(1, -70, 0, textBounds.Y)
-                local calculatedHeight = math.max(textBounds.Y + 48, 66)
+                local calculatedHeight = math.max(textBounds.Y + 52, 70)
                 paraFrame.Size = UDim2.new(1, 0, 0, calculatedHeight)
             end
 
