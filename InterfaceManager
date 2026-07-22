@@ -390,12 +390,11 @@ function Library:CreateWindow(options)
         end
 
         ----------------------------------------------------
-        -- 3. DROPDOWN COMPONENT
+        -- 3. DROPDOWN COMPONENT WITH SEARCH BAR (STAYS OPEN)
         ----------------------------------------------------
         function tabObj:CreateDropdown(titleText, optionsList, defaultOption, isMultiSelect, callback)
             optionsList = optionsList or {}
             
-            -- Rearrange arguments if isMultiSelect was omitted
             if type(isMultiSelect) == "function" then
                 callback = isMultiSelect
                 isMultiSelect = false
@@ -404,8 +403,8 @@ function Library:CreateWindow(options)
 
             local isOpen = false
             local selectedValues = {}
+            local searchQuery = ""
 
-            -- Initialize selections
             if isMultiSelect then
                 if type(defaultOption) == "table" then
                     for _, val in ipairs(defaultOption) do
@@ -434,7 +433,7 @@ function Library:CreateWindow(options)
             dStroke.Thickness = 1
             dStroke.Parent = dropdownContainer
 
-            -- Top Toggle Bar
+            -- Header Bar
             local headerBtn = Instance.new("TextButton")
             headerBtn.Size = UDim2.new(1, 0, 0, 42)
             headerBtn.BackgroundTransparency = 1
@@ -476,10 +475,42 @@ function Library:CreateWindow(options)
             arrowIcon.ZIndex = 6
             arrowIcon.Parent = headerBtn
 
-            -- List Options Container
+            -- Search Box
+            local searchBoxFrame = Instance.new("Frame")
+            searchBoxFrame.Size = UDim2.new(1, -16, 0, 28)
+            searchBoxFrame.Position = UDim2.new(0, 8, 0, 44)
+            searchBoxFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
+            searchBoxFrame.ZIndex = 10
+            searchBoxFrame.Parent = dropdownContainer
+
+            local searchCorner = Instance.new("UICorner")
+            searchCorner.CornerRadius = UDim.new(0, 4)
+            searchCorner.Parent = searchBoxFrame
+
+            local searchStroke = Instance.new("UIStroke")
+            searchStroke.Color = Color3.fromRGB(45, 45, 55)
+            searchStroke.Thickness = 1
+            searchStroke.Parent = searchBoxFrame
+
+            local searchInput = Instance.new("TextBox")
+            searchInput.Size = UDim2.new(1, -16, 1, 0)
+            searchInput.Position = UDim2.new(0, 8, 0, 0)
+            searchInput.BackgroundTransparency = 1
+            searchInput.Font = Enum.Font.Gotham
+            searchInput.PlaceholderText = "Search..."
+            searchInput.PlaceholderColor3 = Color3.fromRGB(110, 110, 125)
+            searchInput.Text = ""
+            searchInput.TextColor3 = Color3.fromRGB(240, 240, 250)
+            searchInput.TextSize = 12
+            searchInput.TextXAlignment = Enum.TextXAlignment.Left
+            searchInput.ClearTextOnFocus = false
+            searchInput.ZIndex = 11
+            searchInput.Parent = searchBoxFrame
+
+            -- Options Container
             local optionListFrame = Instance.new("Frame")
             optionListFrame.Size = UDim2.new(1, -16, 0, 0)
-            optionListFrame.Position = UDim2.new(0, 8, 0, 42)
+            optionListFrame.Position = UDim2.new(0, 8, 0, 78)
             optionListFrame.BackgroundTransparency = 1
             optionListFrame.ZIndex = 10
             optionListFrame.Parent = dropdownContainer
@@ -493,22 +524,13 @@ function Library:CreateWindow(options)
                 if isMultiSelect then
                     local list = {}
                     for opt, isSel in pairs(selectedValues) do
-                        if isSel then
-                            table.insert(list, tostring(opt))
-                        end
+                        if isSel then table.insert(list, tostring(opt)) end
                     end
-                    if #list == 0 then
-                        selectedLabel.Text = "None"
-                    else
-                        selectedLabel.Text = table.concat(list, ", ")
-                    end
+                    selectedLabel.Text = (#list == 0) and "None" or table.concat(list, ", ")
                 else
                     local current = "Select..."
                     for opt, isSel in pairs(selectedValues) do
-                        if isSel then 
-                            current = tostring(opt) 
-                            break 
-                        end
+                        if isSel then current = tostring(opt) break end
                     end
                     selectedLabel.Text = current
                 end
@@ -516,7 +538,7 @@ function Library:CreateWindow(options)
 
             local function updateContainerHeight()
                 local listHeight = listLayout.AbsoluteContentSize.Y
-                local targetHeight = isOpen and (48 + listHeight) or 42
+                local targetHeight = isOpen and (84 + listHeight) or 42
 
                 TweenService:Create(dropdownContainer, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
                     Size = UDim2.new(1, -6, 0, targetHeight)
@@ -528,54 +550,60 @@ function Library:CreateWindow(options)
             end
 
             local function refreshList()
-                -- Clear existing items
                 for _, child in pairs(optionListFrame:GetChildren()) do
-                    if child:IsA("TextButton") then
-                        child:Destroy()
-                    end
+                    if child:IsA("TextButton") then child:Destroy() end
                 end
 
                 for idx, opt in ipairs(optionsList) do
-                    local isSelected = selectedValues[opt] == true
-                    local optBtn = Instance.new("TextButton")
-                    optBtn.Size = UDim2.new(1, 0, 0, 28)
-                    optBtn.BackgroundColor3 = isSelected and Color3.fromRGB(35, 35, 45) or Color3.fromRGB(22, 22, 28)
-                    optBtn.Font = Enum.Font.Gotham
-                    optBtn.Text = "    " .. (isSelected and "✓ " or "") .. tostring(opt)
-                    optBtn.TextColor3 = isSelected and Window.AccentColor or Color3.fromRGB(180, 180, 195)
-                    optBtn.TextSize = 12
-                    optBtn.TextXAlignment = Enum.TextXAlignment.Left
-                    optBtn.LayoutOrder = idx
-                    optBtn.ZIndex = 11
-                    optBtn.Parent = optionListFrame
+                    local strOpt = tostring(opt)
+                    if searchQuery == "" or string.find(string.lower(strOpt), string.lower(searchQuery), 1, true) then
+                        local isSelected = selectedValues[opt] == true
+                        local optBtn = Instance.new("TextButton")
+                        optBtn.Size = UDim2.new(1, 0, 0, 28)
+                        optBtn.BackgroundColor3 = isSelected and Color3.fromRGB(35, 35, 45) or Color3.fromRGB(22, 22, 28)
+                        optBtn.Font = Enum.Font.Gotham
+                        optBtn.Text = "    " .. (isSelected and "✓ " or "") .. strOpt
+                        optBtn.TextColor3 = isSelected and Window.AccentColor or Color3.fromRGB(180, 180, 195)
+                        optBtn.TextSize = 12
+                        optBtn.TextXAlignment = Enum.TextXAlignment.Left
+                        optBtn.LayoutOrder = idx
+                        optBtn.ZIndex = 11
+                        optBtn.Parent = optionListFrame
 
-                    local oCorner = Instance.new("UICorner")
-                    oCorner.CornerRadius = UDim.new(0, 4)
-                    oCorner.Parent = optBtn
+                        local oCorner = Instance.new("UICorner")
+                        oCorner.CornerRadius = UDim.new(0, 4)
+                        oCorner.Parent = optBtn
 
-                    optBtn.MouseButton1Click:Connect(function()
-                        if isMultiSelect then
-                            selectedValues[opt] = not selectedValues[opt]
-                            updateHeaderLabel()
-                            refreshList()
-                            updateContainerHeight()
+                        optBtn.MouseButton1Click:Connect(function()
+                            if isMultiSelect then
+                                selectedValues[opt] = not selectedValues[opt]
+                                updateHeaderLabel()
+                                refreshList()
+                                updateContainerHeight()
 
-                            local selectedTable = {}
-                            for item, sel in pairs(selectedValues) do
-                                if sel then table.insert(selectedTable, item) end
+                                local selectedTable = {}
+                                for item, sel in pairs(selectedValues) do
+                                    if sel then table.insert(selectedTable, item) end
+                                end
+                                pcall(callback, selectedTable)
+                            else
+                                selectedValues = {[opt] = true}
+                                updateHeaderLabel()
+                                refreshList()
+                                updateContainerHeight()
+
+                                pcall(callback, opt)
                             end
-                            pcall(callback, selectedTable)
-                        else
-                            selectedValues = {[opt] = true}
-                            updateHeaderLabel()
-                            refreshList()
-                            updateContainerHeight()
-
-                            pcall(callback, opt)
-                        end
-                    end)
+                        end)
+                    end
                 end
             end
+
+            searchInput:GetPropertyChangedSignal("Text"):Connect(function()
+                searchQuery = searchInput.Text
+                refreshList()
+                updateContainerHeight()
+            end)
 
             updateHeaderLabel()
             refreshList()
@@ -620,7 +648,6 @@ function Library:CreateWindow(options)
             label.TextXAlignment = Enum.TextXAlignment.Left
             label.Parent = toggleContainer
 
-            -- Switch Track Button
             local switchBtn = Instance.new("TextButton")
             switchBtn.Size = UDim2.new(0, 42, 0, 22)
             switchBtn.Position = UDim2.new(1, -52, 0.5, -11)
@@ -632,12 +659,6 @@ function Library:CreateWindow(options)
             switchCorner.CornerRadius = UDim.new(1, 0)
             switchCorner.Parent = switchBtn
 
-            local switchStroke = Instance.new("UIStroke")
-            switchStroke.Color = Color3.fromRGB(45, 45, 55)
-            switchStroke.Thickness = 1
-            switchStroke.Parent = switchBtn
-
-            -- Switch Circle Thumb
             local circle = Instance.new("Frame")
             circle.Size = UDim2.new(0, 16, 0, 16)
             circle.Position = toggled and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
@@ -656,7 +677,6 @@ function Library:CreateWindow(options)
                 TweenService:Create(circle, TweenInfo.new(0.2), {Position = targetPos}):Play()
             end
 
-            -- Entire row is clickable
             local clickOverlay = Instance.new("TextButton")
             clickOverlay.Size = UDim2.new(1, 0, 1, 0)
             clickOverlay.BackgroundTransparency = 1
@@ -670,6 +690,226 @@ function Library:CreateWindow(options)
             end)
 
             return toggleContainer
+        end
+
+        ----------------------------------------------------
+        -- 5. PARAGRAPH COMPONENT
+        ----------------------------------------------------
+        function tabObj:CreateParagraph(titleText, contentText)
+            local paraFrame = Instance.new("Frame")
+            paraFrame.Size = UDim2.new(1, -6, 0, 0)
+            paraFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+            paraFrame.Parent = pageFrame
+
+            local pCorner = Instance.new("UICorner")
+            pCorner.CornerRadius = UDim.new(0, 6)
+            pCorner.Parent = paraFrame
+
+            local pStroke = Instance.new("UIStroke")
+            pStroke.Color = Color3.fromRGB(45, 45, 58)
+            pStroke.Thickness = 1
+            pStroke.Parent = paraFrame
+
+            local titleLabel = Instance.new("TextLabel")
+            titleLabel.Size = UDim2.new(1, -24, 0, 20)
+            titleLabel.Position = UDim2.new(0, 12, 0, 10)
+            titleLabel.BackgroundTransparency = 1
+            titleLabel.Font = Enum.Font.GothamBold
+            titleLabel.Text = titleText
+            titleLabel.TextColor3 = Color3.fromRGB(240, 240, 250)
+            titleLabel.TextSize = 13
+            titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+            titleLabel.Parent = paraFrame
+
+            local contentLabel = Instance.new("TextLabel")
+            contentLabel.Size = UDim2.new(1, -24, 0, 0)
+            contentLabel.Position = UDim2.new(0, 12, 0, 30)
+            contentLabel.BackgroundTransparency = 1
+            contentLabel.Font = Enum.Font.Gotham
+            contentLabel.Text = contentText
+            contentLabel.TextColor3 = Color3.fromRGB(160, 160, 175)
+            contentLabel.TextSize = 12
+            contentLabel.TextXAlignment = Enum.TextXAlignment.Left
+            contentLabel.TextYAlignment = Enum.TextYAlignment.Top
+            contentLabel.TextWrapped = true
+            contentLabel.Parent = paraFrame
+
+            local function resize()
+                contentLabel.Size = UDim2.new(1, -24, 0, contentLabel.TextBounds.Y)
+                paraFrame.Size = UDim2.new(1, -6, 0, contentLabel.TextBounds.Y + 40)
+            end
+            contentLabel:GetPropertyChangedSignal("TextBounds"):Connect(resize)
+            task.spawn(resize)
+
+            return paraFrame
+        end
+
+        ----------------------------------------------------
+        -- 6. PARAGRAPH COMPONENT WITH ASSET ID SUPPORT
+        ----------------------------------------------------
+        function tabObj:CreateImageParagraph(titleText, contentText, assetId)
+            local paraFrame = Instance.new("Frame")
+            paraFrame.Size = UDim2.new(1, -6, 0, 0)
+            paraFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+            paraFrame.Parent = pageFrame
+
+            local pCorner = Instance.new("UICorner")
+            pCorner.CornerRadius = UDim.new(0, 6)
+            pCorner.Parent = paraFrame
+
+            local pStroke = Instance.new("UIStroke")
+            pStroke.Color = Color3.fromRGB(45, 45, 58)
+            pStroke.Thickness = 1
+            pStroke.Parent = paraFrame
+
+            local iconImg = Instance.new("ImageLabel")
+            iconImg.Size = UDim2.new(0, 32, 0, 32)
+            iconImg.Position = UDim2.new(0, 10, 0, 10)
+            iconImg.BackgroundTransparency = 1
+            iconImg.Parent = paraFrame
+
+            -- Format asset string nicely if passed as raw number or rbxassetid
+            if type(assetId) == "number" or (type(assetId) == "string" and not string.find(assetId, "rbxassetid://")) then
+                iconImg.Image = "rbxassetid://" .. tostring(assetId)
+            else
+                iconImg.Image = tostring(assetId)
+            end
+
+            local titleLabel = Instance.new("TextLabel")
+            titleLabel.Size = UDim2.new(1, -60, 0, 20)
+            titleLabel.Position = UDim2.new(0, 50, 0, 8)
+            titleLabel.BackgroundTransparency = 1
+            titleLabel.Font = Enum.Font.GothamBold
+            titleLabel.Text = titleText
+            titleLabel.TextColor3 = Color3.fromRGB(240, 240, 250)
+            titleLabel.TextSize = 13
+            titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+            titleLabel.Parent = paraFrame
+
+            local contentLabel = Instance.new("TextLabel")
+            contentLabel.Size = UDim2.new(1, -60, 0, 0)
+            contentLabel.Position = UDim2.new(0, 50, 0, 28)
+            contentLabel.BackgroundTransparency = 1
+            contentLabel.Font = Enum.Font.Gotham
+            contentLabel.Text = contentText
+            contentLabel.TextColor3 = Color3.fromRGB(160, 160, 175)
+            contentLabel.TextSize = 12
+            contentLabel.TextXAlignment = Enum.TextXAlignment.Left
+            contentLabel.TextYAlignment = Enum.TextYAlignment.Top
+            contentLabel.TextWrapped = true
+            contentLabel.Parent = paraFrame
+
+            local function resize()
+                local calculatedHeight = math.max(36, contentLabel.TextBounds.Y + 28)
+                contentLabel.Size = UDim2.new(1, -60, 0, contentLabel.TextBounds.Y)
+                paraFrame.Size = UDim2.new(1, -6, 0, calculatedHeight + 16)
+            end
+            contentLabel:GetPropertyChangedSignal("TextBounds"):Connect(resize)
+            task.spawn(resize)
+
+            return paraFrame
+        end
+
+        ----------------------------------------------------
+        -- 7. SLIDER COMPONENT
+        ----------------------------------------------------
+        function tabObj:CreateSlider(titleText, minVal, maxVal, defaultVal, callback)
+            callback = callback or function() end
+            minVal = minVal or 0
+            maxVal = maxVal or 100
+            defaultVal = math.clamp(defaultVal or minVal, minVal, maxVal)
+
+            local currentVal = defaultVal
+
+            local sliderContainer = Instance.new("Frame")
+            sliderContainer.Size = UDim2.new(1, -6, 0, 48)
+            sliderContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+            sliderContainer.Parent = pageFrame
+
+            local sCorner = Instance.new("UICorner")
+            sCorner.CornerRadius = UDim.new(0, 6)
+            sCorner.Parent = sliderContainer
+
+            local sStroke = Instance.new("UIStroke")
+            sStroke.Color = Color3.fromRGB(45, 45, 58)
+            sStroke.Thickness = 1
+            sStroke.Parent = sliderContainer
+
+            local label = Instance.new("TextLabel")
+            label.Size = UDim2.new(0.6, -12, 0, 20)
+            label.Position = UDim2.new(0, 12, 0, 6)
+            label.BackgroundTransparency = 1
+            label.Font = Enum.Font.GothamMedium
+            label.Text = titleText
+            label.TextColor3 = Color3.fromRGB(220, 220, 230)
+            label.TextSize = 13
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.Parent = sliderContainer
+
+            local valLabel = Instance.new("TextLabel")
+            valLabel.Size = UDim2.new(0.4, -12, 0, 20)
+            valLabel.Position = UDim2.new(0.6, 0, 0, 6)
+            valLabel.BackgroundTransparency = 1
+            valLabel.Font = Enum.Font.Gotham
+            valLabel.Text = tostring(currentVal)
+            valLabel.TextColor3 = Window.AccentColor
+            valLabel.TextSize = 12
+            valLabel.TextXAlignment = Enum.TextXAlignment.Right
+            valLabel.Parent = sliderContainer
+
+            -- Slider Bar Track
+            local sliderBar = Instance.new("Frame")
+            sliderBar.Size = UDim2.new(1, -24, 0, 6)
+            sliderBar.Position = UDim2.new(0, 12, 0, 32)
+            sliderBar.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
+            sliderBar.Parent = sliderContainer
+
+            local barCorner = Instance.new("UICorner")
+            barCorner.CornerRadius = UDim.new(1, 0)
+            barCorner.Parent = sliderBar
+
+            -- Active Fill
+            local fill = Instance.new("Frame")
+            fill.Size = UDim2.new((currentVal - minVal) / (maxVal - minVal), 0, 1, 0)
+            fill.BackgroundColor3 = Window.AccentColor
+            fill.Parent = sliderBar
+
+            local fillCorner = Instance.new("UICorner")
+            fillCorner.CornerRadius = UDim.new(1, 0)
+            fillCorner.Parent = fill
+
+            local isDragging = false
+
+            local function updateValue(input)
+                local posX = math.clamp(input.Position.X - sliderBar.AbsolutePosition.X, 0, sliderBar.AbsoluteSize.X)
+                local percent = posX / sliderBar.AbsoluteSize.X
+                currentVal = math.floor(minVal + (maxVal - minVal) * percent)
+
+                valLabel.Text = tostring(currentVal)
+                fill.Size = UDim2.new(percent, 0, 1, 0)
+                pcall(callback, currentVal)
+            end
+
+            sliderBar.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    isDragging = true
+                    updateValue(input)
+                end
+            end)
+
+            UserInputService.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    isDragging = false
+                end
+            end)
+
+            UserInputService.InputChanged:Connect(function(input)
+                if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                    updateValue(input)
+                end
+            end)
+
+            return sliderContainer
         end
 
         return tabObj
