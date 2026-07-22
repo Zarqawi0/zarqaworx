@@ -86,11 +86,17 @@ function Library:CreateWindow(options)
     subTitleLabel.Text = windowSubTitle
     subTitleLabel.Parent = titleContainer
 
-    local tabContainer = Instance.new("Frame")
+    -- Converted to ScrollingFrame to fix overlapping tabs
+    local tabContainer = Instance.new("ScrollingFrame")
     tabContainer.Name = "TabContainer"
-    tabContainer.Size = UDim2.new(1, -20, 1, -130)
-    tabContainer.Position = UDim2.new(0, 10, 0, 70)
+    tabContainer.Size = UDim2.new(1, -12, 1, -130)
+    tabContainer.Position = UDim2.new(0, 6, 0, 70)
     tabContainer.BackgroundTransparency = 1
+    tabContainer.BorderSizePixel = 0
+    tabContainer.ScrollBarThickness = 3
+    tabContainer.ScrollBarImageColor3 = Color3.fromRGB(40, 40, 52)
+    tabContainer.ClipsDescendants = true
+    tabContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
     tabContainer.Parent = sidebar
 
     local tabLayout = Instance.new("UIListLayout")
@@ -98,10 +104,15 @@ function Library:CreateWindow(options)
     tabLayout.Padding = UDim.new(0, 6)
     tabLayout.Parent = tabContainer
 
+    tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        tabContainer.CanvasSize = UDim2.new(0, 0, 0, tabLayout.AbsoluteContentSize.Y + 6)
+    end)
+
     local userProfile = Instance.new("Frame")
     userProfile.Size = UDim2.new(1, -16, 0, 36)
     userProfile.Position = UDim2.new(0, 8, 1, -46)
     userProfile.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+    userProfile.ZIndex = 5
     userProfile.Parent = sidebar
 
     local userCorner = Instance.new("UICorner")
@@ -247,7 +258,7 @@ function Library:CreateWindow(options)
         rightLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateLayoutPositions)
 
         local tabBtn = Instance.new("TextButton")
-        tabBtn.Size = UDim2.new(1, 0, 0, 38)
+        tabBtn.Size = UDim2.new(1, -6, 0, 38)
         tabBtn.BackgroundColor3 = Window.AccentColor
         tabBtn.BackgroundTransparency = 1
         tabBtn.Font = Enum.Font.GothamMedium
@@ -262,7 +273,7 @@ function Library:CreateWindow(options)
         btnCorner.Parent = tabBtn
 
         local padding = Instance.new("UIPadding")
-        padding.PaddingLeft = UDim.new(0, 16)
+        padding.PaddingLeft = UDim.new(0, 14)
         padding.Parent = tabBtn
 
         local function activateTab()
@@ -399,7 +410,7 @@ function Library:CreateWindow(options)
             textBox.Text = ""
             textBox.TextColor3 = Color3.fromRGB(230, 230, 240)
             textBox.TextSize = 13
-            textBox.ClearTextOnFocus = true -- Text clears upon clicking/focusing
+            textBox.ClearTextOnFocus = true
             textBox.Parent = inputFrame
 
             local boxCorner = Instance.new("UICorner")
@@ -894,7 +905,6 @@ function Library:CreateWindow(options)
             label.TextXAlignment = Enum.TextXAlignment.Left
             label.Parent = sliderContainer
 
-            -- Editable Input TextBox with background box
             local valInput = Instance.new("TextBox")
             valInput.Size = UDim2.new(0, 56, 0, 22)
             valInput.Position = UDim2.new(1, -68, 0, 6)
@@ -903,7 +913,7 @@ function Library:CreateWindow(options)
             valInput.Text = tostring(currentVal)
             valInput.TextColor3 = Color3.fromRGB(255, 255, 255)
             valInput.TextSize = 12
-            valInput.ClearTextOnFocus = true -- Text disappears when clicked
+            valInput.ClearTextOnFocus = true
             valInput.Parent = sliderContainer
 
             local valCorner = Instance.new("UICorner")
@@ -934,7 +944,6 @@ function Library:CreateWindow(options)
             fillCorner.CornerRadius = UDim.new(1, 0)
             fillCorner.Parent = fill
 
-            -- Clickable / Draggable Circle Knob
             local knob = Instance.new("Frame")
             knob.Size = UDim2.new(0, 14, 0, 14)
             knob.AnchorPoint = Vector2.new(0.5, 0.5)
