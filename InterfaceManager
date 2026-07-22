@@ -44,7 +44,6 @@ function Library:CreateWindow(options)
     mainStroke.Thickness = 1
     mainStroke.Parent = mainFrame
 
-    -- SIDEBAR (Width updated to 165)
     local sidebar = Instance.new("Frame")
     sidebar.Name = "Sidebar"
     sidebar.Size = UDim2.new(0, 165, 1, 0)
@@ -184,7 +183,6 @@ function Library:CreateWindow(options)
     keyStatusLabel.Text = "Lifetime Key"
     keyStatusLabel.Parent = userProfile
 
-    -- ADJUSTED CONTENT AREA FOR 165 SIDEBAR
     local contentArea = Instance.new("Frame")
     contentArea.Name = "ContentArea"
     contentArea.Size = UDim2.new(1, -195, 1, -56)
@@ -369,10 +367,6 @@ function Library:CreateWindow(options)
             end
         end
 
-        ------------------------------------------------------------------------
-        -- ELEMENT CREATORS
-        ------------------------------------------------------------------------
-
         function tabObj:CreateButton(btnText, callback, side)
             callback = callback or function() end
             local parentCol = getTargetParent(side)
@@ -448,6 +442,7 @@ function Library:CreateWindow(options)
             textBox.Size = UDim2.new(0.55, -12, 0, 30)
             textBox.Position = UDim2.new(0.45, 0, 0.5, -15)
             textBox.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
+            textBox.ClipsDescendants = true
             textBox.Font = Enum.Font.Gotham
             textBox.PlaceholderText = savedPlaceholder
             textBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 165)
@@ -466,16 +461,7 @@ function Library:CreateWindow(options)
             boxStroke.Thickness = 1
             boxStroke.Parent = textBox
 
-            -- PREVENT BLUE SELECTION HIGHLIGHT WHILE TYPING
-            local function clearHighlight()
-                textBox.SelectionStart = -1
-            end
-
-            textBox:GetPropertyChangedSignal("Text"):Connect(clearHighlight)
-            textBox:GetPropertyChangedSignal("SelectionStart"):Connect(clearHighlight)
-
             textBox.Focused:Connect(function()
-                clearHighlight()
                 textBox.PlaceholderText = ""
                 TweenService:Create(boxStroke, TweenInfo.new(0.15), {
                     Color = Window.AccentColor
@@ -597,6 +583,7 @@ function Library:CreateWindow(options)
             searchInput.Size = UDim2.new(1, -12, 1, 0)
             searchInput.Position = UDim2.new(0, 6, 0, 0)
             searchInput.BackgroundTransparency = 1
+            searchInput.ClipsDescendants = true
             searchInput.Font = Enum.Font.Gotham
             searchInput.PlaceholderText = "Search..."
             searchInput.PlaceholderColor3 = Color3.fromRGB(90, 90, 105)
@@ -975,6 +962,7 @@ function Library:CreateWindow(options)
             valInput.Size = UDim2.new(0, 56, 0, 22)
             valInput.Position = UDim2.new(1, -68, 0, 6)
             valInput.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
+            valInput.ClipsDescendants = true
             valInput.Font = Enum.Font.Gotham
             valInput.Text = tostring(currentVal)
             valInput.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -1034,17 +1022,7 @@ function Library:CreateWindow(options)
                 pcall(callback, currentVal)
             end
 
-            -- PREVENT BLUE SELECTION HIGHLIGHT WHILE TYPING
-            local function clearHighlight()
-                valInput.SelectionStart = -1
-            end
-
-            valInput:GetPropertyChangedSignal("Text"):Connect(clearHighlight)
-            valInput:GetPropertyChangedSignal("SelectionStart"):Connect(clearHighlight)
-
             valInput.Focused:Connect(function()
-                clearHighlight()
-                valInput.Text = ""
                 TweenService:Create(valStroke, TweenInfo.new(0.15), {
                     Color = Window.AccentColor
                 }):Play()
