@@ -1,0 +1,96 @@
+-- Fetch and initialize the UI Engine
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Zarqawi0/zarqaworx/refs/heads/main/InterfaceManager"))()
+
+-- Create Window
+local Window = Library:CreateWindow({
+    Title = "JeeHub",
+    SubTitle = "by Zarqaworx",
+    Version = "under dev.",
+    AccentColor = Color3.fromRGB(27, 78, 245)
+})
+
+local FarmingTab = Window:CreateTab("Farming")
+local SampleTab1 = Window:CreateTab("Sample1")
+local SampleTab2 = Window:CreateTab("Sample2")
+local SampleTab3 = Window:CreateTab("Sample3")
+local SampleTab4 = Window:CreateTab("Sample4")
+
+----------------------------------------------------
+-- MAIN TAB ELEMENTS (Split across Left & Right)
+----------------------------------------------------
+
+-- LEFT COLUMN ELEMENTS
+FarmingTab:CreateParagraph(
+    "Auto-Farm Info", 
+    "Select crops and adjust delays below to optimize harvesting speed.", 
+    "left"
+)
+
+FarmingTab:CreateImageParagraph(
+    "Eren Yeaga", 
+    "gusto ni eren merong ganto",
+    "rbxassetid://131393372066965", 
+    "left"
+)
+
+FarmingTab:CreateToggle(
+    "Auto-Farm Toggle", 
+    false, 
+    function(state)
+        print("Auto-Farm Enabled:", state)
+    end, 
+    "left"
+)
+
+-- Primary Target Dropdown (Stored in variable so you can edit it later)
+local TargetDropdown = FarmingTab:CreateDropdown(
+    "Select Crop",
+    {"Carrots", "Tomatoes", "Watermelons", "Pumpkins"},
+    "Carrots",
+    false,
+    function(crop)
+        print("Auto-farm target changed to:", crop)
+    end,
+    "left"
+)
+
+-- RIGHT COLUMN ELEMENTS
+-- Auto-Harvest Dropdown (Stored in variable so you can edit title dynamically)
+local HarvestDropdown = FarmingTab:CreateDropdown(
+    "ronan",
+    {"Carrots", "Tomatoes", "Watermelons", "Pumpkins"},
+    {"Carrots", "Tomatoes"},
+    true,
+    function(selectedCrops)
+        print("Auto-harvesting crops:", table.concat(selectedCrops, ", "))
+    end,
+    "right"
+)
+
+FarmingTab:CreateSlider(
+    "Farm Delay (ms)", 
+    100, 
+    2000, 
+    500, 
+    function(value)
+        print("Farm delay set to:", value, "ms")
+    end, 
+    "right"
+)
+
+FarmingTab:CreateInput(
+    "Custom Delay", 
+    "Default: 0.5", 
+    function(val)
+        print("Farm delay set to:", val)
+    end, 
+    "right"
+)
+
+FarmingTab:CreateButton(
+    "Start Auto-Farm", 
+    function()
+        print("Auto-Farm started.")
+    end, 
+    "right"
+)
