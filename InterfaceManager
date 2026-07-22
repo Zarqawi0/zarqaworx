@@ -86,7 +86,7 @@ function Library:CreateWindow(options)
     subTitleLabel.Text = windowSubTitle
     subTitleLabel.Parent = titleContainer
 
-    -- Custom Dragging logic strictly bound to title header / sidebar area
+    -- Custom Dragging logic bound to sidebar / header area
     local dragging, dragInput, dragStart, startPos
     local function updateDrag(input)
         local delta = input.Position - dragStart
@@ -184,7 +184,7 @@ function Library:CreateWindow(options)
     keyStatusLabel.Text = "Lifetime Key"
     keyStatusLabel.Parent = userProfile
 
-    -- Content Area: 10% Opacity (0.9 Transparency) & contained within bounds
+    -- Content Area: 10% Opacity (0.9 Transparency) & bound properly
     local contentArea = Instance.new("Frame")
     contentArea.Name = "ContentArea"
     contentArea.Size = UDim2.new(1, -210, 1, -56)
@@ -293,7 +293,7 @@ function Library:CreateWindow(options)
 
         local tabBtn = Instance.new("TextButton")
         tabBtn.Size = UDim2.new(1, -6, 0, 38)
-        tabBtn.BackgroundColor3 = Window.AccentColor
+        tabBtn.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
         tabBtn.BackgroundTransparency = 1
         tabBtn.Font = Enum.Font.GothamMedium
         tabBtn.TextColor3 = Color3.fromRGB(150, 150, 165)
@@ -310,15 +310,18 @@ function Library:CreateWindow(options)
         padding.PaddingLeft = UDim.new(0, 14)
         padding.Parent = tabBtn
 
+        -- Active tab highlight style matching dark filled button background (Image 3/4 Fix)
         local function activateTab()
             for _, t in pairs(Window.Tabs) do
                 t.Page.Visible = false
+                t.Button.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
                 t.Button.BackgroundTransparency = 1
                 t.Button.TextColor3 = Color3.fromRGB(150, 150, 165)
             end
             pageFrame.Visible = true
+            tabBtn.BackgroundColor3 = Window.AccentColor
             tabBtn.BackgroundTransparency = 0.88
-            tabBtn.TextColor3 = Window.AccentColor
+            tabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
             Window.ActiveTab = tabObj
         end
 
@@ -443,7 +446,7 @@ function Library:CreateWindow(options)
             textBox.PlaceholderText = savedPlaceholder
             textBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 165)
             textBox.Text = ""
-            textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+            textBox.TextColor3 = Color3.fromRGB(255, 255, 255) -- White text color (Image 2 Fix)
             textBox.TextSize = 13
             textBox.ClearTextOnFocus = false
             textBox.Parent = inputFrame
@@ -457,6 +460,7 @@ function Library:CreateWindow(options)
             boxStroke.Thickness = 1
             boxStroke.Parent = textBox
 
+            -- Placeholder disappears when clicked (Image 2 Fix)
             textBox.Focused:Connect(function()
                 textBox.PlaceholderText = ""
                 TweenService:Create(boxStroke, TweenInfo.new(0.15), {
@@ -950,7 +954,7 @@ function Library:CreateWindow(options)
             valInput.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
             valInput.Font = Enum.Font.Gotham
             valInput.Text = tostring(currentVal)
-            valInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+            valInput.TextColor3 = Color3.fromRGB(255, 255, 255) -- White text color (Image 1 Fix)
             valInput.TextSize = 12
             valInput.ClearTextOnFocus = false
             valInput.Parent = sliderContainer
