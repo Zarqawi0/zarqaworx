@@ -595,7 +595,7 @@ function Library:CreateWindow(options)
                         optBtn.Size = UDim2.new(1, 0, 0, 24)
                         optBtn.BackgroundColor3 = isSelected and Color3.fromRGB(30, 30, 40) or Color3.fromRGB(18, 18, 22)
                         optBtn.Font = Enum.Font.Gotham
-                        optBtn.Text = "   " .. (isSelected and "✓ " or "") .. strOpt
+                        optBtn.Text = "   " .. (isSelected and " " or "") .. strOpt
                         optBtn.TextColor3 = isSelected and Window.AccentColor or Color3.fromRGB(160, 160, 175)
                         optBtn.TextSize = 11
                         optBtn.TextXAlignment = Enum.TextXAlignment.Left
