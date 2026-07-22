@@ -28,8 +28,8 @@ function Library:CreateWindow(options)
 
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 780, 0, 480)
-    mainFrame.Position = UDim2.new(0.5, -390, 0.5, -240)
+    mainFrame.Size = UDim2.new(0, 800, 0, 500)
+    mainFrame.Position = UDim2.new(0.5, -400, 0.5, -250)
     mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
     mainFrame.BorderSizePixel = 0
     mainFrame.Active = true
@@ -47,7 +47,7 @@ function Library:CreateWindow(options)
 
     local sidebar = Instance.new("Frame")
     sidebar.Name = "Sidebar"
-    sidebar.Size = UDim2.new(0, 170, 1, 0)
+    sidebar.Size = UDim2.new(0, 175, 1, 0)
     sidebar.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
     sidebar.BorderSizePixel = 0
     sidebar.Parent = mainFrame
@@ -144,8 +144,8 @@ function Library:CreateWindow(options)
 
     local contentArea = Instance.new("Frame")
     contentArea.Name = "ContentArea"
-    contentArea.Size = UDim2.new(1, -182, 1, -40)
-    contentArea.Position = UDim2.new(0, 176, 0, 8)
+    contentArea.Size = UDim2.new(1, -189, 1, -40)
+    contentArea.Position = UDim2.new(0, 181, 0, 8)
     contentArea.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
     contentArea.BorderSizePixel = 0
     contentArea.Parent = mainFrame
@@ -187,7 +187,7 @@ function Library:CreateWindow(options)
         pageFrame.Position = UDim2.new(0, 8, 0, 8)
         pageFrame.BackgroundTransparency = 1
         pageFrame.BorderSizePixel = 0
-        pageFrame.ScrollBarThickness = 3
+        pageFrame.ScrollBarThickness = 4
         pageFrame.ScrollBarImageColor3 = Color3.fromRGB(40, 40, 52)
         pageFrame.Visible = false
         pageFrame.ClipsDescendants = true
@@ -201,7 +201,7 @@ function Library:CreateWindow(options)
 
         local fullLayout = Instance.new("UIListLayout")
         fullLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        fullLayout.Padding = UDim.new(0, 8)
+        fullLayout.Padding = UDim.new(0, 10)
         fullLayout.Parent = fullContainer
 
         local leftCol = Instance.new("Frame")
@@ -213,7 +213,7 @@ function Library:CreateWindow(options)
 
         local leftLayout = Instance.new("UIListLayout")
         leftLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        leftLayout.Padding = UDim.new(0, 8)
+        leftLayout.Padding = UDim.new(0, 10)
         leftLayout.Parent = leftCol
 
         local rightCol = Instance.new("Frame")
@@ -225,12 +225,12 @@ function Library:CreateWindow(options)
 
         local rightLayout = Instance.new("UIListLayout")
         rightLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        rightLayout.Padding = UDim.new(0, 8)
+        rightLayout.Padding = UDim.new(0, 10)
         rightLayout.Parent = rightCol
 
         local function updateLayoutPositions()
             local fullH = fullLayout.AbsoluteContentSize.Y
-            if fullH > 0 then fullH = fullH + 8 end
+            if fullH > 0 then fullH = fullH + 10 end
 
             leftCol.Position = UDim2.new(0, 0, 0, fullH)
             rightCol.Position = UDim2.new(0.5, 6, 0, fullH)
@@ -239,14 +239,13 @@ function Library:CreateWindow(options)
             local rightH = rightLayout.AbsoluteContentSize.Y
             local columnsMax = math.max(leftH, rightH)
 
-            pageFrame.CanvasSize = UDim2.new(0, 0, 0, fullH + columnsMax + 12)
+            pageFrame.CanvasSize = UDim2.new(0, 0, 0, fullH + columnsMax + 14)
         end
 
         fullLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateLayoutPositions)
         leftLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateLayoutPositions)
         rightLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateLayoutPositions)
 
-        -- Tab Button setup with fix for icon/text alignment
         local tabBtn = Instance.new("TextButton")
         tabBtn.Size = UDim2.new(1, 0, 0, 38)
         tabBtn.BackgroundColor3 = Window.AccentColor
@@ -356,7 +355,7 @@ function Library:CreateWindow(options)
         end
 
         ------------------------------------------------------------------------
-        -- ELEMENT CREATORS
+        -- ELEMENT CREATORS (ENLARGED)
         ------------------------------------------------------------------------
 
         function tabObj:CreateButton(btnText, callback, side)
@@ -364,16 +363,16 @@ function Library:CreateWindow(options)
             local parentCol = getTargetParent(side)
 
             local actionBtn = Instance.new("TextButton")
-            actionBtn.Size = UDim2.new(1, 0, 0, 36)
+            actionBtn.Size = UDim2.new(1, 0, 0, 46)
             actionBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
             actionBtn.Font = Enum.Font.GothamMedium
             actionBtn.Text = btnText
             actionBtn.TextColor3 = Color3.fromRGB(210, 210, 220)
-            actionBtn.TextSize = 12
+            actionBtn.TextSize = 13
             actionBtn.Parent = parentCol
 
             local bCorner = Instance.new("UICorner")
-            bCorner.CornerRadius = UDim.new(0, 5)
+            bCorner.CornerRadius = UDim.new(0, 6)
             bCorner.Parent = actionBtn
 
             local bStroke = Instance.new("UIStroke")
@@ -405,12 +404,12 @@ function Library:CreateWindow(options)
             local parentCol = getTargetParent(side)
 
             local inputFrame = Instance.new("Frame")
-            inputFrame.Size = UDim2.new(1, 0, 0, 40)
+            inputFrame.Size = UDim2.new(1, 0, 0, 46)
             inputFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
             inputFrame.Parent = parentCol
 
             local iCorner = Instance.new("UICorner")
-            iCorner.CornerRadius = UDim.new(0, 5)
+            iCorner.CornerRadius = UDim.new(0, 6)
             iCorner.Parent = inputFrame
 
             local iStroke = Instance.new("UIStroke")
@@ -419,8 +418,8 @@ function Library:CreateWindow(options)
             iStroke.Parent = inputFrame
 
             local label = Instance.new("TextLabel")
-            label.Size = UDim2.new(0.45, -8, 1, 0)
-            label.Position = UDim2.new(0, 10, 0, 0)
+            label.Size = UDim2.new(0.45, -10, 1, 0)
+            label.Position = UDim2.new(0, 12, 0, 0)
             label.BackgroundTransparency = 1
             label.Font = Enum.Font.GothamMedium
             label.Text = titleText
@@ -430,8 +429,8 @@ function Library:CreateWindow(options)
             label.Parent = inputFrame
 
             local textBox = Instance.new("TextBox")
-            textBox.Size = UDim2.new(0.55, -8, 0, 26)
-            textBox.Position = UDim2.new(0.45, 0, 0.5, -13)
+            textBox.Size = UDim2.new(0.55, -12, 0, 30)
+            textBox.Position = UDim2.new(0.45, 0, 0.5, -15)
             textBox.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
             textBox.Font = Enum.Font.Gotham
             textBox.PlaceholderText = placeholderText or "Enter..."
@@ -491,13 +490,13 @@ function Library:CreateWindow(options)
             end
 
             local dropdownContainer = Instance.new("Frame")
-            dropdownContainer.Size = UDim2.new(1, 0, 0, 40)
+            dropdownContainer.Size = UDim2.new(1, 0, 0, 46)
             dropdownContainer.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
             dropdownContainer.ClipsDescendants = true
             dropdownContainer.Parent = parentCol
 
             local dCorner = Instance.new("UICorner")
-            dCorner.CornerRadius = UDim.new(0, 5)
+            dCorner.CornerRadius = UDim.new(0, 6)
             dCorner.Parent = dropdownContainer
 
             local dStroke = Instance.new("UIStroke")
@@ -506,16 +505,15 @@ function Library:CreateWindow(options)
             dStroke.Parent = dropdownContainer
 
             local headerBtn = Instance.new("TextButton")
-            headerBtn.Size = UDim2.new(1, 0, 0, 40)
+            headerBtn.Size = UDim2.new(1, 0, 0, 46)
             headerBtn.BackgroundTransparency = 1
             headerBtn.Text = ""
             headerBtn.ZIndex = 5
             headerBtn.Parent = dropdownContainer
 
-            -- Fixed Title Label Size to avoid overlap
             local label = Instance.new("TextLabel")
-            label.Size = UDim2.new(0.42, -10, 1, 0)
-            label.Position = UDim2.new(0, 10, 0, 0)
+            label.Size = UDim2.new(0.42, -12, 1, 0)
+            label.Position = UDim2.new(0, 12, 0, 0)
             label.BackgroundTransparency = 1
             label.Font = Enum.Font.GothamMedium
             label.Text = titleText
@@ -526,9 +524,8 @@ function Library:CreateWindow(options)
             label.ZIndex = 6
             label.Parent = headerBtn
 
-            -- Fixed Selected Text Label Position and Truncation
             local selectedLabel = Instance.new("TextLabel")
-            selectedLabel.Size = UDim2.new(0.58, -30, 1, 0)
+            selectedLabel.Size = UDim2.new(0.58, -32, 1, 0)
             selectedLabel.Position = UDim2.new(0.42, 0, 0, 0)
             selectedLabel.BackgroundTransparency = 1
             selectedLabel.Font = Enum.Font.Gotham
@@ -541,7 +538,7 @@ function Library:CreateWindow(options)
 
             local arrowIcon = Instance.new("TextLabel")
             arrowIcon.Size = UDim2.new(0, 18, 1, 0)
-            arrowIcon.Position = UDim2.new(1, -20, 0, 0)
+            arrowIcon.Position = UDim2.new(1, -22, 0, 0)
             arrowIcon.BackgroundTransparency = 1
             arrowIcon.Font = Enum.Font.GothamBold
             arrowIcon.Text = "v"
@@ -551,8 +548,8 @@ function Library:CreateWindow(options)
             arrowIcon.Parent = headerBtn
 
             local searchBoxFrame = Instance.new("Frame")
-            searchBoxFrame.Size = UDim2.new(1, -12, 0, 26)
-            searchBoxFrame.Position = UDim2.new(0, 6, 0, 42)
+            searchBoxFrame.Size = UDim2.new(1, -16, 0, 28)
+            searchBoxFrame.Position = UDim2.new(0, 8, 0, 48)
             searchBoxFrame.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
             searchBoxFrame.ZIndex = 10
             searchBoxFrame.Parent = dropdownContainer
@@ -582,15 +579,15 @@ function Library:CreateWindow(options)
             searchInput.Parent = searchBoxFrame
 
             local optionListFrame = Instance.new("Frame")
-            optionListFrame.Size = UDim2.new(1, -12, 0, 0)
-            optionListFrame.Position = UDim2.new(0, 6, 0, 74)
+            optionListFrame.Size = UDim2.new(1, -16, 0, 0)
+            optionListFrame.Position = UDim2.new(0, 8, 0, 82)
             optionListFrame.BackgroundTransparency = 1
             optionListFrame.ZIndex = 10
             optionListFrame.Parent = dropdownContainer
 
             local listLayout = Instance.new("UIListLayout")
             listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-            listLayout.Padding = UDim.new(0, 3)
+            listLayout.Padding = UDim.new(0, 4)
             listLayout.Parent = optionListFrame
 
             local function updateHeaderLabel()
@@ -611,7 +608,7 @@ function Library:CreateWindow(options)
 
             local function updateContainerHeight()
                 local listHeight = listLayout.AbsoluteContentSize.Y
-                local targetHeight = isOpen and (80 + listHeight) or 40
+                local targetHeight = isOpen and (90 + listHeight) or 46
 
                 TweenService:Create(dropdownContainer, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
                     Size = UDim2.new(1, 0, 0, targetHeight)
@@ -632,7 +629,7 @@ function Library:CreateWindow(options)
                     if searchQuery == "" or string.find(string.lower(strOpt), string.lower(searchQuery), 1, true) then
                         local isSelected = selectedValues[opt] == true
                         local optBtn = Instance.new("TextButton")
-                        optBtn.Size = UDim2.new(1, 0, 0, 24)
+                        optBtn.Size = UDim2.new(1, 0, 0, 26)
                         optBtn.BackgroundColor3 = isSelected and Color3.fromRGB(30, 30, 40) or Color3.fromRGB(18, 18, 22)
                         optBtn.Font = Enum.Font.Gotham
                         optBtn.Text = "   " .. (isSelected and " " or "") .. strOpt
@@ -695,12 +692,12 @@ function Library:CreateWindow(options)
             local parentCol = getTargetParent(side)
 
             local toggleContainer = Instance.new("Frame")
-            toggleContainer.Size = UDim2.new(1, 0, 0, 40)
+            toggleContainer.Size = UDim2.new(1, 0, 0, 46)
             toggleContainer.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
             toggleContainer.Parent = parentCol
 
             local tCorner = Instance.new("UICorner")
-            tCorner.CornerRadius = UDim.new(0, 5)
+            tCorner.CornerRadius = UDim.new(0, 6)
             tCorner.Parent = toggleContainer
 
             local tStroke = Instance.new("UIStroke")
@@ -710,7 +707,7 @@ function Library:CreateWindow(options)
 
             local label = Instance.new("TextLabel")
             label.Size = UDim2.new(0.7, -10, 1, 0)
-            label.Position = UDim2.new(0, 10, 0, 0)
+            label.Position = UDim2.new(0, 12, 0, 0)
             label.BackgroundTransparency = 1
             label.Font = Enum.Font.GothamMedium
             label.Text = titleText
@@ -720,8 +717,8 @@ function Library:CreateWindow(options)
             label.Parent = toggleContainer
 
             local switchBtn = Instance.new("TextButton")
-            switchBtn.Size = UDim2.new(0, 36, 0, 18)
-            switchBtn.Position = UDim2.new(1, -44, 0.5, -9)
+            switchBtn.Size = UDim2.new(0, 38, 0, 20)
+            switchBtn.Position = UDim2.new(1, -48, 0.5, -10)
             switchBtn.BackgroundColor3 = toggled and Window.AccentColor or Color3.fromRGB(16, 16, 20)
             switchBtn.Text = ""
             switchBtn.Parent = toggleContainer
@@ -731,8 +728,8 @@ function Library:CreateWindow(options)
             switchCorner.Parent = switchBtn
 
             local circle = Instance.new("Frame")
-            circle.Size = UDim2.new(0, 14, 0, 14)
-            circle.Position = toggled and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+            circle.Size = UDim2.new(0, 16, 0, 16)
+            circle.Position = toggled and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
             circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
             circle.Parent = switchBtn
 
@@ -742,7 +739,7 @@ function Library:CreateWindow(options)
 
             local function updateToggle()
                 local targetBg = toggled and Window.AccentColor or Color3.fromRGB(16, 16, 20)
-                local targetPos = toggled and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+                local targetPos = toggled and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
 
                 TweenService:Create(switchBtn, TweenInfo.new(0.2), {BackgroundColor3 = targetBg}):Play()
                 TweenService:Create(circle, TweenInfo.new(0.2), {Position = targetPos}):Play()
@@ -772,7 +769,7 @@ function Library:CreateWindow(options)
             paraFrame.Parent = parentCol
 
             local pCorner = Instance.new("UICorner")
-            pCorner.CornerRadius = UDim.new(0, 5)
+            pCorner.CornerRadius = UDim.new(0, 6)
             pCorner.Parent = paraFrame
 
             local pStroke = Instance.new("UIStroke")
@@ -781,8 +778,8 @@ function Library:CreateWindow(options)
             pStroke.Parent = paraFrame
 
             local titleLabel = Instance.new("TextLabel")
-            titleLabel.Size = UDim2.new(1, -20, 0, 18)
-            titleLabel.Position = UDim2.new(0, 10, 0, 8)
+            titleLabel.Size = UDim2.new(1, -24, 0, 20)
+            titleLabel.Position = UDim2.new(0, 12, 0, 10)
             titleLabel.BackgroundTransparency = 1
             titleLabel.Font = Enum.Font.GothamBold
             titleLabel.Text = titleText
@@ -792,8 +789,8 @@ function Library:CreateWindow(options)
             titleLabel.Parent = paraFrame
 
             local contentLabel = Instance.new("TextLabel")
-            contentLabel.Size = UDim2.new(1, -20, 0, 0)
-            contentLabel.Position = UDim2.new(0, 10, 0, 26)
+            contentLabel.Size = UDim2.new(1, -24, 0, 0)
+            contentLabel.Position = UDim2.new(0, 12, 0, 32)
             contentLabel.BackgroundTransparency = 1
             contentLabel.Font = Enum.Font.Gotham
             contentLabel.Text = contentText
@@ -805,8 +802,8 @@ function Library:CreateWindow(options)
             contentLabel.Parent = paraFrame
 
             local function resize()
-                contentLabel.Size = UDim2.new(1, -20, 0, contentLabel.TextBounds.Y)
-                paraFrame.Size = UDim2.new(1, 0, 0, contentLabel.TextBounds.Y + 34)
+                contentLabel.Size = UDim2.new(1, -24, 0, contentLabel.TextBounds.Y)
+                paraFrame.Size = UDim2.new(1, 0, 0, contentLabel.TextBounds.Y + 42)
             end
             contentLabel:GetPropertyChangedSignal("TextBounds"):Connect(resize)
             task.spawn(resize)
@@ -823,7 +820,7 @@ function Library:CreateWindow(options)
             paraFrame.Parent = parentCol
 
             local pCorner = Instance.new("UICorner")
-            pCorner.CornerRadius = UDim.new(0, 5)
+            pCorner.CornerRadius = UDim.new(0, 6)
             pCorner.Parent = paraFrame
 
             local pStroke = Instance.new("UIStroke")
@@ -832,8 +829,8 @@ function Library:CreateWindow(options)
             pStroke.Parent = paraFrame
 
             local iconImg = Instance.new("ImageLabel")
-            iconImg.Size = UDim2.new(0, 26, 0, 26)
-            iconImg.Position = UDim2.new(0, 8, 0, 8)
+            iconImg.Size = UDim2.new(0, 28, 0, 28)
+            iconImg.Position = UDim2.new(0, 10, 0, 10)
             iconImg.BackgroundTransparency = 1
             iconImg.Parent = paraFrame
 
@@ -844,8 +841,8 @@ function Library:CreateWindow(options)
             end
 
             local titleLabel = Instance.new("TextLabel")
-            titleLabel.Size = UDim2.new(1, -46, 0, 18)
-            titleLabel.Position = UDim2.new(0, 40, 0, 6)
+            titleLabel.Size = UDim2.new(1, -54, 0, 20)
+            titleLabel.Position = UDim2.new(0, 46, 0, 8)
             titleLabel.BackgroundTransparency = 1
             titleLabel.Font = Enum.Font.GothamBold
             titleLabel.Text = titleText
@@ -855,8 +852,8 @@ function Library:CreateWindow(options)
             titleLabel.Parent = paraFrame
 
             local contentLabel = Instance.new("TextLabel")
-            contentLabel.Size = UDim2.new(1, -46, 0, 0)
-            contentLabel.Position = UDim2.new(0, 40, 0, 24)
+            contentLabel.Size = UDim2.new(1, -54, 0, 0)
+            contentLabel.Position = UDim2.new(0, 46, 0, 28)
             contentLabel.BackgroundTransparency = 1
             contentLabel.Font = Enum.Font.Gotham
             contentLabel.Text = contentText
@@ -868,9 +865,9 @@ function Library:CreateWindow(options)
             contentLabel.Parent = paraFrame
 
             local function resize()
-                local calculatedHeight = math.max(28, contentLabel.TextBounds.Y + 24)
-                contentLabel.Size = UDim2.new(1, -46, 0, contentLabel.TextBounds.Y)
-                paraFrame.Size = UDim2.new(1, 0, 0, calculatedHeight + 12)
+                local calculatedHeight = math.max(32, contentLabel.TextBounds.Y + 28)
+                contentLabel.Size = UDim2.new(1, -54, 0, contentLabel.TextBounds.Y)
+                paraFrame.Size = UDim2.new(1, 0, 0, calculatedHeight + 16)
             end
             contentLabel:GetPropertyChangedSignal("TextBounds"):Connect(resize)
             task.spawn(resize)
@@ -888,12 +885,12 @@ function Library:CreateWindow(options)
             local currentVal = defaultVal
 
             local sliderContainer = Instance.new("Frame")
-            sliderContainer.Size = UDim2.new(1, 0, 0, 44)
+            sliderContainer.Size = UDim2.new(1, 0, 0, 50)
             sliderContainer.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
             sliderContainer.Parent = parentCol
 
             local sCorner = Instance.new("UICorner")
-            sCorner.CornerRadius = UDim.new(0, 5)
+            sCorner.CornerRadius = UDim.new(0, 6)
             sCorner.Parent = sliderContainer
 
             local sStroke = Instance.new("UIStroke")
@@ -902,8 +899,8 @@ function Library:CreateWindow(options)
             sStroke.Parent = sliderContainer
 
             local label = Instance.new("TextLabel")
-            label.Size = UDim2.new(0.6, -10, 0, 18)
-            label.Position = UDim2.new(0, 10, 0, 5)
+            label.Size = UDim2.new(0.6, -12, 0, 20)
+            label.Position = UDim2.new(0, 12, 0, 6)
             label.BackgroundTransparency = 1
             label.Font = Enum.Font.GothamMedium
             label.Text = titleText
@@ -913,8 +910,8 @@ function Library:CreateWindow(options)
             label.Parent = sliderContainer
 
             local valLabel = Instance.new("TextLabel")
-            valLabel.Size = UDim2.new(0.4, -10, 0, 18)
-            valLabel.Position = UDim2.new(0.6, 0, 0, 5)
+            valLabel.Size = UDim2.new(0.4, -12, 0, 20)
+            valLabel.Position = UDim2.new(0.6, 0, 0, 6)
             valLabel.BackgroundTransparency = 1
             valLabel.Font = Enum.Font.Gotham
             valLabel.Text = tostring(currentVal)
@@ -924,8 +921,8 @@ function Library:CreateWindow(options)
             valLabel.Parent = sliderContainer
 
             local sliderBar = Instance.new("Frame")
-            sliderBar.Size = UDim2.new(1, -20, 0, 5)
-            sliderBar.Position = UDim2.new(0, 10, 0, 28)
+            sliderBar.Size = UDim2.new(1, -24, 0, 6)
+            sliderBar.Position = UDim2.new(0, 12, 0, 32)
             sliderBar.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
             sliderBar.Parent = sliderContainer
 
