@@ -8,7 +8,7 @@ local LocalPlayer = Players.LocalPlayer
 local Library = {}
 Library.__index = Library
 
-local FONT_FAMILY = "rbxassetid://12187365364" -- Inter font asset ID proxy for Roblox
+local FONT_FAMILY = "rbxassetid://12187365364"
 
 local function applyFont(instance, weight, style)
     style = style or Enum.FontStyle.Normal
@@ -35,7 +35,6 @@ function Library:CreateWindow(options)
         screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     end
 
-    -- Container for Notifications
     local notifyContainer = Instance.new("Frame")
     notifyContainer.Name = "NotifyContainer"
     notifyContainer.Size = UDim2.new(0, 280, 1, -20)
@@ -68,7 +67,6 @@ function Library:CreateWindow(options)
     mainStroke.Thickness = 1
     mainStroke.Parent = mainFrame
 
-    -- Separate Floating Toggle/Minimize Button
     local floatToggleBtn = Instance.new("TextButton")
     floatToggleBtn.Name = "FloatingToggleBtn"
     floatToggleBtn.Size = UDim2.new(0, 50, 0, 50)
@@ -90,7 +88,6 @@ function Library:CreateWindow(options)
     floatStroke.Thickness = 2
     floatStroke.Parent = floatToggleBtn
 
-    -- Make Floating Toggle Button Draggable
     local floatDragging, floatDragStart, floatStartPos
     floatToggleBtn.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -125,7 +122,6 @@ function Library:CreateWindow(options)
     sidebarCorner.CornerRadius = UDim.new(0, 8)
     sidebarCorner.Parent = sidebar
 
-    -- BOTTOM BAR FRAME (Matching Sidebar Background Color)
     local bottomBarFrame = Instance.new("Frame")
     bottomBarFrame.Name = "BottomBarFrame"
     bottomBarFrame.Size = UDim2.new(1, -165, 0, 46)
@@ -147,7 +143,6 @@ function Library:CreateWindow(options)
     bottomPatch.ZIndex = 4
     bottomPatch.Parent = bottomBarFrame
 
-    -- TOP HEADER
     local headerFrame = Instance.new("Frame")
     headerFrame.Name = "HeaderFrame"
     headerFrame.Size = UDim2.new(1, -165, 0, 42)
@@ -181,7 +176,6 @@ function Library:CreateWindow(options)
     headerTitle.ZIndex = 5
     headerTitle.Parent = headerFrame
 
-    -- Header Controls Container
     local headerControls = Instance.new("Frame")
     headerControls.Size = UDim2.new(0, 70, 1, 0)
     headerControls.Position = UDim2.new(1, -74, 0, 0)
@@ -316,7 +310,7 @@ function Library:CreateWindow(options)
 
     local tabContainer = Instance.new("ScrollingFrame")
     tabContainer.Name = "TabContainer"
-    tabContainer.Size = UDim2.new(1, -12, 1, -136)
+    tabContainer.Size = UDim2.new(1, -12, 1, -142)
     tabContainer.Position = UDim2.new(0, 6, 0, 76)
     tabContainer.BackgroundTransparency = 1
     tabContainer.BorderSizePixel = 0
@@ -337,15 +331,20 @@ function Library:CreateWindow(options)
     end)
 
     local userProfile = Instance.new("Frame")
-    userProfile.Size = UDim2.new(1, -16, 0, 36)
-    userProfile.Position = UDim2.new(0, 8, 1, -41)
-    userProfile.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    userProfile.Size = UDim2.new(1, -16, 0, 38)
+    userProfile.Position = UDim2.new(0, 8, 1, -44)
+    userProfile.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
     userProfile.ZIndex = 6
     userProfile.Parent = sidebar
 
     local userCorner = Instance.new("UICorner")
     userCorner.CornerRadius = UDim.new(0, 6)
     userCorner.Parent = userProfile
+
+    local userStroke = Instance.new("UIStroke")
+    userStroke.Color = Color3.fromRGB(35, 35, 45)
+    userStroke.Thickness = 1
+    userStroke.Parent = userProfile
 
     local avatarIcon = Instance.new("ImageLabel")
     avatarIcon.Size = UDim2.new(0, 24, 0, 24)
@@ -406,13 +405,18 @@ function Library:CreateWindow(options)
     local versionBadge = Instance.new("Frame")
     versionBadge.Size = UDim2.new(0, 95, 0, 24)
     versionBadge.Position = UDim2.new(1, -103, 0.5, -12)
-    versionBadge.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    versionBadge.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
     versionBadge.ZIndex = 6
     versionBadge.Parent = bottomBarFrame
 
     local versionCorner = Instance.new("UICorner")
     versionCorner.CornerRadius = UDim.new(1, 0)
     versionCorner.Parent = versionBadge
+
+    local versionStroke = Instance.new("UIStroke")
+    versionStroke.Color = Color3.fromRGB(35, 35, 45)
+    versionStroke.Thickness = 1
+    versionStroke.Parent = versionBadge
 
     local versionLabel = Instance.new("TextLabel")
     versionLabel.Size = UDim2.new(1, 0, 1, 0)
@@ -436,7 +440,6 @@ function Library:CreateWindow(options)
         MainFrame = mainFrame
     }
 
-    -- WINDOW DIALOG
     function Window:Dialog(dialogOptions)
         dialogOptions = dialogOptions or {}
         local title = dialogOptions.Title or "Dialog"
@@ -534,7 +537,6 @@ function Library:CreateWindow(options)
         end
     end
 
-    -- WINDOW NOTIFY
     function Window:Notify(notifyOptions)
         notifyOptions = notifyOptions or {}
         local title = notifyOptions.Title or "Notification"
