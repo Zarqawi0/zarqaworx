@@ -68,7 +68,7 @@ function Library:CreateWindow(options)
     mainStroke.Thickness = 1
     mainStroke.Parent = mainFrame
 
-    -- Separate Floating Toggle/Minimize Button (Image 2 style)
+    -- Separate Floating Toggle/Minimize Button
     local floatToggleBtn = Instance.new("TextButton")
     floatToggleBtn.Name = "FloatingToggleBtn"
     floatToggleBtn.Size = UDim2.new(0, 50, 0, 50)
@@ -124,7 +124,7 @@ function Library:CreateWindow(options)
     sidebarCorner.CornerRadius = UDim.new(0, 8)
     sidebarCorner.Parent = sidebar
 
-    -- TOP HEADER (Matches Sidebar Color)
+    -- TOP HEADER
     local headerFrame = Instance.new("Frame")
     headerFrame.Name = "HeaderFrame"
     headerFrame.Size = UDim2.new(1, -165, 0, 42)
@@ -138,7 +138,6 @@ function Library:CreateWindow(options)
     headerCorner.CornerRadius = UDim.new(0, 8)
     headerCorner.Parent = headerFrame
 
-    -- Cover left rounded corners of header to join seamlessly with sidebar
     local headerPatch = Instance.new("Frame")
     headerPatch.Size = UDim2.new(0, 10, 1, 0)
     headerPatch.Position = UDim2.new(0, 0, 0, 0)
@@ -395,7 +394,7 @@ function Library:CreateWindow(options)
         MainFrame = mainFrame
     }
 
-    -- WINDOW DIALOG (Image 3 implementation)
+    -- WINDOW DIALOG
     function Window:Dialog(dialogOptions)
         dialogOptions = dialogOptions or {}
         local title = dialogOptions.Title or "Dialog"
@@ -493,7 +492,7 @@ function Library:CreateWindow(options)
         end
     end
 
-    -- WINDOW NOTIFY (Image 4 implementation)
+    -- WINDOW NOTIFY
     function Window:Notify(notifyOptions)
         notifyOptions = notifyOptions or {}
         local title = notifyOptions.Title or "Notification"
@@ -1346,7 +1345,7 @@ function Library:CreateWindow(options)
                 local availableWidth = paraFrame.AbsoluteSize.X - 70
                 if availableWidth <= 0 then availableWidth = 150 end
 
-                local textBounds = game:GetService("TextService"):GetTextService():GetTextSize(
+                local textBounds = game:GetService("TextService"):GetTextSize(
                     contentText, 
                     14, 
                     Enum.Font.Gotham, 
