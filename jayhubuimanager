@@ -8,13 +8,10 @@ local LocalPlayer = Players.LocalPlayer
 local Library = {}
 Library.__index = Library
 
--- Updated to Inter font family asset ID
-local FONT_FAMILY = "rbxassetid://12187365364"
-
 local function applyFont(instance, weight, style)
     style = style or Enum.FontStyle.Normal
     if instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox") then
-        instance.FontFace = Font.new(FONT_FAMILY, weight, style)
+        instance.FontFace = Font.fromEnum(Enum.Font.BuilderSans, weight, style)
     end
 end
 
@@ -73,9 +70,9 @@ function Library:CreateWindow(options)
     floatToggleBtn.Size = UDim2.new(0, 50, 0, 50)
     floatToggleBtn.Position = UDim2.new(0.1, 0, 0.1, 0)
     floatToggleBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
-    floatToggleBtn.Text = "BF"
+    floatToggleBtn.Text = "JH"
     applyFont(floatToggleBtn, Enum.FontWeight.Bold)
-    floatToggleBtn.TextColor3 = Color3.fromRGB(0, 150, 255)
+    floatToggleBtn.TextColor3 = accentColor
     floatToggleBtn.TextSize = 16
     floatToggleBtn.ZIndex = 200
     floatToggleBtn.Parent = screenGui
@@ -85,9 +82,27 @@ function Library:CreateWindow(options)
     floatCorner.Parent = floatToggleBtn
 
     local floatStroke = Instance.new("UIStroke")
-    floatStroke.Color = Color3.fromRGB(0, 150, 255)
+    floatStroke.Color = accentColor
     floatStroke.Thickness = 2
     floatStroke.Parent = floatToggleBtn
+
+    local highlightCircle = Instance.new("Frame")
+    highlightCircle.Name = "HighlightCircle"
+    highlightCircle.Size = UDim2.new(1, 6, 1, 6)
+    highlightCircle.Position = UDim2.new(0, -3, 0, -3)
+    highlightCircle.BackgroundTransparency = 1
+    highlightCircle.ZIndex = 199
+    highlightCircle.Parent = floatToggleBtn
+
+    local hCorner = Instance.new("UICorner")
+    hCorner.CornerRadius = UDim.new(1, 0)
+    hCorner.Parent = highlightCircle
+
+    local hStroke = Instance.new("UIStroke")
+    hStroke.Color = accentColor
+    hStroke.Transparency = 0.5
+    hStroke.Thickness = 1.5
+    hStroke.Parent = highlightCircle
 
     local floatDragging, floatDragStart, floatStartPos
     floatToggleBtn.InputBegan:Connect(function(input)
@@ -1578,7 +1593,6 @@ function Library:CreateWindow(options)
                 }):Play()
                 valInput.Text = ""
                 local percent = (currentVal - minVal) / (maxVal - minVal)
-    interpolated_size = UDim2.new(percent, 0, 1, 0)
                 fill.Size = UDim2.new(percent, 0, 1, 0)
                 knob.Position = UDim2.new(percent, 0, 0.5, 0)
                 pcall(callback, currentVal)
