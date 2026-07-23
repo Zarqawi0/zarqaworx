@@ -496,11 +496,13 @@ function Library:CreateWindow(options)
     function Window:Notify(notifyOptions)
         notifyOptions = notifyOptions or {}
         local title = notifyOptions.Title or "Notification"
-        local description = notifyOptions.Description or ""
-        local lifetime = notifyOptions.Lifetime or 5
+        local description = notifyOptions.Content or notifyOptions.Description or ""
+        local subContent = notifyOptions.SubContent
+        local lifetime = notifyOptions.Duration or notifyOptions.Lifetime or 5
 
+        local cardHeight = subContent and 80 or 64
         local card = Instance.new("Frame")
-        card.Size = UDim2.new(1, 0, 0, 64)
+        card.Size = UDim2.new(1, 0, 0, cardHeight)
         card.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
         card.Position = UDim2.new(1, 300, 0, 0)
         card.ZIndex = 101
@@ -528,7 +530,7 @@ function Library:CreateWindow(options)
         nTitle.Parent = card
 
         local nDesc = Instance.new("TextLabel")
-        nDesc.Size = UDim2.new(1, -20, 0, 30)
+        nDesc.Size = UDim2.new(1, -20, 0, 28)
         nDesc.Position = UDim2.new(0, 10, 0, 28)
         nDesc.BackgroundTransparency = 1
         applyFont(nDesc, Enum.FontWeight.Regular)
@@ -541,10 +543,26 @@ function Library:CreateWindow(options)
         nDesc.ZIndex = 102
         nDesc.Parent = card
 
-        task.spawn(function()
-            task.wait(lifetime)
-            card:Destroy()
-        end)
+        if subContent then
+            local nSub = Instance.new("TextLabel")
+            nSub.Size = UDim2.new(1, -20, 0, 20)
+            nSub.Position = UDim2.new(0, 10, 0, 56)
+            nSub.BackgroundTransparency = 1
+            applyFont(nSub, Enum.FontWeight.Regular)
+            nSub.Text = subContent
+            nSub.TextColor3 = Color3.fromRGB(120, 120, 135)
+            nSub.TextSize = 11
+            nSub.TextXAlignment = Enum.TextXAlignment.Left
+            nSub.ZIndex = 102
+            nSub.Parent = card
+        end
+
+        if lifetime then
+            task.spawn(function()
+                task.wait(lifetime)
+                card:Destroy()
+            end)
+        end
     end
 
     function Window:CreateTab(tabName)
@@ -854,16 +872,30 @@ function Library:CreateWindow(options)
             return inputFrame
         end
 
-        function tabObj:CreateDropdown(titleText, optionsList, defaultOption, isMultiSelect, callback, side)
-            optionsList = optionsList or {}
-            if type(isMultiSelect) == "function" then
-                side = callback
-                callback = isMultiSelect
-                isMultiSelect = false
-            end
-            callback = callback or function() end
-            local parentCol = getTargetParent(side)
+        function tabObj:CreateDropdown(titleOrOptions, optionsList, defaultOption, isMultiSelect, callback, side)
+            local optionsTable = {}
 
+            if type(titleOrOptions) == "table" then
+                optionsTable = titleOrOptions
+                side = optionsList or "left"
+            else
+                optionsTable = {
+                    Title = titleOrOptions,
+                    Values = optionsList,
+                    Default = defaultOption,
+                    Multi = isMultiSelect,
+                    Callback = callback
+                }
+            end
+
+            local titleText = optionsTable.Title or "Dropdown"
+            local descriptionText = optionsTable.Description
+            optionsList = optionsTable.Values or {}
+            defaultOption = optionsTable.Default
+            isMultiSelect = optionsTable.Multi or false
+            callback = optionsTable.Callback or function() end
+
+            local parentCol = getTargetParent(side)
             local isOpen = false
             local selectedValues = {}
             local searchQuery = ""
@@ -879,7 +911,7 @@ function Library:CreateWindow(options)
             end
 
             local dropdownContainer = Instance.new("Frame")
-            dropdownContainer.Size = UDim2.new(1, 0, 0, 52)
+            dropdownContainer.Size = UDim2.new(1, 0, 0, descriptionText and 64 or 52)
             dropdownContainer.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
             dropdownContainer.ClipsDescendants = true
             dropdownContainer.Parent = parentCol
@@ -894,15 +926,15 @@ function Library:CreateWindow(options)
             dStroke.Parent = dropdownContainer
 
             local headerBtn = Instance.new("TextButton")
-            headerBtn.Size = UDim2.new(1, 0, 0, 52)
+            headerBtn.Size = UDim2.new(1, 0, 0, descriptionText and 64 or 52)
             headerBtn.BackgroundTransparency = 1
             headerBtn.Text = ""
             headerBtn.ZIndex = 5
             headerBtn.Parent = dropdownContainer
 
             local label = Instance.new("TextLabel")
-            label.Size = UDim2.new(0.42, -12, 1, 0)
-            label.Position = UDim2.new(0, 14, 0, 0)
+            label.Size = UDim2.new(0.42, -12, descriptionText and 0.5 or 1, 0)
+            label.Position = UDim2.new(0, 14, 0, descriptionText and 8 or 0)
             label.BackgroundTransparency = 1
             applyFont(label, Enum.FontWeight.Medium)
             label.Text = titleText
@@ -912,6 +944,20 @@ function Library:CreateWindow(options)
             label.TextTruncate = Enum.TextTruncate.AtEnd
             label.ZIndex = 6
             label.Parent = headerBtn
+
+            if descriptionText then
+                local descLabel = Instance.new("TextLabel")
+                descLabel.Size = UDim2.new(1, -28, 0, 20)
+                descLabel.Position = UDim2.new(0, 14, 0, 32)
+                descLabel.BackgroundTransparency = 1
+                applyFont(descLabel, Enum.FontWeight.Regular)
+                descLabel.Text = descriptionText
+                descLabel.TextColor3 = Color3.fromRGB(130, 130, 145)
+                descLabel.TextSize = 11
+                descLabel.TextXAlignment = Enum.TextXAlignment.Left
+                descLabel.ZIndex = 6
+                descLabel.Parent = headerBtn
+            end
 
             local selectedLabel = Instance.new("TextLabel")
             selectedLabel.Size = UDim2.new(0.58, -32, 1, 0)
@@ -936,9 +982,11 @@ function Library:CreateWindow(options)
             arrowIcon.ZIndex = 6
             arrowIcon.Parent = headerBtn
 
+            local baseHeaderHeight = descriptionText and 64 or 52
+
             local searchBoxFrame = Instance.new("Frame")
             searchBoxFrame.Size = UDim2.new(1, -16, 0, 32)
-            searchBoxFrame.Position = UDim2.new(0, 8, 0, 56)
+            searchBoxFrame.Position = UDim2.new(0, 8, 0, baseHeaderHeight + 4)
             searchBoxFrame.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
             searchBoxFrame.ZIndex = 10
             searchBoxFrame.Parent = dropdownContainer
@@ -984,9 +1032,7 @@ function Library:CreateWindow(options)
                     searchDisplayText.Text = "|"
                     searchDisplayText.TextColor3 = Color3.fromRGB(255, 255, 255)
                 end
-                TweenService:Create(searchStroke, TweenInfo.new(0.15), {
-                    Color = Window.AccentColor
-                }):Play()
+                TweenService:Create(searchStroke, TweenInfo.new(0.15), { Color = Window.AccentColor }):Play()
             end)
             searchInput.FocusLost:Connect(function()
                 if searchInput.Text == "" then
@@ -996,24 +1042,18 @@ function Library:CreateWindow(options)
                     searchDisplayText.Text = searchInput.Text
                     searchDisplayText.TextColor3 = Color3.fromRGB(230, 230, 240)
                 end
-                TweenService:Create(searchStroke, TweenInfo.new(0.15), {
-                    Color = Color3.fromRGB(35, 35, 45)
-                }):Play()
+                TweenService:Create(searchStroke, TweenInfo.new(0.15), { Color = Color3.fromRGB(35, 35, 45) }):Play()
             end)
             searchInput:GetPropertyChangedSignal("Text"):Connect(function()
                 if searchInput:IsFocused() then
-                    if searchInput.Text == "" then
-                        searchDisplayText.Text = "|"
-                    else
-                        searchDisplayText.Text = searchInput.Text .. "|"
-                    end
+                    searchDisplayText.Text = searchInput.Text == "" and "|" or (searchInput.Text .. "|")
                     searchDisplayText.TextColor3 = Color3.fromRGB(255, 255, 255)
                 end
             end)
 
             local optionListFrame = Instance.new("Frame")
             optionListFrame.Size = UDim2.new(1, -16, 0, 0)
-            optionListFrame.Position = UDim2.new(0, 8, 0, 96)
+            optionListFrame.Position = UDim2.new(0, 8, 0, baseHeaderHeight + 44)
             optionListFrame.BackgroundTransparency = 1
             optionListFrame.ZIndex = 10
             optionListFrame.Parent = dropdownContainer
@@ -1041,15 +1081,13 @@ function Library:CreateWindow(options)
 
             local function updateContainerHeight()
                 local listHeight = listLayout.AbsoluteContentSize.Y
-                local targetHeight = isOpen and (104 + listHeight) or 52
+                local targetHeight = isOpen and (baseHeaderHeight + 52 + listHeight) or baseHeaderHeight
 
                 TweenService:Create(dropdownContainer, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
                     Size = UDim2.new(1, 0, 0, targetHeight)
                 }):Play()
 
-                TweenService:Create(arrowIcon, TweenInfo.new(0.2), {
-                    Rotation = isOpen and 180 or 0
-                }):Play()
+                TweenService:Create(arrowIcon, TweenInfo.new(0.2), { Rotation = isOpen and 180 or 0 }):Play()
             end
 
             local function refreshList()
@@ -1230,7 +1268,24 @@ function Library:CreateWindow(options)
             return toggleContainer
         end
 
-        function tabObj:CreateParagraph(titleText, contentText, side)
+        function tabObj:CreateParagraph(titleOrOptions, contentText, side)
+            local optionsTable = {}
+
+            if type(titleOrOptions) == "table" then
+                optionsTable = titleOrOptions
+                side = contentText or "left"
+            else
+                optionsTable = {
+                    Header = titleOrOptions,
+                    Body = contentText,
+                    Bold = false
+                }
+            end
+
+            local headerText = optionsTable.Header or "Title"
+            local bodyText = optionsTable.Body or ""
+            local isBold = optionsTable.Bold or false
+
             local parentCol = getTargetParent(side)
 
             local paraFrame = Instance.new("Frame")
@@ -1251,8 +1306,8 @@ function Library:CreateWindow(options)
             titleLabel.Size = UDim2.new(1, -28, 0, 22)
             titleLabel.Position = UDim2.new(0, 14, 0, 14)
             titleLabel.BackgroundTransparency = 1
-            applyFont(titleLabel, Enum.FontWeight.Bold)
-            titleLabel.Text = titleText
+            applyFont(titleLabel, isBold and Enum.FontWeight.Bold or Enum.FontWeight.SemiBold)
+            titleLabel.Text = headerText
             titleLabel.TextColor3 = Color3.fromRGB(230, 230, 240)
             titleLabel.TextSize = 15
             titleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -1262,8 +1317,8 @@ function Library:CreateWindow(options)
             contentLabel.Size = UDim2.new(1, -28, 0, 0)
             contentLabel.Position = UDim2.new(0, 14, 0, 40)
             contentLabel.BackgroundTransparency = 1
-            applyFont(contentLabel, Enum.FontWeight.Regular)
-            contentLabel.Text = contentText
+            applyFont(contentLabel, isBold and Enum.FontWeight.Medium or Enum.FontWeight.Regular)
+            contentLabel.Text = bodyText
             contentLabel.TextColor3 = Color3.fromRGB(180, 180, 195)
             contentLabel.TextSize = 14
             contentLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -1274,14 +1329,14 @@ function Library:CreateWindow(options)
             local function resize()
                 local availableWidth = paraFrame.AbsoluteSize.X - 28
                 if availableWidth <= 0 then availableWidth = 200 end
-                
+
                 local textBounds = game:GetService("TextService"):GetTextSize(
-                    contentText, 
-                    14, 
+                    contentLabel.Text,
+                    14,
                     Enum.Font.Gotham,
                     Vector2.new(availableWidth, 999999)
                 )
-                
+
                 local targetHeight = math.max(textBounds.Y + 54, 60)
                 contentLabel.Size = UDim2.new(1, -28, 0, textBounds.Y)
                 paraFrame.Size = UDim2.new(1, 0, 0, targetHeight)
@@ -1290,7 +1345,26 @@ function Library:CreateWindow(options)
             paraFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize)
             task.spawn(resize)
 
-            return paraFrame
+            local ParagraphController = {}
+
+            function ParagraphController:UpdateHeader(text)
+                titleLabel.Text = tostring(text)
+            end
+
+            function ParagraphController:UpdateBody(text)
+                contentLabel.Text = tostring(text)
+                resize()
+            end
+
+            function ParagraphController:SetVisibility(bool)
+                paraFrame.Visible = bool
+            end
+
+            function ParagraphController:Destroy()
+                paraFrame:Destroy()
+            end
+
+            return ParagraphController
         end
 
         function tabObj:CreateImageParagraph(titleText, contentText, imageId, side)
