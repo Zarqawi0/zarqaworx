@@ -615,7 +615,7 @@ function Library:CreateWindow(options)
         rightCol.Size = UDim2.new(0.5, -6, 0, 0)
         rightCol.Position = UDim2.new(0.5, 6, 0, 0)
         rightCol.BackgroundTransparency = 1
-        rightCol.Parent = pageFrame
+        rightCol.Parent = rightCol
 
         local rightLayout = Instance.new("UIListLayout")
         rightLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -1289,7 +1289,7 @@ function Library:CreateWindow(options)
             local parentCol = getTargetParent(side)
 
             local paraFrame = Instance.new("Frame")
-            paraFrame.Size = UDim2.new(1, 0, 0, 0)
+            paraFrame.Size = UDim2.new(1, 0, 0, 60)
             paraFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
             paraFrame.Parent = parentCol
 
@@ -1327,8 +1327,9 @@ function Library:CreateWindow(options)
             contentLabel.Parent = paraFrame
 
             local function resize()
+                task.wait()
                 local availableWidth = paraFrame.AbsoluteSize.X - 28
-                if availableWidth <= 0 then availableWidth = 200 end
+                if availableWidth <= 0 then availableWidth = 300 end
 
                 local textBounds = game:GetService("TextService"):GetTextSize(
                     contentLabel.Text,
@@ -1340,6 +1341,10 @@ function Library:CreateWindow(options)
                 local targetHeight = math.max(textBounds.Y + 54, 60)
                 contentLabel.Size = UDim2.new(1, -28, 0, textBounds.Y)
                 paraFrame.Size = UDim2.new(1, 0, 0, targetHeight)
+
+                -- Dynamic Canvas Layout Update
+                parentCol.Size = UDim2.new(parentCol.Size.X.Scale, parentCol.Size.X.Offset, 0, 0)
+                updateLayoutPositions()
             end
 
             paraFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize)
@@ -1358,10 +1363,12 @@ function Library:CreateWindow(options)
 
             function ParagraphController:SetVisibility(bool)
                 paraFrame.Visible = bool
+                updateLayoutPositions()
             end
 
             function ParagraphController:Destroy()
                 paraFrame:Destroy()
+                updateLayoutPositions()
             end
 
             return ParagraphController
@@ -1371,7 +1378,7 @@ function Library:CreateWindow(options)
             local parentCol = getTargetParent(side)
 
             local paraFrame = Instance.new("Frame")
-            paraFrame.Size = UDim2.new(1, 0, 0, 0)
+            paraFrame.Size = UDim2.new(1, 0, 0, 66)
             paraFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
             paraFrame.Parent = parentCol
 
@@ -1416,8 +1423,9 @@ function Library:CreateWindow(options)
             contentLabel.Parent = paraFrame
 
             local function resize()
+                task.wait()
                 local availableWidth = paraFrame.AbsoluteSize.X - 70
-                if availableWidth <= 0 then availableWidth = 150 end
+                if availableWidth <= 0 then availableWidth = 250 end
 
                 local textBounds = game:GetService("TextService"):GetTextSize(
                     contentText, 
@@ -1429,6 +1437,10 @@ function Library:CreateWindow(options)
                 contentLabel.Size = UDim2.new(1, -70, 0, textBounds.Y)
                 local calculatedHeight = math.max(textBounds.Y + 48, 66)
                 paraFrame.Size = UDim2.new(1, 0, 0, calculatedHeight)
+
+                -- Dynamic Canvas Layout Update
+                parentCol.Size = UDim2.new(parentCol.Size.X.Scale, parentCol.Size.X.Offset, 0, 0)
+                updateLayoutPositions()
             end
 
             paraFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize)
