@@ -8,6 +8,7 @@ local LocalPlayer = Players.LocalPlayer
 local Library = {}
 Library.__index = Library
 
+-- Updated to Inter font family asset ID
 local FONT_FAMILY = "rbxassetid://12187365364"
 
 local function applyFont(instance, weight, style)
@@ -135,7 +136,6 @@ function Library:CreateWindow(options)
     bottomCorner.CornerRadius = UDim.new(0, 8)
     bottomCorner.Parent = bottomBarFrame
 
-    -- Remove left corners to connect smoothly with sidebar
     local bottomCoverLeft = Instance.new("Frame")
     bottomCoverLeft.Size = UDim2.new(0, 8, 1, 0)
     bottomCoverLeft.Position = UDim2.new(0, 0, 0, 0)
@@ -157,7 +157,6 @@ function Library:CreateWindow(options)
     headerCorner.CornerRadius = UDim.new(0, 8)
     headerCorner.Parent = headerFrame
 
-    -- Remove left corners to connect smoothly with sidebar
     local headerCoverLeft = Instance.new("Frame")
     headerCoverLeft.Size = UDim2.new(0, 8, 1, 0)
     headerCoverLeft.Position = UDim2.new(0, 0, 0, 0)
@@ -1579,6 +1578,7 @@ function Library:CreateWindow(options)
                 }):Play()
                 valInput.Text = ""
                 local percent = (currentVal - minVal) / (maxVal - minVal)
+    interpolated_size = UDim2.new(percent, 0, 1, 0)
                 fill.Size = UDim2.new(percent, 0, 1, 0)
                 knob.Position = UDim2.new(percent, 0, 0.5, 0)
                 pcall(callback, currentVal)
