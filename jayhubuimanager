@@ -19,10 +19,10 @@ end
 
 function Library:CreateWindow(options)
     options = options or {}
-    local windowTitle = options.Title or "JeeHub"
-    local windowSubTitle = options.SubTitle or "by Zarqaworx"
-    local windowVersion = options.Version or "v1.0.0"
-    local accentColor = options.AccentColor or Color3.fromRGB(0, 150, 255) -- #0096ff
+    local windowTitle = options.Title or "JayHub"
+    local windowSubTitle = options.SubTitle or "Grow a Garden 2"
+    local windowVersion = options.Version or "v1.3.9 • Free"
+    local accentColor = options.AccentColor or Color3.fromRGB(0, 150, 255)
 
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = windowTitle .. "UI"
@@ -57,7 +57,6 @@ function Library:CreateWindow(options)
     mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
     mainFrame.BorderSizePixel = 0
     mainFrame.Active = true
-    mainFrame.ClipsDescendants = true
     mainFrame.Parent = screenGui
 
     local mainCorner = Instance.new("UICorner")
@@ -119,7 +118,6 @@ function Library:CreateWindow(options)
     sidebar.Size = UDim2.new(0, 165, 1, 0)
     sidebar.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
     sidebar.BorderSizePixel = 0
-    sidebar.ZIndex = 2
     sidebar.Parent = mainFrame
 
     local sidebarCorner = Instance.new("UICorner")
@@ -214,7 +212,6 @@ function Library:CreateWindow(options)
     titleContainer.Size = UDim2.new(1, -24, 0, 56)
     titleContainer.Position = UDim2.new(0, 12, 0, 12)
     titleContainer.BackgroundTransparency = 1
-    titleContainer.ZIndex = 3
     titleContainer.Parent = sidebar
 
     local mainTitleLabel = Instance.new("TextLabel")
@@ -225,7 +222,6 @@ function Library:CreateWindow(options)
     mainTitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     mainTitleLabel.TextXAlignment = Enum.TextXAlignment.Center
     mainTitleLabel.RichText = true
-    mainTitleLabel.ZIndex = 3
     
     local colorR, colorG, colorB = math.floor(accentColor.R * 255), math.floor(accentColor.G * 255), math.floor(accentColor.B * 255)
     mainTitleLabel.Text = string.format('<font color="rgb(%d,%d,%d)">%s</font>', colorR, colorG, colorB, windowTitle)
@@ -240,7 +236,6 @@ function Library:CreateWindow(options)
     subTitleLabel.TextColor3 = Color3.fromRGB(120, 120, 130)
     subTitleLabel.TextXAlignment = Enum.TextXAlignment.Center
     subTitleLabel.Text = windowSubTitle
-    subTitleLabel.ZIndex = 3
     subTitleLabel.Parent = titleContainer
 
     local dragging, dragInput, dragStart, startPos
@@ -303,7 +298,6 @@ function Library:CreateWindow(options)
     tabContainer.ScrollBarImageColor3 = Color3.fromRGB(40, 40, 52)
     tabContainer.ClipsDescendants = true
     tabContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
-    tabContainer.ZIndex = 3
     tabContainer.Parent = sidebar
 
     local tabLayout = Instance.new("UIListLayout")
@@ -318,7 +312,7 @@ function Library:CreateWindow(options)
     local userProfile = Instance.new("Frame")
     userProfile.Size = UDim2.new(1, -16, 0, 36)
     userProfile.Position = UDim2.new(0, 8, 1, -46)
-    userProfile.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+    userProfile.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
     userProfile.ZIndex = 5
     userProfile.Parent = sidebar
 
@@ -330,7 +324,6 @@ function Library:CreateWindow(options)
     avatarIcon.Size = UDim2.new(0, 24, 0, 24)
     avatarIcon.Position = UDim2.new(0, 6, 0.5, -12)
     avatarIcon.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-    avatarIcon.ZIndex = 6
     avatarIcon.Parent = userProfile
 
     local avatarCorner = Instance.new("UICorner")
@@ -356,21 +349,19 @@ function Library:CreateWindow(options)
     keyStatusLabel.BackgroundTransparency = 1
     applyFont(keyStatusLabel, Enum.FontWeight.Medium)
     keyStatusLabel.TextSize = 11
-    keyStatusLabel.TextColor3 = Color3.fromRGB(180, 180, 190)
+    keyStatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     keyStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
     keyStatusLabel.Text = "Lifetime Key"
-    keyStatusLabel.ZIndex = 6
     keyStatusLabel.Parent = userProfile
 
     local contentArea = Instance.new("Frame")
     contentArea.Name = "ContentArea"
-    contentArea.Size = UDim2.new(1, -180, 1, -80)
+    contentArea.Size = UDim2.new(1, -180, 1, -56)
     contentArea.Position = UDim2.new(0, 172, 0, 46)
     contentArea.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
     contentArea.BackgroundTransparency = 0.9
     contentArea.BorderSizePixel = 0
     contentArea.ClipsDescendants = true
-    contentArea.ZIndex = 2
     contentArea.Parent = mainFrame
 
     local contentCorner = Instance.new("UICorner")
@@ -382,44 +373,27 @@ function Library:CreateWindow(options)
     contentStroke.Thickness = 1
     contentStroke.Parent = contentArea
 
-    -- BOTTOM FOOTER (Matches Sidebar Color)
-    local bottomFooter = Instance.new("Frame")
-    bottomFooter.Name = "BottomFooter"
-    bottomFooter.Size = UDim2.new(1, -165, 0, 28)
-    bottomFooter.Position = UDim2.new(0, 165, 1, -28)
-    bottomFooter.BackgroundColor3 = Color3.fromRGB(11, 11, 14) -- Same color as sidebar
-    bottomFooter.BorderSizePixel = 0
-    bottomFooter.ZIndex = 10
-    bottomFooter.Parent = mainFrame
+    local versionBadge = Instance.new("Frame")
+    versionBadge.Size = UDim2.new(0, 95, 0, 24)
+    versionBadge.Position = UDim2.new(1, -103, 1, -36)
+    versionBadge.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    versionBadge.ZIndex = 5
+    versionBadge.Parent = mainFrame
 
-    local footerCorner = Instance.new("UICorner")
-    footerCorner.CornerRadius = UDim.new(0, 8)
-    footerCorner.Parent = bottomFooter
-
-    -- Right Accent Pill inside Bottom Footer (#0096ff with Version Text)
-    local versionPill = Instance.new("Frame")
-    versionPill.Name = "VersionPill"
-    versionPill.Size = UDim2.new(0, 80, 0, 18)
-    versionPill.Position = UDim2.new(1, -90, 0.5, -9)
-    versionPill.BackgroundColor3 = Color3.fromRGB(0, 150, 255) -- #0096ff
-    versionPill.BorderSizePixel = 0
-    versionPill.ZIndex = 11
-    versionPill.Parent = bottomFooter
-
-    local pillCorner = Instance.new("UICorner")
-    pillCorner.CornerRadius = UDim.new(1, 0)
-    pillCorner.Parent = versionPill
+    local versionCorner = Instance.new("UICorner")
+    versionCorner.CornerRadius = UDim.new(1, 0)
+    versionCorner.Parent = versionBadge
 
     local versionLabel = Instance.new("TextLabel")
     versionLabel.Size = UDim2.new(1, 0, 1, 0)
+    versionLabel.Position = UDim2.new(0, 0, 0, 0)
     versionLabel.BackgroundTransparency = 1
     applyFont(versionLabel, Enum.FontWeight.Bold)
     versionLabel.TextSize = 11
     versionLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     versionLabel.TextXAlignment = Enum.TextXAlignment.Center
-    versionLabel.Text = windowVersion
-    versionLabel.ZIndex = 12
-    versionLabel.Parent = versionPill
+    versionLabel.Text = "under dev."
+    versionLabel.Parent = versionBadge
 
     local Window = {
         Tabs = {},
@@ -615,7 +589,6 @@ function Library:CreateWindow(options)
         pageFrame.ScrollBarImageColor3 = Color3.fromRGB(40, 40, 52)
         pageFrame.Visible = false
         pageFrame.ClipsDescendants = true
-        pageFrame.ZIndex = 3
         pageFrame.Parent = Window.ContentArea
 
         local pagePadding = Instance.new("UIPadding")
@@ -629,7 +602,6 @@ function Library:CreateWindow(options)
         fullContainer.Name = "FullContainer"
         fullContainer.Size = UDim2.new(1, 0, 0, 0)
         fullContainer.BackgroundTransparency = 1
-        fullContainer.ZIndex = 3
         fullContainer.Parent = pageFrame
 
         local fullLayout = Instance.new("UIListLayout")
@@ -642,7 +614,6 @@ function Library:CreateWindow(options)
         leftCol.Size = UDim2.new(0.5, -6, 0, 0)
         leftCol.Position = UDim2.new(0, 0, 0, 0)
         leftCol.BackgroundTransparency = 1
-        leftCol.ZIndex = 3
         leftCol.Parent = pageFrame
 
         local leftLayout = Instance.new("UIListLayout")
@@ -655,7 +626,6 @@ function Library:CreateWindow(options)
         rightCol.Size = UDim2.new(0.5, -6, 0, 0)
         rightCol.Position = UDim2.new(0.5, 6, 0, 0)
         rightCol.BackgroundTransparency = 1
-        rightCol.ZIndex = 3
         rightCol.Parent = pageFrame
 
         local rightLayout = Instance.new("UIListLayout")
@@ -690,7 +660,6 @@ function Library:CreateWindow(options)
         tabBtn.TextSize = 14
         tabBtn.TextXAlignment = Enum.TextXAlignment.Left
         tabBtn.Text = "        " .. tabName
-        tabBtn.ZIndex = 4
         tabBtn.Parent = Window.TabContainer
 
         local tabIcon = Instance.new("ImageLabel")
@@ -699,7 +668,6 @@ function Library:CreateWindow(options)
         tabIcon.BackgroundTransparency = 1
         tabIcon.Image = "rbxassetid://6034818375"
         tabIcon.ImageColor3 = Color3.fromRGB(150, 150, 165)
-        tabIcon.ZIndex = 5
         tabIcon.Parent = tabBtn
 
         local btnCorner = Instance.new("UICorner")
@@ -776,7 +744,6 @@ function Library:CreateWindow(options)
             actionBtn.Text = btnText
             actionBtn.TextColor3 = Color3.fromRGB(210, 210, 220)
             actionBtn.TextSize = 14
-            actionBtn.ZIndex = 4
             actionBtn.Parent = parentCol
 
             local bCorner = Instance.new("UICorner")
@@ -815,7 +782,6 @@ function Library:CreateWindow(options)
             local inputFrame = Instance.new("Frame")
             inputFrame.Size = UDim2.new(1, 0, 0, 46)
             inputFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
-            inputFrame.ZIndex = 4
             inputFrame.Parent = parentCol
 
             local iCorner = Instance.new("UICorner")
@@ -836,7 +802,6 @@ function Library:CreateWindow(options)
             label.TextColor3 = Color3.fromRGB(210, 210, 220)
             label.TextSize = 13
             label.TextXAlignment = Enum.TextXAlignment.Left
-            label.ZIndex = 5
             label.Parent = inputFrame
 
             local displayBg = Instance.new("Frame")
@@ -844,7 +809,6 @@ function Library:CreateWindow(options)
             displayBg.Position = UDim2.new(0.45, 0, 0.5, -15)
             displayBg.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
             displayBg.ClipsDescendants = true
-            displayBg.ZIndex = 5
             displayBg.Parent = inputFrame
 
             local displayCorner = Instance.new("UICorner")
@@ -865,7 +829,6 @@ function Library:CreateWindow(options)
             displayText.TextColor3 = Color3.fromRGB(150, 150, 165)
             displayText.TextSize = 13
             displayText.TextXAlignment = Enum.TextXAlignment.Left
-            displayText.ZIndex = 6
             displayText.Parent = displayBg
 
             local textBox = Instance.new("TextBox")
@@ -879,7 +842,7 @@ function Library:CreateWindow(options)
             textBox.TextSize = 13
             textBox.TextXAlignment = Enum.TextXAlignment.Left
             textBox.ClearTextOnFocus = false
-            textBox.ZIndex = 7
+            textBox.ZIndex = 3
             textBox.Parent = displayBg
 
             textBox.Focused:Connect(function()
@@ -962,7 +925,6 @@ function Library:CreateWindow(options)
             dropdownContainer.Size = UDim2.new(1, 0, 0, descriptionText and 64 or 52)
             dropdownContainer.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
             dropdownContainer.ClipsDescendants = true
-            dropdownContainer.ZIndex = 4
             dropdownContainer.Parent = parentCol
 
             local dCorner = Instance.new("UICorner")
@@ -1251,7 +1213,6 @@ function Library:CreateWindow(options)
             local toggleContainer = Instance.new("Frame")
             toggleContainer.Size = UDim2.new(1, 0, 0, 46)
             toggleContainer.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
-            toggleContainer.ZIndex = 4
             toggleContainer.Parent = parentCol
 
             local tCorner = Instance.new("UICorner")
@@ -1272,7 +1233,6 @@ function Library:CreateWindow(options)
             label.TextColor3 = Color3.fromRGB(210, 210, 220)
             label.TextSize = 14
             label.TextXAlignment = Enum.TextXAlignment.Left
-            label.ZIndex = 5
             label.Parent = toggleContainer
 
             local switchBtn = Instance.new("TextButton")
@@ -1280,7 +1240,6 @@ function Library:CreateWindow(options)
             switchBtn.Position = UDim2.new(1, -48, 0.5, -10)
             switchBtn.BackgroundColor3 = toggled and Window.AccentColor or Color3.fromRGB(16, 16, 20)
             switchBtn.Text = ""
-            switchBtn.ZIndex = 5
             switchBtn.Parent = toggleContainer
 
             local switchCorner = Instance.new("UICorner")
@@ -1291,7 +1250,6 @@ function Library:CreateWindow(options)
             circle.Size = UDim2.new(0, 16, 0, 16)
             circle.Position = toggled and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
             circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-            circle.ZIndex = 6
             circle.Parent = switchBtn
 
             local circleCorner = Instance.new("UICorner")
@@ -1310,7 +1268,6 @@ function Library:CreateWindow(options)
             clickOverlay.Size = UDim2.new(1, 0, 1, 0)
             clickOverlay.BackgroundTransparency = 1
             clickOverlay.Text = ""
-            clickOverlay.ZIndex = 6
             clickOverlay.Parent = toggleContainer
 
             clickOverlay.MouseButton1Click:Connect(function()
@@ -1350,7 +1307,6 @@ function Library:CreateWindow(options)
             local paraFrame = Instance.new("Frame")
             paraFrame.Size = UDim2.new(1, 0, 0, 60)
             paraFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
-            paraFrame.ZIndex = 4
             paraFrame.Parent = parentCol
 
             local pCorner = Instance.new("UICorner")
@@ -1374,7 +1330,6 @@ function Library:CreateWindow(options)
                 imgLabel.Position = UDim2.new(0, 12, 0, 12)
                 imgLabel.BackgroundTransparency = 1
                 imgLabel.Image = imageAsset
-                imgLabel.ZIndex = 5
                 imgLabel.Parent = paraFrame
 
                 local imgCorner = Instance.new("UICorner")
@@ -1391,7 +1346,6 @@ function Library:CreateWindow(options)
             titleLabel.TextColor3 = Color3.fromRGB(230, 230, 240)
             titleLabel.TextSize = 15
             titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-            titleLabel.ZIndex = 5
             titleLabel.Parent = paraFrame
 
             local contentLabel = Instance.new("TextLabel")
@@ -1405,7 +1359,6 @@ function Library:CreateWindow(options)
             contentLabel.TextXAlignment = Enum.TextXAlignment.Left
             contentLabel.TextYAlignment = Enum.TextYAlignment.Top
             contentLabel.TextWrapped = true
-            contentLabel.ZIndex = 5
             contentLabel.Parent = paraFrame
 
             local function resize()
@@ -1476,7 +1429,6 @@ function Library:CreateWindow(options)
             local sliderContainer = Instance.new("Frame")
             sliderContainer.Size = UDim2.new(1, 0, 0, 52)
             sliderContainer.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
-            sliderContainer.ZIndex = 4
             sliderContainer.Parent = parentCol
 
             local sCorner = Instance.new("UICorner")
@@ -1497,7 +1449,6 @@ function Library:CreateWindow(options)
             label.TextColor3 = Color3.fromRGB(210, 210, 220)
             label.TextSize = 13
             label.TextXAlignment = Enum.TextXAlignment.Left
-            label.ZIndex = 5
             label.Parent = sliderContainer
 
             local valDisplayBg = Instance.new("Frame")
@@ -1505,7 +1456,6 @@ function Library:CreateWindow(options)
             valDisplayBg.Position = UDim2.new(1, -68, 0, 6)
             valDisplayBg.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
             valDisplayBg.ClipsDescendants = true
-            valDisplayBg.ZIndex = 5
             valDisplayBg.Parent = sliderContainer
 
             local valDisplayCorner = Instance.new("UICorner")
@@ -1526,7 +1476,6 @@ function Library:CreateWindow(options)
             valDisplayText.TextColor3 = Color3.fromRGB(255, 255, 255)
             valDisplayText.TextSize = 12
             valDisplayText.TextXAlignment = Enum.TextXAlignment.Left
-            valDisplayText.ZIndex = 6
             valDisplayText.Parent = valDisplayBg
 
             local valInput = Instance.new("TextBox")
@@ -1540,14 +1489,13 @@ function Library:CreateWindow(options)
             valInput.TextSize = 12
             valInput.TextXAlignment = Enum.TextXAlignment.Left
             valInput.ClearTextOnFocus = false
-            valInput.ZIndex = 7
+            valInput.ZIndex = 3
             valInput.Parent = valDisplayBg
 
             local sliderBar = Instance.new("Frame")
             sliderBar.Size = UDim2.new(1, -24, 0, 6)
             sliderBar.Position = UDim2.new(0, 12, 0, 36)
             sliderBar.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
-            sliderBar.ZIndex = 5
             sliderBar.Parent = sliderContainer
 
             local barCorner = Instance.new("UICorner")
@@ -1557,7 +1505,6 @@ function Library:CreateWindow(options)
             local fill = Instance.new("Frame")
             fill.Size = UDim2.new((currentVal - minVal) / (maxVal - minVal), 0, 1, 0)
             fill.BackgroundColor3 = Window.AccentColor
-            fill.ZIndex = 6
             fill.Parent = sliderBar
 
             local fillCorner = Instance.new("UICorner")
@@ -1569,7 +1516,6 @@ function Library:CreateWindow(options)
             knob.AnchorPoint = Vector2.new(0.5, 0.5)
             knob.Position = UDim2.new((currentVal - minVal) / (maxVal - minVal), 0, 0.5, 0)
             knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-            knob.ZIndex = 7
             knob.Parent = sliderBar
 
             local knobCorner = Instance.new("UICorner")
