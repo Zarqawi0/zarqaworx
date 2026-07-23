@@ -615,7 +615,7 @@ function Library:CreateWindow(options)
         rightCol.Size = UDim2.new(0.5, -6, 0, 0)
         rightCol.Position = UDim2.new(0.5, 6, 0, 0)
         rightCol.BackgroundTransparency = 1
-        rightCol.Parent = rightCol
+        rightCol.Parent = pageFrame
 
         local rightLayout = Instance.new("UIListLayout")
         rightLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -1268,7 +1268,7 @@ function Library:CreateWindow(options)
             return toggleContainer
         end
 
-        function tabObj:CreateParagraph(titleOrOptions, contentText, side)
+        function tabObj:CreateParagraph(titleOrOptions, contentText, imageOrSide, side)
             local optionsTable = {}
 
             if type(titleOrOptions) == "table" then
@@ -1278,12 +1278,17 @@ function Library:CreateWindow(options)
                 optionsTable = {
                     Header = titleOrOptions,
                     Body = contentText,
+                    Image = (type(imageOrSide) == "string" and string.find(imageOrSide, "rbxasset")) and imageOrSide or nil,
                     Bold = false
                 }
+                if not optionsTable.Image and type(imageOrSide) == "string" then
+                    side = imageOrSide
+                end
             end
 
             local headerText = optionsTable.Header or "Title"
             local bodyText = optionsTable.Body or ""
+            local imageAsset = optionsTable.Image
             local isBold = optionsTable.Bold or false
 
             local parentCol = getTargetParent(side)
@@ -1302,9 +1307,28 @@ function Library:CreateWindow(options)
             pStroke.Thickness = 1
             pStroke.Parent = paraFrame
 
+            local textLeftOffset = 14
+            local widthDeduction = 28
+
+            if imageAsset and imageAsset ~= "" then
+                textLeftOffset = 64
+                widthDeduction = 76
+
+                local imgLabel = Instance.new("ImageLabel")
+                imgLabel.Size = UDim2.new(0, 40, 0, 40)
+                imgLabel.Position = UDim2.new(0, 12, 0, 12)
+                imgLabel.BackgroundTransparency = 1
+                imgLabel.Image = imageAsset
+                imgLabel.Parent = paraFrame
+
+                local imgCorner = Instance.new("UICorner")
+                imgCorner.CornerRadius = UDim.new(0, 6)
+                imgCorner.Parent = imgLabel
+            end
+
             local titleLabel = Instance.new("TextLabel")
-            titleLabel.Size = UDim2.new(1, -28, 0, 22)
-            titleLabel.Position = UDim2.new(0, 14, 0, 14)
+            titleLabel.Size = UDim2.new(1, -widthDeduction, 0, 22)
+            titleLabel.Position = UDim2.new(0, textLeftOffset, 0, 12)
             titleLabel.BackgroundTransparency = 1
             applyFont(titleLabel, isBold and Enum.FontWeight.Bold or Enum.FontWeight.SemiBold)
             titleLabel.Text = headerText
@@ -1314,8 +1338,8 @@ function Library:CreateWindow(options)
             titleLabel.Parent = paraFrame
 
             local contentLabel = Instance.new("TextLabel")
-            contentLabel.Size = UDim2.new(1, -28, 0, 0)
-            contentLabel.Position = UDim2.new(0, 14, 0, 40)
+            contentLabel.Size = UDim2.new(1, -widthDeduction, 0, 0)
+            contentLabel.Position = UDim2.new(0, textLeftOffset, 0, 36)
             contentLabel.BackgroundTransparency = 1
             applyFont(contentLabel, isBold and Enum.FontWeight.Medium or Enum.FontWeight.Regular)
             contentLabel.Text = bodyText
@@ -1328,8 +1352,8 @@ function Library:CreateWindow(options)
 
             local function resize()
                 task.wait()
-                local availableWidth = paraFrame.AbsoluteSize.X - 28
-                if availableWidth <= 0 then availableWidth = 300 end
+                local availableWidth = paraFrame.AbsoluteSize.X - widthDeduction
+                if availableWidth <= 0 then availableWidth = 250 end
 
                 local textBounds = game:GetService("TextService"):GetTextSize(
                     contentLabel.Text,
@@ -1338,11 +1362,10 @@ function Library:CreateWindow(options)
                     Vector2.new(availableWidth, 999999)
                 )
 
-                local targetHeight = math.max(textBounds.Y + 54, 60)
-                contentLabel.Size = UDim2.new(1, -28, 0, textBounds.Y)
+                local targetHeight = math.max(textBounds.Y + 48, 60)
+                contentLabel.Size = UDim2.new(1, -widthDeduction, 0, textBounds.Y)
                 paraFrame.Size = UDim2.new(1, 0, 0, targetHeight)
 
-                -- Dynamic Canvas Layout Update
                 parentCol.Size = UDim2.new(parentCol.Size.X.Scale, parentCol.Size.X.Offset, 0, 0)
                 updateLayoutPositions()
             end
@@ -1375,78 +1398,12 @@ function Library:CreateWindow(options)
         end
 
         function tabObj:CreateImageParagraph(titleText, contentText, imageId, side)
-            local parentCol = getTargetParent(side)
-
-            local paraFrame = Instance.new("Frame")
-            paraFrame.Size = UDim2.new(1, 0, 0, 66)
-            paraFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
-            paraFrame.Parent = parentCol
-
-            local pCorner = Instance.new("UICorner")
-            pCorner.CornerRadius = UDim.new(0, 6)
-            pCorner.Parent = paraFrame
-
-            local pStroke = Instance.new("UIStroke")
-            pStroke.Color = Color3.fromRGB(35, 35, 45)
-            pStroke.Thickness = 1
-            pStroke.Parent = paraFrame
-
-            local imgLabel = Instance.new("ImageLabel")
-            imgLabel.Size = UDim2.new(0, 42, 0, 42)
-            imgLabel.Position = UDim2.new(0, 12, 0, 12)
-            imgLabel.BackgroundTransparency = 1
-            imgLabel.Image = imageId or ""
-            imgLabel.Parent = paraFrame
-
-            local titleLabel = Instance.new("TextLabel")
-            titleLabel.Size = UDim2.new(1, -70, 0, 22)
-            titleLabel.Position = UDim2.new(0, 64, 0, 12)
-            titleLabel.BackgroundTransparency = 1
-            applyFont(titleLabel, Enum.FontWeight.Bold)
-            titleLabel.Text = titleText
-            titleLabel.TextColor3 = Color3.fromRGB(230, 230, 240)
-            titleLabel.TextSize = 15
-            titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-            titleLabel.Parent = paraFrame
-
-            local contentLabel = Instance.new("TextLabel")
-            contentLabel.Size = UDim2.new(1, -70, 0, 0)
-            contentLabel.Position = UDim2.new(0, 64, 0, 36)
-            contentLabel.BackgroundTransparency = 1
-            applyFont(contentLabel, Enum.FontWeight.Regular)
-            contentLabel.Text = contentText
-            contentLabel.TextColor3 = Color3.fromRGB(180, 180, 195)
-            contentLabel.TextSize = 14
-            contentLabel.TextXAlignment = Enum.TextXAlignment.Left
-            contentLabel.TextYAlignment = Enum.TextYAlignment.Top
-            contentLabel.TextWrapped = true
-            contentLabel.Parent = paraFrame
-
-            local function resize()
-                task.wait()
-                local availableWidth = paraFrame.AbsoluteSize.X - 70
-                if availableWidth <= 0 then availableWidth = 250 end
-
-                local textBounds = game:GetService("TextService"):GetTextSize(
-                    contentText, 
-                    14, 
-                    Enum.Font.Gotham, 
-                    Vector2.new(availableWidth, 999999)
-                )
-
-                contentLabel.Size = UDim2.new(1, -70, 0, textBounds.Y)
-                local calculatedHeight = math.max(textBounds.Y + 48, 66)
-                paraFrame.Size = UDim2.new(1, 0, 0, calculatedHeight)
-
-                -- Dynamic Canvas Layout Update
-                parentCol.Size = UDim2.new(parentCol.Size.X.Scale, parentCol.Size.X.Offset, 0, 0)
-                updateLayoutPositions()
-            end
-
-            paraFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize)
-            task.spawn(resize)
-
-            return paraFrame
+            return tabObj:CreateParagraph({
+                Header = titleText,
+                Body = contentText,
+                Image = imageId,
+                Bold = true
+            }, side)
         end
 
         function tabObj:CreateSlider(titleText, minVal, maxVal, defaultVal, callback, side)
