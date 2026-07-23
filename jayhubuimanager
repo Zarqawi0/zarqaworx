@@ -135,13 +135,14 @@ function Library:CreateWindow(options)
     bottomCorner.CornerRadius = UDim.new(0, 8)
     bottomCorner.Parent = bottomBarFrame
 
-    local bottomPatch = Instance.new("Frame")
-    bottomPatch.Size = UDim2.new(0, 10, 1, 0)
-    bottomPatch.Position = UDim2.new(0, 0, 0, 0)
-    bottomPatch.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
-    bottomPatch.BorderSizePixel = 0
-    bottomPatch.ZIndex = 4
-    bottomPatch.Parent = bottomBarFrame
+    -- Remove left corners to connect smoothly with sidebar
+    local bottomCoverLeft = Instance.new("Frame")
+    bottomCoverLeft.Size = UDim2.new(0, 8, 1, 0)
+    bottomCoverLeft.Position = UDim2.new(0, 0, 0, 0)
+    bottomCoverLeft.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
+    bottomCoverLeft.BorderSizePixel = 0
+    bottomCoverLeft.ZIndex = 4
+    bottomCoverLeft.Parent = bottomBarFrame
 
     local headerFrame = Instance.new("Frame")
     headerFrame.Name = "HeaderFrame"
@@ -156,25 +157,14 @@ function Library:CreateWindow(options)
     headerCorner.CornerRadius = UDim.new(0, 8)
     headerCorner.Parent = headerFrame
 
-    local headerPatch = Instance.new("Frame")
-    headerPatch.Size = UDim2.new(0, 10, 1, 0)
-    headerPatch.Position = UDim2.new(0, 0, 0, 0)
-    headerPatch.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
-    headerPatch.BorderSizePixel = 0
-    headerPatch.ZIndex = 4
-    headerPatch.Parent = headerFrame
-
-    local headerTitle = Instance.new("TextLabel")
-    headerTitle.Size = UDim2.new(1, -90, 1, 0)
-    headerTitle.Position = UDim2.new(0, 16, 0, 0)
-    headerTitle.BackgroundTransparency = 1
-    applyFont(headerTitle, Enum.FontWeight.SemiBold)
-    headerTitle.Text = windowTitle
-    headerTitle.TextColor3 = Color3.fromRGB(200, 200, 210)
-    headerTitle.TextSize = 14
-    headerTitle.TextXAlignment = Enum.TextXAlignment.Left
-    headerTitle.ZIndex = 5
-    headerTitle.Parent = headerFrame
+    -- Remove left corners to connect smoothly with sidebar
+    local headerCoverLeft = Instance.new("Frame")
+    headerCoverLeft.Size = UDim2.new(0, 8, 1, 0)
+    headerCoverLeft.Position = UDim2.new(0, 0, 0, 0)
+    headerCoverLeft.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
+    headerCoverLeft.BorderSizePixel = 0
+    headerCoverLeft.ZIndex = 4
+    headerCoverLeft.Parent = headerFrame
 
     local headerControls = Instance.new("Frame")
     headerControls.Size = UDim2.new(0, 70, 1, 0)
