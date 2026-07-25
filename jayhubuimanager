@@ -89,24 +89,6 @@ function Library:CreateWindow(options)
     floatStroke.Thickness = 2
     floatStroke.Parent = floatToggleBtn
 
-    local highlightCircle = Instance.new("Frame")
-    highlightCircle.Name = "HighlightCircle"
-    highlightCircle.Size = UDim2.new(1, 6, 1, 6)
-    highlightCircle.Position = UDim2.new(0, -3, 0, -3)
-    highlightCircle.BackgroundTransparency = 1
-    highlightCircle.ZIndex = 199
-    highlightCircle.Parent = floatToggleBtn
-
-    local hCorner = Instance.new("UICorner")
-    hCorner.CornerRadius = UDim.new(1, 0)
-    hCorner.Parent = highlightCircle
-
-    local hStroke = Instance.new("UIStroke")
-    hStroke.Color = accentColor
-    hStroke.Transparency = 0.5
-    hStroke.Thickness = 1.5
-    hStroke.Parent = highlightCircle
-
     local floatDragging, floatDragStart, floatStartPos
     floatToggleBtn.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -555,7 +537,7 @@ function Library:CreateWindow(options)
         local card = Instance.new("Frame")
         card.Size = UDim2.new(1, 0, 0, cardHeight)
         card.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
-        card.Position = UDim2.new(1, 300, 0, 0)
+        card.Position = UDim2.new(1, 300, 0, 0) -- Start offscreen (right)
         card.ZIndex = 101
         card.Parent = notifyContainer
 
@@ -608,9 +590,20 @@ function Library:CreateWindow(options)
             nSub.Parent = card
         end
 
+        -- Slide Right-to-Left entrance animation
+        TweenService:Create(card, TweenInfo.new(0.35, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0, 0, 0, 0)
+        }):Play()
+
         if lifetime then
             task.spawn(function()
                 task.wait(lifetime)
+                -- Slide Right-to-Left exit animation
+                local tweenOut = TweenService:Create(card, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+                    Position = UDim2.new(1, 300, 0, 0)
+                })
+                tweenOut:Play()
+                tweenOut.Completed:Wait()
                 card:Destroy()
             end)
         end
@@ -1398,7 +1391,9 @@ function Library:CreateWindow(options)
 
                 local imgLabel = Instance.new("ImageLabel")
                 imgLabel.Size = UDim2.new(0, 40, 0, 40)
-                imgLabel.Position = UDim2.new(0, 12, 0, 12)
+                -- Always center vertically regardless of frame resizing
+                imgLabel.AnchorPoint = Vector2.new(0, 0.5)
+                imgLabel.Position = UDim2.new(0, 12, 0.5, 0)
                 imgLabel.BackgroundTransparency = 1
                 imgLabel.Image = imageAsset
                 imgLabel.Parent = paraFrame
@@ -1582,7 +1577,8 @@ function Library:CreateWindow(options)
             fillCorner.CornerRadius = UDim.new(1, 0)
             fillCorner.Parent = fill
 
-            local knob = Instance.new("Frame")
+            local knob = Instance.new("TextButton")
+            knob.Text = ""
             knob.Size = UDim2.new(0, 14, 0, 14)
             knob.AnchorPoint = Vector2.new(0.5, 0.5)
             knob.Position = UDim2.new((currentVal - minVal) / (maxVal - minVal), 0, 0.5, 0)
@@ -1640,10 +1636,25 @@ function Library:CreateWindow(options)
                 end
             end)
 
-            sliderBar.InputBegan:Connect(function(input)
+            local function onInputBegan(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                     isDragging = true
                     updateValue(input)
+                end
+            end
+
+            sliderBar.InputBegan:Connect(onInputBegan)
+            knob.InputBegan:Connect(onInputBegan)
+
+            UserInputService.InputChanged:Connect(function(input)
+                if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                    updateValue(input)
+                end
+            end)
+
+            UserInputService.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    isDragging = false
                 end
             end)
 
