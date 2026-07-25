@@ -24,6 +24,12 @@ function Library:CreateWindow(options)
     local windowSubTitle = options.SubTitle or "Grow a Garden 2"
     local windowVersion = options.Version or "v1.3.9 • Free"
     local accentColor = options.AccentColor or Color3.fromRGB(0, 150, 255)
+    
+    -- Profile / Key options passed from the script
+    local profileOptions = options.KeyProfile or options.UserProfile or {}
+    local profileHeader = profileOptions.Header or "Lifetime Key"
+    local profileBody = profileOptions.Body or profileOptions.Description or ""
+    local profileImage = profileOptions.Image
 
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = windowTitle .. "UI"
@@ -122,12 +128,10 @@ function Library:CreateWindow(options)
     sidebar.ZIndex = 3
     sidebar.Parent = mainFrame
 
-    -- UICorner applies rounding to left-top & left-bottom
     local sidebarCorner = Instance.new("UICorner")
     sidebarCorner.CornerRadius = UDim.new(0, 12)
     sidebarCorner.Parent = sidebar
 
-    -- Flatten ONLY the right side corners using a right-aligned cover frame
     local sidebarCoverRight = Instance.new("Frame")
     sidebarCoverRight.Name = "SidebarCoverRight"
     sidebarCoverRight.Size = UDim2.new(0, 12, 1, 0)
@@ -341,9 +345,13 @@ function Library:CreateWindow(options)
         tabContainer.CanvasSize = UDim2.new(0, 0, 0, tabLayout.AbsoluteContentSize.Y + 6)
     end)
 
+    ---------------------------------------------------------
+    -- DYNAMIC SIDEBAR USER/KEY PROFILE CARD
+    ---------------------------------------------------------
+    local hasBody = profileBody ~= ""
     local userProfile = Instance.new("Frame")
-    userProfile.Size = UDim2.new(1, -16, 0, 44)
-    userProfile.Position = UDim2.new(0, 8, 1, -58)
+    userProfile.Size = UDim2.new(1, -16, 0, hasBody and 52 or 44)
+    userProfile.Position = UDim2.new(0, 8, 1, hasBody and -64 or -58)
     userProfile.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
     userProfile.ZIndex = 6
     userProfile.Parent = sidebar
@@ -358,8 +366,8 @@ function Library:CreateWindow(options)
     userStroke.Parent = userProfile
 
     local avatarIcon = Instance.new("ImageLabel")
-    avatarIcon.Size = UDim2.new(0, 26, 0, 26)
-    avatarIcon.Position = UDim2.new(0, 8, 0.5, -13)
+    avatarIcon.Size = UDim2.new(0, 28, 0, 28)
+    avatarIcon.Position = UDim2.new(0, 8, 0.5, -14)
     avatarIcon.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
     avatarIcon.ZIndex = 7
     avatarIcon.Parent = userProfile
@@ -368,30 +376,48 @@ function Library:CreateWindow(options)
     avatarCorner.CornerRadius = UDim.new(1, 0)
     avatarCorner.Parent = avatarIcon
 
-    task.spawn(function()
-        if LocalPlayer then
-            local content, isReady = Players:GetUserThumbnailAsync(
-                LocalPlayer.UserId, 
-                Enum.ThumbnailType.HeadShot, 
-                Enum.ThumbnailSize.Size420x420
-            )
-            if isReady then
-                avatarIcon.Image = content
+    if profileImage and profileImage ~= "" then
+        avatarIcon.Image = profileImage
+    else
+        task.spawn(function()
+            if LocalPlayer then
+                local content, isReady = Players:GetUserThumbnailAsync(
+                    LocalPlayer.UserId, 
+                    Enum.ThumbnailType.HeadShot, 
+                    Enum.ThumbnailSize.Size420x420
+                )
+                if isReady then
+                    avatarIcon.Image = content
+                end
             end
-        end
-    end)
+        end)
+    end
 
-    local keyStatusLabel = Instance.new("TextLabel")
-    keyStatusLabel.Size = UDim2.new(1, -40, 1, 0)
-    keyStatusLabel.Position = UDim2.new(0, 40, 0, 0)
-    keyStatusLabel.BackgroundTransparency = 1
-    applyFont(keyStatusLabel, Enum.FontWeight.Medium)
-    keyStatusLabel.TextSize = 11
-    keyStatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    keyStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
-    keyStatusLabel.Text = "Lifetime Key"
-    keyStatusLabel.ZIndex = 7
-    keyStatusLabel.Parent = userProfile
+    local keyHeaderLabel = Instance.new("TextLabel")
+    keyHeaderLabel.Size = UDim2.new(1, -44, 0, hasBody and 18 or 44)
+    keyHeaderLabel.Position = UDim2.new(0, 42, 0, hasBody and 8 or 0)
+    keyHeaderLabel.BackgroundTransparency = 1
+    applyFont(keyHeaderLabel, Enum.FontWeight.SemiBold)
+    keyHeaderLabel.TextSize = 12
+    keyHeaderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    keyHeaderLabel.TextXAlignment = Enum.TextXAlignment.Left
+    keyHeaderLabel.Text = profileHeader
+    keyHeaderLabel.ZIndex = 7
+    keyHeaderLabel.Parent = userProfile
+
+    if hasBody then
+        local keyBodyLabel = Instance.new("TextLabel")
+        keyBodyLabel.Size = UDim2.new(1, -44, 0, 16)
+        keyBodyLabel.Position = UDim2.new(0, 42, 0, 26)
+        keyBodyLabel.BackgroundTransparency = 1
+        applyFont(keyBodyLabel, Enum.FontWeight.Regular)
+        keyBodyLabel.TextSize = 11
+        keyBodyLabel.TextColor3 = Color3.fromRGB(150, 150, 165)
+        keyBodyLabel.TextXAlignment = Enum.TextXAlignment.Left
+        keyBodyLabel.Text = profileBody
+        keyBodyLabel.ZIndex = 7
+        keyBodyLabel.Parent = userProfile
+    end
 
     local contentArea = Instance.new("Frame")
     contentArea.Name = "ContentArea"
@@ -437,7 +463,7 @@ function Library:CreateWindow(options)
     versionLabel.TextSize = 11
     versionLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     versionLabel.TextXAlignment = Enum.TextXAlignment.Center
-    versionLabel.Text = "under dev."
+    versionLabel.Text = windowVersion
     versionLabel.ZIndex = 7
     versionLabel.Parent = versionBadge
 
@@ -1550,7 +1576,7 @@ function Library:CreateWindow(options)
             local valDisplayStroke = Instance.new("UIStroke")
             valDisplayStroke.Color = Color3.fromRGB(35, 35, 45)
             valDisplayStroke.Thickness = 1
-            valDisplayStroke.Parent = sliderContainer
+            valDisplayStroke.Parent = valDisplayBg
 
             local valDisplayText = Instance.new("TextLabel")
             valDisplayText.Size = UDim2.new(1, -6, 1, 0)
