@@ -22,7 +22,7 @@ function Library:CreateWindow(options)
     local windowTitle = options.Title or "JayHub"
     local windowSubTitle = options.SubTitle or "Grow a Garden 2"
     local windowVersion = options.Version or "v1.3.9 • Free"
-    local accentColor = options.AccentColor or Color3.fromRGB(0, 115, 225) -- Deep Blue Accent
+    local accentColor = options.AccentColor or Color3.fromRGB(0, 150, 255)
 
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = windowTitle .. "UI"
@@ -694,7 +694,6 @@ function Library:CreateWindow(options)
         tabBtn.Size = UDim2.new(1, -6, 0, 38)
         tabBtn.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
         tabBtn.BackgroundTransparency = 1
-        tabBtn.ClipsDescendants = true
         applyFont(tabBtn, Enum.FontWeight.Medium)
         tabBtn.TextColor3 = Color3.fromRGB(150, 150, 165)
         tabBtn.TextSize = 14
@@ -705,7 +704,7 @@ function Library:CreateWindow(options)
 
         local tabIcon = Instance.new("ImageLabel")
         tabIcon.Size = UDim2.new(0, 18, 0, 18)
-        tabIcon.Position = UDim2.new(0, 12, 0.5, -9)
+        tabIcon.Position = UDim2.new(0, 10, 0.5, -9)
         tabIcon.BackgroundTransparency = 1
         tabIcon.Image = "rbxassetid://6034818375"
         tabIcon.ImageColor3 = Color3.fromRGB(150, 150, 165)
@@ -720,21 +719,6 @@ function Library:CreateWindow(options)
         padding.PaddingLeft = UDim.new(0, 6)
         padding.Parent = tabBtn
 
-        -- Half-Circle Indicator for Active Tab
-        local tabIndicator = Instance.new("Frame")
-        tabIndicator.Name = "ActiveTabIndicator"
-        tabIndicator.Size = UDim2.new(0, 12, 0, 22)
-        tabIndicator.Position = UDim2.new(0, -12, 0.5, -11)
-        tabIndicator.BackgroundColor3 = Window.AccentColor
-        tabIndicator.BorderSizePixel = 0
-        tabIndicator.ZIndex = 8
-        tabIndicator.Visible = false
-        tabIndicator.Parent = tabBtn
-
-        local tabIndCorner = Instance.new("UICorner")
-        tabIndCorner.CornerRadius = UDim.new(1, 0)
-        tabIndCorner.Parent = tabIndicator
-
         local function activateTab()
             for _, t in pairs(Window.Tabs) do
                 t.Page.Visible = false
@@ -742,16 +726,12 @@ function Library:CreateWindow(options)
                 t.Button.BackgroundTransparency = 1
                 t.Button.TextColor3 = Color3.fromRGB(150, 150, 165)
                 t.Icon.ImageColor3 = Color3.fromRGB(150, 150, 165)
-                if t.Indicator then
-                    t.Indicator.Visible = false
-                end
             end
             pageFrame.Visible = true
             tabBtn.BackgroundColor3 = Window.AccentColor
             tabBtn.BackgroundTransparency = 0.88
             tabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
             tabIcon.ImageColor3 = Color3.fromRGB(255, 255, 255)
-            tabIndicator.Visible = true
             Window.ActiveTab = tabObj
         end
 
@@ -778,7 +758,6 @@ function Library:CreateWindow(options)
         tabObj.Page = pageFrame
         tabObj.Button = tabBtn
         tabObj.Icon = tabIcon
-        tabObj.Indicator = tabIndicator
         table.insert(Window.Tabs, tabObj)
 
         if #Window.Tabs == 1 then
@@ -1174,11 +1153,10 @@ function Library:CreateWindow(options)
                         local isSelected = selectedValues[opt] == true
                         local optBtn = Instance.new("TextButton")
                         optBtn.Size = UDim2.new(1, 0, 0, 32)
-                        optBtn.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
-                        optBtn.BackgroundTransparency = 0
-                        optBtn.ClipsDescendants = true
+                        optBtn.BackgroundColor3 = isSelected and Window.AccentColor or Color3.fromRGB(18, 18, 22)
+                        optBtn.BackgroundTransparency = isSelected and 0.88 or 0
                         applyFont(optBtn, Enum.FontWeight.Regular)
-                        optBtn.Text = strOpt
+                        optBtn.Text = "   " .. (isSelected and "• " or "") .. strOpt
                         optBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
                         optBtn.TextSize = 13
                         optBtn.TextXAlignment = Enum.TextXAlignment.Left
@@ -1189,26 +1167,6 @@ function Library:CreateWindow(options)
                         local oCorner = Instance.new("UICorner")
                         oCorner.CornerRadius = UDim.new(0, 4)
                         oCorner.Parent = optBtn
-
-                        local oPadding = Instance.new("UIPadding")
-                        oPadding.PaddingLeft = UDim.new(0, 16)
-                        oPadding.Parent = optBtn
-
-                        -- Half-Circle Indicator for Selected Dropdown Items
-                        if isSelected then
-                            local selectedBar = Instance.new("Frame")
-                            selectedBar.Name = "SelectedIndicator"
-                            selectedBar.Size = UDim2.new(0, 12, 0, 20)
-                            selectedBar.Position = UDim2.new(0, -12, 0.5, -10)
-                            selectedBar.BackgroundColor3 = Window.AccentColor
-                            selectedBar.BorderSizePixel = 0
-                            selectedBar.ZIndex = 12
-                            selectedBar.Parent = optBtn
-
-                            local barCorner = Instance.new("UICorner")
-                            barCorner.CornerRadius = UDim.new(1, 0)
-                            barCorner.Parent = selectedBar
-                        end
 
                         optBtn.MouseButton1Click:Connect(function()
                             if isMultiSelect then
