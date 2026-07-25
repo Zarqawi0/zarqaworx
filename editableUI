@@ -123,31 +123,23 @@ function Library:CreateWindow(options)
     sidebarCorner.CornerRadius = UDim.new(0, 12)
     sidebarCorner.Parent = sidebar
 
-    local bottomBarFrame = Instance.new("Frame")
-    bottomBarFrame.Name = "BottomBarFrame"
-    bottomBarFrame.Size = UDim2.new(1, -165, 0, 46)
-    bottomBarFrame.Position = UDim2.new(0, 165, 1, -46)
-    bottomBarFrame.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
-    bottomBarFrame.BorderSizePixel = 0
-    bottomBarFrame.ZIndex = 4
-    bottomBarFrame.Parent = mainFrame
+    -- Flatten right corners of sidebar to connect flush with top and bottom header/footer bars
+    local sidebarCoverRight = Instance.new("Frame")
+    sidebarCoverRight.Name = "SidebarCoverRight"
+    sidebarCoverRight.Size = UDim2.new(0, 12, 1, 0)
+    sidebarCoverRight.Position = UDim2.new(1, -12, 0, 0)
+    sidebarCoverRight.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
+    sidebarCoverRight.BorderSizePixel = 0
+    sidebarCoverRight.ZIndex = 3
+    sidebarCoverRight.Parent = sidebar
 
-    local bottomCorner = Instance.new("UICorner")
-    bottomCorner.CornerRadius = UDim.new(0, 12)
-    bottomCorner.Parent = bottomBarFrame
-
-    local bottomCoverLeft = Instance.new("Frame")
-    bottomCoverLeft.Size = UDim2.new(0, 8, 1, 0)
-    bottomCoverLeft.Position = UDim2.new(0, 0, 0, 0)
-    bottomCoverLeft.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
-    bottomCoverLeft.BorderSizePixel = 0
-    bottomCoverLeft.ZIndex = 4
-    bottomCoverLeft.Parent = bottomBarFrame
-
+    ---------------------------------------------------------
+    -- FIXED: Connected Header
+    ---------------------------------------------------------
     local headerFrame = Instance.new("Frame")
     headerFrame.Name = "HeaderFrame"
-    headerFrame.Size = UDim2.new(1, -165, 0, 42)
-    headerFrame.Position = UDim2.new(0, 165, 0, 0)
+    headerFrame.Size = UDim2.new(1, -160, 0, 42)
+    headerFrame.Position = UDim2.new(0, 160, 0, 0)
     headerFrame.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
     headerFrame.BorderSizePixel = 0
     headerFrame.ZIndex = 4
@@ -158,12 +150,38 @@ function Library:CreateWindow(options)
     headerCorner.Parent = headerFrame
 
     local headerCoverLeft = Instance.new("Frame")
-    headerCoverLeft.Size = UDim2.new(0, 8, 1, 0)
+    headerCoverLeft.Name = "HeaderCoverLeft"
+    headerCoverLeft.Size = UDim2.new(0, 20, 1, 0)
     headerCoverLeft.Position = UDim2.new(0, 0, 0, 0)
     headerCoverLeft.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
     headerCoverLeft.BorderSizePixel = 0
     headerCoverLeft.ZIndex = 4
     headerCoverLeft.Parent = headerFrame
+
+    ---------------------------------------------------------
+    -- FIXED: Connected Footer
+    ---------------------------------------------------------
+    local bottomBarFrame = Instance.new("Frame")
+    bottomBarFrame.Name = "BottomBarFrame"
+    bottomBarFrame.Size = UDim2.new(1, -160, 0, 46)
+    bottomBarFrame.Position = UDim2.new(0, 160, 1, -46)
+    bottomBarFrame.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
+    bottomBarFrame.BorderSizePixel = 0
+    bottomBarFrame.ZIndex = 4
+    bottomBarFrame.Parent = mainFrame
+
+    local bottomCorner = Instance.new("UICorner")
+    bottomCorner.CornerRadius = UDim.new(0, 12)
+    bottomCorner.Parent = bottomBarFrame
+
+    local bottomCoverLeft = Instance.new("Frame")
+    bottomCoverLeft.Name = "BottomCoverLeft"
+    bottomCoverLeft.Size = UDim2.new(0, 20, 1, 0)
+    bottomCoverLeft.Position = UDim2.new(0, 0, 0, 0)
+    bottomCoverLeft.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
+    bottomCoverLeft.BorderSizePixel = 0
+    bottomCoverLeft.ZIndex = 4
+    bottomCoverLeft.Parent = bottomBarFrame
 
     local headerControls = Instance.new("Frame")
     headerControls.Size = UDim2.new(0, 70, 1, 0)
@@ -319,7 +337,6 @@ function Library:CreateWindow(options)
         tabContainer.CanvasSize = UDim2.new(0, 0, 0, tabLayout.AbsoluteContentSize.Y + 6)
     end)
 
-    -- Lifetime Key profile frame positioned higher (-58 instead of -50)
     local userProfile = Instance.new("Frame")
     userProfile.Size = UDim2.new(1, -16, 0, 44)
     userProfile.Position = UDim2.new(0, 8, 1, -58)
@@ -538,7 +555,7 @@ function Library:CreateWindow(options)
         local card = Instance.new("Frame")
         card.Size = UDim2.new(1, 0, 0, cardHeight)
         card.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
-        card.Position = UDim2.new(1, 300, 0, 0) -- Start offscreen (right)
+        card.Position = UDim2.new(1, 300, 0, 0)
         card.ZIndex = 101
         card.Parent = notifyContainer
 
@@ -591,7 +608,6 @@ function Library:CreateWindow(options)
             nSub.Parent = card
         end
 
-        -- Slide Right-to-Left entrance animation
         TweenService:Create(card, TweenInfo.new(0.35, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
             Position = UDim2.new(0, 0, 0, 0)
         }):Play()
@@ -599,7 +615,6 @@ function Library:CreateWindow(options)
         if lifetime then
             task.spawn(function()
                 task.wait(lifetime)
-                -- Slide Right-to-Left exit animation
                 local tweenOut = TweenService:Create(card, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
                     Position = UDim2.new(1, 300, 0, 0)
                 })
@@ -1392,7 +1407,6 @@ function Library:CreateWindow(options)
 
                 local imgLabel = Instance.new("ImageLabel")
                 imgLabel.Size = UDim2.new(0, 40, 0, 40)
-                -- Always center vertically regardless of frame resizing
                 imgLabel.AnchorPoint = Vector2.new(0, 0.5)
                 imgLabel.Position = UDim2.new(0, 12, 0.5, 0)
                 imgLabel.BackgroundTransparency = 1
@@ -1532,7 +1546,7 @@ function Library:CreateWindow(options)
             local valDisplayStroke = Instance.new("UIStroke")
             valDisplayStroke.Color = Color3.fromRGB(35, 35, 45)
             valDisplayStroke.Thickness = 1
-            valDisplayStroke.Parent = valDisplayBg
+            valDisplayStroke.Parent = sliderContainer
 
             local valDisplayText = Instance.new("TextLabel")
             valDisplayText.Size = UDim2.new(1, -6, 1, 0)
