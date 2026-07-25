@@ -703,7 +703,6 @@ function Library:CreateWindow(options)
         tabBtn.ZIndex = 6
         tabBtn.Parent = Window.TabContainer
 
-        -- Thicker, rounded active indicator positioned strictly inside the tab button
         local tabIndicator = Instance.new("Frame")
         tabIndicator.Name = "ActiveIndicator"
         tabIndicator.Size = UDim2.new(0, 6, 0, 0)
@@ -722,7 +721,6 @@ function Library:CreateWindow(options)
         btnCorner.CornerRadius = UDim.new(0, 8)
         btnCorner.Parent = tabBtn
 
-        -- Increased left padding to create clear separation between indicator and text
         local padding = Instance.new("UIPadding")
         padding.PaddingLeft = UDim.new(0, 22)
         padding.Parent = tabBtn
@@ -1177,7 +1175,6 @@ function Library:CreateWindow(options)
                         optBtn.ZIndex = 11
                         optBtn.Parent = optionListFrame
 
-                        -- Left Indicator Pill for Dropdown Selection
                         local optIndicator = Instance.new("Frame")
                         optIndicator.Name = "ActiveIndicator"
                         optIndicator.Size = isSelected and UDim2.new(0, 6, 0, 18) or UDim2.new(0, 6, 0, 0)
