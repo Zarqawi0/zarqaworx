@@ -703,11 +703,11 @@ function Library:CreateWindow(options)
         tabBtn.ZIndex = 6
         tabBtn.Parent = Window.TabContainer
 
-        -- Left Indicator Pill for Sidebar Tabs
+        -- Thicker, rounded active indicator positioned strictly inside the tab button
         local tabIndicator = Instance.new("Frame")
         tabIndicator.Name = "ActiveIndicator"
-        tabIndicator.Size = UDim2.new(0, 4, 0, 0)
-        tabIndicator.Position = UDim2.new(0, 0, 0.5, 0)
+        tabIndicator.Size = UDim2.new(0, 6, 0, 0)
+        tabIndicator.Position = UDim2.new(0, 6, 0.5, 0)
         tabIndicator.AnchorPoint = Vector2.new(0, 0.5)
         tabIndicator.BackgroundColor3 = Window.AccentColor
         tabIndicator.BorderSizePixel = 0
@@ -722,8 +722,9 @@ function Library:CreateWindow(options)
         btnCorner.CornerRadius = UDim.new(0, 8)
         btnCorner.Parent = tabBtn
 
+        -- Increased left padding to create clear separation between indicator and text
         local padding = Instance.new("UIPadding")
-        padding.PaddingLeft = UDim.new(0, 14)
+        padding.PaddingLeft = UDim.new(0, 22)
         padding.Parent = tabBtn
 
         local function activateTab()
@@ -733,7 +734,7 @@ function Library:CreateWindow(options)
                 t.Button.BackgroundTransparency = 1
                 t.Button.TextColor3 = Color3.fromRGB(150, 150, 165)
                 if t.Indicator then
-                    TweenService:Create(t.Indicator, TweenInfo.new(0.2), { Size = UDim2.new(0, 4, 0, 0) }):Play()
+                    TweenService:Create(t.Indicator, TweenInfo.new(0.2), { Size = UDim2.new(0, 6, 0, 0) }):Play()
                 end
             end
             pageFrame.Visible = true
@@ -741,7 +742,7 @@ function Library:CreateWindow(options)
             tabBtn.BackgroundTransparency = 0.88
             tabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
             TweenService:Create(tabIndicator, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-                Size = UDim2.new(0, 4, 0, 22)
+                Size = UDim2.new(0, 6, 0, 22)
             }):Play()
             Window.ActiveTab = tabObj
         end
@@ -1179,8 +1180,8 @@ function Library:CreateWindow(options)
                         -- Left Indicator Pill for Dropdown Selection
                         local optIndicator = Instance.new("Frame")
                         optIndicator.Name = "ActiveIndicator"
-                        optIndicator.Size = isSelected and UDim2.new(0, 4, 0, 18) or UDim2.new(0, 4, 0, 0)
-                        optIndicator.Position = UDim2.new(0, 0, 0.5, 0)
+                        optIndicator.Size = isSelected and UDim2.new(0, 6, 0, 18) or UDim2.new(0, 6, 0, 0)
+                        optIndicator.Position = UDim2.new(0, 4, 0.5, 0)
                         optIndicator.AnchorPoint = Vector2.new(0, 0.5)
                         optIndicator.BackgroundColor3 = Window.AccentColor
                         optIndicator.BorderSizePixel = 0
