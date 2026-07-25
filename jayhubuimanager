@@ -8,12 +8,13 @@ local LocalPlayer = Players.LocalPlayer
 local Library = {}
 Library.__index = Library
 
-local FONT_FAMILY = "rbxassetid://12187365364"
-
+-- Helper function to apply Gotham font with dynamic weights and styles
 local function applyFont(instance, weight, style)
     style = style or Enum.FontStyle.Normal
+    weight = weight or Enum.FontWeight.Regular
     if instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox") then
-        instance.FontFace = Font.new(FONT_FAMILY, weight, style)
+        instance.FontFace = Font.fromEnum(Enum.Font.Gotham)
+        instance.FontFace = Font.new(instance.FontFace.Family, weight, style)
     end
 end
 
@@ -59,7 +60,7 @@ function Library:CreateWindow(options)
     mainFrame.Parent = screenGui
 
     local mainCorner = Instance.new("UICorner")
-    mainCorner.CornerRadius = UDim.new(0, 8)
+    mainCorner.CornerRadius = UDim.new(0, 12)
     mainCorner.Parent = mainFrame
 
     local mainStroke = Instance.new("UIStroke")
@@ -137,7 +138,7 @@ function Library:CreateWindow(options)
     sidebar.Parent = mainFrame
 
     local sidebarCorner = Instance.new("UICorner")
-    sidebarCorner.CornerRadius = UDim.new(0, 8)
+    sidebarCorner.CornerRadius = UDim.new(0, 12)
     sidebarCorner.Parent = sidebar
 
     local bottomBarFrame = Instance.new("Frame")
@@ -150,7 +151,7 @@ function Library:CreateWindow(options)
     bottomBarFrame.Parent = mainFrame
 
     local bottomCorner = Instance.new("UICorner")
-    bottomCorner.CornerRadius = UDim.new(0, 8)
+    bottomCorner.CornerRadius = UDim.new(0, 12)
     bottomCorner.Parent = bottomBarFrame
 
     local bottomCoverLeft = Instance.new("Frame")
@@ -171,7 +172,7 @@ function Library:CreateWindow(options)
     headerFrame.Parent = mainFrame
 
     local headerCorner = Instance.new("UICorner")
-    headerCorner.CornerRadius = UDim.new(0, 8)
+    headerCorner.CornerRadius = UDim.new(0, 12)
     headerCorner.Parent = headerFrame
 
     local headerCoverLeft = Instance.new("Frame")
@@ -201,7 +202,7 @@ function Library:CreateWindow(options)
     minBtn.Parent = headerControls
 
     local minCorner = Instance.new("UICorner")
-    minCorner.CornerRadius = UDim.new(0, 6)
+    minCorner.CornerRadius = UDim.new(0, 8)
     minCorner.Parent = minBtn
 
     local closeBtn = Instance.new("TextButton")
@@ -216,7 +217,7 @@ function Library:CreateWindow(options)
     closeBtn.Parent = headerControls
 
     local closeCorner = Instance.new("UICorner")
-    closeCorner.CornerRadius = UDim.new(0, 6)
+    closeCorner.CornerRadius = UDim.new(0, 8)
     closeCorner.Parent = closeBtn
 
     local function toggleWindow()
@@ -344,7 +345,7 @@ function Library:CreateWindow(options)
     userProfile.Parent = sidebar
 
     local userCorner = Instance.new("UICorner")
-    userCorner.CornerRadius = UDim.new(0, 6)
+    userCorner.CornerRadius = UDim.new(0, 10)
     userCorner.Parent = userProfile
 
     local userStroke = Instance.new("UIStroke")
@@ -400,7 +401,7 @@ function Library:CreateWindow(options)
     contentArea.Parent = mainFrame
 
     local contentCorner = Instance.new("UICorner")
-    contentCorner.CornerRadius = UDim.new(0, 8)
+    contentCorner.CornerRadius = UDim.new(0, 10)
     contentCorner.Parent = contentArea
 
     local contentStroke = Instance.new("UIStroke")
@@ -461,7 +462,7 @@ function Library:CreateWindow(options)
         overlay.Parent = mainFrame
 
         local overlayCorner = Instance.new("UICorner")
-        overlayCorner.CornerRadius = UDim.new(0, 8)
+        overlayCorner.CornerRadius = UDim.new(0, 12)
         overlayCorner.Parent = overlay
 
         local dialogFrame = Instance.new("Frame")
@@ -472,7 +473,7 @@ function Library:CreateWindow(options)
         dialogFrame.Parent = overlay
 
         local dCorner = Instance.new("UICorner")
-        dCorner.CornerRadius = UDim.new(0, 8)
+        dCorner.CornerRadius = UDim.new(0, 10)
         dCorner.Parent = dialogFrame
 
         local dStroke = Instance.new("UIStroke")
@@ -531,7 +532,7 @@ function Library:CreateWindow(options)
             btn.Parent = btnContainer
 
             local bCorner = Instance.new("UICorner")
-            bCorner.CornerRadius = UDim.new(0, 6)
+            bCorner.CornerRadius = UDim.new(0, 8)
             bCorner.Parent = btn
 
             btn.MouseButton1Click:Connect(function()
@@ -559,7 +560,7 @@ function Library:CreateWindow(options)
         card.Parent = notifyContainer
 
         local cCorner = Instance.new("UICorner")
-        cCorner.CornerRadius = UDim.new(0, 6)
+        cCorner.CornerRadius = UDim.new(0, 10)
         cCorner.Parent = card
 
         local cStroke = Instance.new("UIStroke")
@@ -694,30 +695,36 @@ function Library:CreateWindow(options)
         tabBtn.Size = UDim2.new(1, -6, 0, 38)
         tabBtn.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
         tabBtn.BackgroundTransparency = 1
+        tabBtn.ClipsDescendants = true
         applyFont(tabBtn, Enum.FontWeight.Medium)
         tabBtn.TextColor3 = Color3.fromRGB(150, 150, 165)
         tabBtn.TextSize = 14
         tabBtn.TextXAlignment = Enum.TextXAlignment.Left
-        tabBtn.Text = "        " .. tabName
+        tabBtn.Text = tabName
         tabBtn.ZIndex = 6
         tabBtn.Parent = Window.TabContainer
 
-        local tabIcon = Instance.new("ImageLabel")
-        tabIcon.Size = UDim2.new(0, 18, 0, 18)
-        tabIcon.Position = UDim2.new(0, 10, 0.5, -9)
-        tabIcon.BackgroundTransparency = 1
-        tabIcon.Image = "rbxassetid://6034818375"
-        tabIcon.ImageColor3 = Color3.fromRGB(150, 150, 165)
-        tabIcon.ZIndex = 7
-        tabIcon.Parent = tabBtn
+        local padding = Instance.new("UIPadding")
+        padding.PaddingLeft = UDim.new(0, 22)
+        padding.Parent = tabBtn
+
+        local tabIndicator = Instance.new("Frame")
+        tabIndicator.Name = "ActiveIndicator"
+        tabIndicator.Size = UDim2.new(0, 6, 0, 0)
+        tabIndicator.Position = UDim2.new(0, -14, 0.5, 0)
+        tabIndicator.AnchorPoint = Vector2.new(0, 0.5)
+        tabIndicator.BackgroundColor3 = Window.AccentColor
+        tabIndicator.BorderSizePixel = 0
+        tabIndicator.ZIndex = 8
+        tabIndicator.Parent = tabBtn
+
+        local tabIndCorner = Instance.new("UICorner")
+        tabIndCorner.CornerRadius = UDim.new(1, 0)
+        tabIndCorner.Parent = tabIndicator
 
         local btnCorner = Instance.new("UICorner")
-        btnCorner.CornerRadius = UDim.new(0, 6)
+        btnCorner.CornerRadius = UDim.new(0, 8)
         btnCorner.Parent = tabBtn
-
-        local padding = Instance.new("UIPadding")
-        padding.PaddingLeft = UDim.new(0, 6)
-        padding.Parent = tabBtn
 
         local function activateTab()
             for _, t in pairs(Window.Tabs) do
@@ -725,13 +732,17 @@ function Library:CreateWindow(options)
                 t.Button.BackgroundColor3 = Color3.fromRGB(11, 11, 14)
                 t.Button.BackgroundTransparency = 1
                 t.Button.TextColor3 = Color3.fromRGB(150, 150, 165)
-                t.Icon.ImageColor3 = Color3.fromRGB(150, 150, 165)
+                if t.Indicator then
+                    TweenService:Create(t.Indicator, TweenInfo.new(0.2), { Size = UDim2.new(0, 6, 0, 0) }):Play()
+                end
             end
             pageFrame.Visible = true
             tabBtn.BackgroundColor3 = Window.AccentColor
             tabBtn.BackgroundTransparency = 0.88
             tabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            tabIcon.ImageColor3 = Color3.fromRGB(255, 255, 255)
+            TweenService:Create(tabIndicator, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                Size = UDim2.new(0, 6, 0, 22)
+            }):Play()
             Window.ActiveTab = tabObj
         end
 
@@ -757,7 +768,7 @@ function Library:CreateWindow(options)
 
         tabObj.Page = pageFrame
         tabObj.Button = tabBtn
-        tabObj.Icon = tabIcon
+        tabObj.Indicator = tabIndicator
         table.insert(Window.Tabs, tabObj)
 
         if #Window.Tabs == 1 then
@@ -788,7 +799,7 @@ function Library:CreateWindow(options)
             actionBtn.Parent = parentCol
 
             local bCorner = Instance.new("UICorner")
-            bCorner.CornerRadius = UDim.new(0, 6)
+            bCorner.CornerRadius = UDim.new(0, 10)
             bCorner.Parent = actionBtn
 
             local bStroke = Instance.new("UIStroke")
@@ -826,7 +837,7 @@ function Library:CreateWindow(options)
             inputFrame.Parent = parentCol
 
             local iCorner = Instance.new("UICorner")
-            iCorner.CornerRadius = UDim.new(0, 6)
+            iCorner.CornerRadius = UDim.new(0, 10)
             iCorner.Parent = inputFrame
 
             local iStroke = Instance.new("UIStroke")
@@ -853,7 +864,7 @@ function Library:CreateWindow(options)
             displayBg.Parent = inputFrame
 
             local displayCorner = Instance.new("UICorner")
-            displayCorner.CornerRadius = UDim.new(0, 4)
+            displayCorner.CornerRadius = UDim.new(0, 6)
             displayCorner.Parent = displayBg
 
             local displayStroke = Instance.new("UIStroke")
@@ -969,7 +980,7 @@ function Library:CreateWindow(options)
             dropdownContainer.Parent = parentCol
 
             local dCorner = Instance.new("UICorner")
-            dCorner.CornerRadius = UDim.new(0, 6)
+            dCorner.CornerRadius = UDim.new(0, 10)
             dCorner.Parent = dropdownContainer
 
             local dStroke = Instance.new("UIStroke")
@@ -1044,7 +1055,7 @@ function Library:CreateWindow(options)
             searchBoxFrame.Parent = dropdownContainer
 
             local searchCorner = Instance.new("UICorner")
-            searchCorner.CornerRadius = UDim.new(0, 4)
+            searchCorner.CornerRadius = UDim.new(0, 6)
             searchCorner.Parent = searchBoxFrame
 
             local searchStroke = Instance.new("UIStroke")
@@ -1155,8 +1166,9 @@ function Library:CreateWindow(options)
                         optBtn.Size = UDim2.new(1, 0, 0, 32)
                         optBtn.BackgroundColor3 = isSelected and Window.AccentColor or Color3.fromRGB(18, 18, 22)
                         optBtn.BackgroundTransparency = isSelected and 0.88 or 0
+                        optBtn.ClipsDescendants = true
                         applyFont(optBtn, Enum.FontWeight.Regular)
-                        optBtn.Text = "   " .. (isSelected and "• " or "") .. strOpt
+                        optBtn.Text = strOpt
                         optBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
                         optBtn.TextSize = 13
                         optBtn.TextXAlignment = Enum.TextXAlignment.Left
@@ -1164,8 +1176,26 @@ function Library:CreateWindow(options)
                         optBtn.ZIndex = 11
                         optBtn.Parent = optionListFrame
 
+                        local optPadding = Instance.new("UIPadding")
+                        optPadding.PaddingLeft = UDim.new(0, 22)
+                        optPadding.Parent = optBtn
+
+                        local optIndicator = Instance.new("Frame")
+                        optIndicator.Name = "ActiveIndicator"
+                        optIndicator.Size = isSelected and UDim2.new(0, 6, 0, 18) or UDim2.new(0, 6, 0, 0)
+                        optIndicator.Position = UDim2.new(0, -14, 0.5, 0)
+                        optIndicator.AnchorPoint = Vector2.new(0, 0.5)
+                        optIndicator.BackgroundColor3 = Window.AccentColor
+                        optIndicator.BorderSizePixel = 0
+                        optIndicator.ZIndex = 12
+                        optIndicator.Parent = optBtn
+
+                        local optIndCorner = Instance.new("UICorner")
+                        optIndCorner.CornerRadius = UDim.new(1, 0)
+                        optIndCorner.Parent = optIndicator
+
                         local oCorner = Instance.new("UICorner")
-                        oCorner.CornerRadius = UDim.new(0, 4)
+                        oCorner.CornerRadius = UDim.new(0, 6)
                         oCorner.Parent = optBtn
 
                         optBtn.MouseButton1Click:Connect(function()
@@ -1257,7 +1287,7 @@ function Library:CreateWindow(options)
             toggleContainer.Parent = parentCol
 
             local tCorner = Instance.new("UICorner")
-            tCorner.CornerRadius = UDim.new(0, 6)
+            tCorner.CornerRadius = UDim.new(0, 10)
             tCorner.Parent = toggleContainer
 
             local tStroke = Instance.new("UIStroke")
@@ -1351,7 +1381,7 @@ function Library:CreateWindow(options)
             paraFrame.Parent = parentCol
 
             local pCorner = Instance.new("UICorner")
-            pCorner.CornerRadius = UDim.new(0, 6)
+            pCorner.CornerRadius = UDim.new(0, 10)
             pCorner.Parent = paraFrame
 
             local pStroke = Instance.new("UIStroke")
@@ -1374,7 +1404,7 @@ function Library:CreateWindow(options)
                 imgLabel.Parent = paraFrame
 
                 local imgCorner = Instance.new("UICorner")
-                imgCorner.CornerRadius = UDim.new(0, 6)
+                imgCorner.CornerRadius = UDim.new(0, 8)
                 imgCorner.Parent = imgLabel
             end
 
@@ -1473,7 +1503,7 @@ function Library:CreateWindow(options)
             sliderContainer.Parent = parentCol
 
             local sCorner = Instance.new("UICorner")
-            sCorner.CornerRadius = UDim.new(0, 6)
+            sCorner.CornerRadius = UDim.new(0, 10)
             sCorner.Parent = sliderContainer
 
             local sStroke = Instance.new("UIStroke")
@@ -1500,7 +1530,7 @@ function Library:CreateWindow(options)
             valDisplayBg.Parent = sliderContainer
 
             local valDisplayCorner = Instance.new("UICorner")
-            valDisplayCorner.CornerRadius = UDim.new(0, 4)
+            valDisplayCorner.CornerRadius = UDim.new(0, 6)
             valDisplayCorner.Parent = valDisplayBg
 
             local valDisplayStroke = Instance.new("UIStroke")
