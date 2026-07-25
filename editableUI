@@ -703,10 +703,14 @@ function Library:CreateWindow(options)
         tabBtn.ZIndex = 6
         tabBtn.Parent = Window.TabContainer
 
+        local padding = Instance.new("UIPadding")
+        padding.PaddingLeft = UDim.new(0, 22)
+        padding.Parent = tabBtn
+
         local tabIndicator = Instance.new("Frame")
         tabIndicator.Name = "ActiveIndicator"
         tabIndicator.Size = UDim2.new(0, 6, 0, 0)
-        tabIndicator.Position = UDim2.new(0, 6, 0.5, 0)
+        tabIndicator.Position = UDim2.new(0, -14, 0.5, 0)
         tabIndicator.AnchorPoint = Vector2.new(0, 0.5)
         tabIndicator.BackgroundColor3 = Window.AccentColor
         tabIndicator.BorderSizePixel = 0
@@ -720,10 +724,6 @@ function Library:CreateWindow(options)
         local btnCorner = Instance.new("UICorner")
         btnCorner.CornerRadius = UDim.new(0, 8)
         btnCorner.Parent = tabBtn
-
-        local padding = Instance.new("UIPadding")
-        padding.PaddingLeft = UDim.new(0, 22)
-        padding.Parent = tabBtn
 
         local function activateTab()
             for _, t in pairs(Window.Tabs) do
@@ -1167,7 +1167,7 @@ function Library:CreateWindow(options)
                         optBtn.BackgroundTransparency = isSelected and 0.88 or 0
                         optBtn.ClipsDescendants = true
                         applyFont(optBtn, Enum.FontWeight.Regular)
-                        optBtn.Text = "   " .. strOpt
+                        optBtn.Text = strOpt
                         optBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
                         optBtn.TextSize = 13
                         optBtn.TextXAlignment = Enum.TextXAlignment.Left
@@ -1175,10 +1175,14 @@ function Library:CreateWindow(options)
                         optBtn.ZIndex = 11
                         optBtn.Parent = optionListFrame
 
+                        local optPadding = Instance.new("UIPadding")
+                        optPadding.PaddingLeft = UDim.new(0, 22)
+                        optPadding.Parent = optBtn
+
                         local optIndicator = Instance.new("Frame")
                         optIndicator.Name = "ActiveIndicator"
                         optIndicator.Size = isSelected and UDim2.new(0, 6, 0, 18) or UDim2.new(0, 6, 0, 0)
-                        optIndicator.Position = UDim2.new(0, 4, 0.5, 0)
+                        optIndicator.Position = UDim2.new(0, -14, 0.5, 0)
                         optIndicator.AnchorPoint = Vector2.new(0, 0.5)
                         optIndicator.BackgroundColor3 = Window.AccentColor
                         optIndicator.BorderSizePixel = 0
