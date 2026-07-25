@@ -1582,7 +1582,8 @@ function Library:CreateWindow(options)
             fillCorner.CornerRadius = UDim.new(1, 0)
             fillCorner.Parent = fill
 
-            local knob = Instance.new("Frame")
+            local knob = Instance.new("TextButton")
+            knob.Text = ""
             knob.Size = UDim2.new(0, 14, 0, 14)
             knob.AnchorPoint = Vector2.new(0.5, 0.5)
             knob.Position = UDim2.new((currentVal - minVal) / (maxVal - minVal), 0, 0.5, 0)
@@ -1640,10 +1641,25 @@ function Library:CreateWindow(options)
                 end
             end)
 
-            sliderBar.InputBegan:Connect(function(input)
+            local function onInputBegan(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                     isDragging = true
                     updateValue(input)
+                end
+            end
+
+            sliderBar.InputBegan:Connect(onInputBegan)
+            knob.InputBegan:Connect(onInputBegan)
+
+            UserInputService.InputChanged:Connect(function(input)
+                if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                    updateValue(input)
+                end
+            end)
+
+            UserInputService.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    isDragging = false
                 end
             end)
 
