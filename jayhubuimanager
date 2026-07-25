@@ -22,7 +22,7 @@ function Library:CreateWindow(options)
     local windowTitle = options.Title or "JayHub"
     local windowSubTitle = options.SubTitle or "Grow a Garden 2"
     local windowVersion = options.Version or "v1.3.9 • Free"
-    local accentColor = options.AccentColor or Color3.fromRGB(0, 150, 255)
+    local accentColor = options.AccentColor or Color3.fromRGB(0, 150, 255) -- Updated to Blue Accent
 
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = windowTitle .. "UI"
@@ -1153,10 +1153,10 @@ function Library:CreateWindow(options)
                         local isSelected = selectedValues[opt] == true
                         local optBtn = Instance.new("TextButton")
                         optBtn.Size = UDim2.new(1, 0, 0, 32)
-                        optBtn.BackgroundColor3 = isSelected and Window.AccentColor or Color3.fromRGB(18, 18, 22)
-                        optBtn.BackgroundTransparency = isSelected and 0.88 or 0
+                        optBtn.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+                        optBtn.BackgroundTransparency = 0
                         applyFont(optBtn, Enum.FontWeight.Regular)
-                        optBtn.Text = "   " .. (isSelected and "• " or "") .. strOpt
+                        optBtn.Text = strOpt
                         optBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
                         optBtn.TextSize = 13
                         optBtn.TextXAlignment = Enum.TextXAlignment.Left
@@ -1167,6 +1167,26 @@ function Library:CreateWindow(options)
                         local oCorner = Instance.new("UICorner")
                         oCorner.CornerRadius = UDim.new(0, 4)
                         oCorner.Parent = optBtn
+
+                        local oPadding = Instance.new("UIPadding")
+                        oPadding.PaddingLeft = UDim.new(0, 16)
+                        oPadding.Parent = optBtn
+
+                        -- Left Indicator Bar for Selected Items (Reference Image Style)
+                        if isSelected then
+                            local selectedBar = Instance.new("Frame")
+                            selectedBar.Name = "SelectedIndicator"
+                            selectedBar.Size = UDim2.new(0, 6, 0, 20)
+                            selectedBar.Position = UDim2.new(0, -10, 0.5, -10)
+                            selectedBar.BackgroundColor3 = Window.AccentColor
+                            selectedBar.BorderSizePixel = 0
+                            selectedBar.ZIndex = 12
+                            selectedBar.Parent = optBtn
+
+                            local barCorner = Instance.new("UICorner")
+                            barCorner.CornerRadius = UDim.new(0, 3)
+                            barCorner.Parent = selectedBar
+                        end
 
                         optBtn.MouseButton1Click:Connect(function()
                             if isMultiSelect then
