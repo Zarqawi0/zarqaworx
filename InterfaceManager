@@ -8,6 +8,19 @@ local LocalPlayer = Players.LocalPlayer
 local Library = {}
 Library.__index = Library
 
+-- Helper function to normalize image IDs
+local function normalizeImageId(imageId)
+    if type(imageId) ~= "string" or imageId == "" then
+        return ""
+    end
+    
+    if string.match(imageId, "^%d+$") then
+        return "rbxassetid://" .. imageId
+    end
+    
+    return imageId
+end
+
 -- Helper function to apply Gotham font with dynamic weights and styles
 local function applyFont(instance, weight, style)
     style = style or Enum.FontStyle.Normal
@@ -1430,12 +1443,13 @@ function Library:CreateWindow(options)
 
             local textLeftOffset = 14
             local widthDeduction = 28
+            local imgLabel = nil
 
             if imageAsset and imageAsset ~= "" then
                 textLeftOffset = 64
                 widthDeduction = 76
 
-                local imgLabel = Instance.new("ImageLabel")
+                imgLabel = Instance.new("ImageLabel")
                 imgLabel.Size = UDim2.new(0, 40, 0, 40)
                 imgLabel.AnchorPoint = Vector2.new(0, 0.5)
                 imgLabel.Position = UDim2.new(0, 12, 0.5, 0)
@@ -1503,6 +1517,44 @@ function Library:CreateWindow(options)
 
             function ParagraphController:UpdateBody(text)
                 contentLabel.Text = tostring(text)
+                resize()
+            end
+
+            function ParagraphController:UpdateImage(newImage)
+                newImage = normalizeImageId(newImage)
+
+                if newImage ~= "" then
+                    if not imgLabel then
+                        imgLabel = Instance.new("ImageLabel")
+                        imgLabel.Size = UDim2.new(0, 40, 0, 40)
+                        imgLabel.Position = UDim2.new(0, 12, 0, 12)
+                        imgLabel.BackgroundTransparency = 1
+                        imgLabel.Parent = paraFrame
+
+                        local imgCorner = Instance.new("UICorner")
+                        imgCorner.CornerRadius = UDim.new(0, 6)
+                        imgCorner.Parent = imgLabel
+                    end
+
+                    imgLabel.Image = newImage
+
+                    textLeftOffset = 64
+                    widthDeduction = 76
+                else
+                    if imgLabel then
+                        imgLabel:Destroy()
+                        imgLabel = nil
+                    end
+
+                    textLeftOffset = 14
+                    widthDeduction = 28
+                end
+
+                titleLabel.Position = UDim2.new(0, textLeftOffset, 0, 12)
+                titleLabel.Size = UDim2.new(1, -widthDeduction, 0, 22)
+
+                contentLabel.Position = UDim2.new(0, textLeftOffset, 0, 36)
+
                 resize()
             end
 
