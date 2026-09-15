@@ -202,7 +202,7 @@ local function ResolveClaimConflict()
     end
 
     -- LocalPlayer holds the valid claim
-    ClaimLabel.Text = "Claim Status: Owned by YOU"
+    ClaimLabel.Text = "Claim Status: Claimed"
     ClaimLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
     if not hasPrintedClaim then
         hasPrintedClaim = true
