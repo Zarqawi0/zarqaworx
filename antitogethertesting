@@ -1,12 +1,14 @@
--- V2.6
+-- V2.7
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
+local TextChatService = game:GetService("TextChatService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LocalPlayer = Players.LocalPlayer
-while not LocalPlayer or not LocalPlayer.UserId do
+while not LocalPlayer do
     task.wait(0.1)
     LocalPlayer = Players.LocalPlayer
 end
@@ -14,34 +16,75 @@ end
 local PlaceId = game.PlaceId
 local visitedServers = {} -- [JobId] = timestamp
 
--- Cleanup visited list periodically
-task.spawn(function()
-    while true do
-        task.wait(60)
-        local now = os.time()
-        for jobId, timestamp in pairs(visitedServers) do
-            if now - timestamp > 300 then -- Expire after 5 minutes
-                visitedServers[jobId] = nil
+--------------------------------------------------------------------------------
+-- HIDDEN CHAT-BASED CLAIM NETWORK
+--------------------------------------------------------------------------------
+local CLAIM_PREFIX = "[CROWNED_HUB_CLAIM]:"
+local serverOwnerUserId = nil
+local myClaimTime = os.clock()
+
+-- HIDE CLAIM MESSAGES FROM LOCAL CHAT WINDOW
+if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+    TextChatService.OnIncomingMessage = function(message: TextChatMessage)
+        local props = Instance.new("TextChatMessageProperties")
+        if message.Text:find(CLAIM_PREFIX, 1, true) then
+            -- Make message invisible in the chat UI
+            props.Text = ""
+            props.PrefixText = ""
+        end
+        return props
+    end
+end
+
+-- Broadcast claim safely
+local function BroadcastClaim()
+    local message = CLAIM_PREFIX .. tostring(LocalPlayer.UserId) .. ":" .. tostring(myClaimTime)
+    
+    if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+        local generalChannel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+        if generalChannel then
+            pcall(function() generalChannel:SendAsync(message) end)
+        end
+    else
+        -- Legacy Chat System
+        local defaultChatSystemChatEvents = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+        if defaultChatSystemChatEvents then
+            local sayMessageRequest = defaultChatSystemChatEvents:FindFirstChild("SayMessageRequest")
+            if sayMessageRequest then
+                pcall(function() sayMessageRequest:FireServer(message, "All") end)
             end
         end
     end
-end)
-
--- Executor HTTP compatibility check
-local requestFunc = nil
-if syn and syn.request then
-    requestFunc = syn.request
-elseif http and http.request then
-    requestFunc = http.request
-elseif http_request then
-    requestFunc = http_request
-elseif fluxus and fluxus.request then
-    requestFunc = fluxus.request
-elseif request then
-    requestFunc = request
-else
-    error("No supported HTTP request function found! 😢")
 end
+
+-- Process incoming claim messages
+local function ProcessClaimMessage(sender, message)
+    if not message:find(CLAIM_PREFIX, 1, true) then return end
+    
+    local parts = string.split(message, ":")
+    if #parts >= 3 then
+        local senderUserId = tonumber(parts[2])
+        local senderClaimTime = tonumber(parts[3])
+
+        if senderUserId and senderClaimTime then
+            if senderClaimTime < myClaimTime or (senderClaimTime == myClaimTime and senderUserId < LocalPlayer.UserId) then
+                serverOwnerUserId = senderUserId
+            end
+        end
+    end
+end
+
+-- Listen for player chats
+local function RegisterChatListener(player)
+    player.Chatted:Connect(function(msg)
+        ProcessClaimMessage(player, msg)
+    end)
+end
+
+for _, player in ipairs(Players:GetPlayers()) do
+    RegisterChatListener(player)
+end
+Players.PlayerAdded:Connect(RegisterChatListener)
 
 --------------------------------------------------------------------------------
 -- STATUS UI CREATION
@@ -50,12 +93,8 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ServerFinderUI"
 ScreenGui.ResetOnSpawn = false
 
-local successUI = pcall(function()
-    ScreenGui.Parent = CoreGui
-end)
-if not successUI then
-    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-end
+local successUI = pcall(function() ScreenGui.Parent = CoreGui end)
+if not successUI then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
@@ -108,65 +147,22 @@ local function UpdateUI(statusText, color)
 end
 
 --------------------------------------------------------------------------------
--- REPLICATED CLAIM SYSTEM
+-- HTTP EXECUTOR COMPATIBILITY
 --------------------------------------------------------------------------------
-local hasPrintedClaim = false
-
-local function ClearClaimTag()
-    if LocalPlayer and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("ServerClaimOwner") then
-        LocalPlayer.Character.ServerClaimOwner:Destroy()
-    end
-end
-
-local function ResolveClaimConflict()
-    if not LocalPlayer or not LocalPlayer.UserId then return false end
-
-    local char = LocalPlayer.Character
-    if not char then return false end
-
-    local totalPlayers = #Players:GetPlayers()
-    if totalPlayers >= 5 then
-        ClearClaimTag()
-        hasPrintedClaim = false
-        return false
-    end
-
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player and player.UserId and player ~= LocalPlayer and player.Character then
-            local otherHasTag = player.Character:FindFirstChild("ServerClaimOwner") ~= nil
-            if otherHasTag then
-                if LocalPlayer.UserId > player.UserId then
-                    ClearClaimTag()
-                    hasPrintedClaim = false
-                    return false
-                end
-            end
-        end
-    end
-
-    if not char:FindFirstChild("ServerClaimOwner") then
-        local tag = Instance.new("BoolValue")
-        tag.Name = "ServerClaimOwner"
-        tag.Value = true
-        tag.Parent = char
-    end
-
-    if not hasPrintedClaim then
-        hasPrintedClaim = true
-        print(string.format("[Crowned Hub] Server CLAIMED by %s | Players: %d/5", LocalPlayer.Name, totalPlayers))
-    end
-    
-    return true
-end
+local requestFunc = nil
+if syn and syn.request then requestFunc = syn.request
+elseif http and http.request then requestFunc = http.request
+elseif http_request then requestFunc = http_request
+elseif fluxus and fluxus.request then requestFunc = fluxus.request
+elseif request then requestFunc = request
+else error("No supported HTTP request function found!") end
 
 --------------------------------------------------------------------------------
--- SERVER FETCHING & HOPPING (FIXED NIL CHECKS)
+-- SERVER HOPPER
 --------------------------------------------------------------------------------
 local function fetchServers(cursor)
     local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
-    if cursor then
-        url = url .. "&cursor=" .. cursor
-    end
+    if cursor then url = url .. "&cursor=" .. cursor end
     
     local success, response = pcall(function()
         return requestFunc({ Url = url, Method = "GET" })
@@ -196,15 +192,12 @@ local function HopToLowServer()
             local data = fetchServers(cursor)
             if data and data.data then
                 for _, server in ipairs(data.data) do
-                    -- Nil Guard: Ensure playing field exists and is a valid number
                     local playingCount = tonumber(server.playing)
                     local validPlayerCount = playingCount ~= nil and playingCount >= 0 and playingCount <= 3
-                    
                     local notCurrentServer = server.id ~= game.JobId
                     local notVisited = not visitedServers[server.id]
-                    local noInlineQueue = not server.queuedPlayers or #server.queuedPlayers == 0
 
-                    if validPlayerCount and notCurrentServer and notVisited and noInlineQueue then
+                    if validPlayerCount and notCurrentServer and notVisited then
                         table.insert(candidates, server)
                     end
                 end
@@ -238,15 +231,6 @@ local function HopToLowServer()
     end
 end
 
-TeleportService.TeleportInitFailed:Connect(function(player, teleportResult, errorMessage)
-    if player == LocalPlayer then
-        UpdateUI("Hop Cancelled", Color3.fromRGB(255, 80, 80))
-        isSearching = false
-        task.wait(1)
-        HopToLowServer()
-    end
-end)
-
 --------------------------------------------------------------------------------
 -- MONITORING LOOP
 --------------------------------------------------------------------------------
@@ -255,43 +239,28 @@ local function CheckAndHop()
 
     local count = #Players:GetPlayers()
     if count >= 5 then
-        hasPrintedClaim = false
-        ClearClaimTag()
         UpdateUI("Hopping...", Color3.fromRGB(255, 80, 80))
         HopToLowServer()
         return
     end
 
-    local isClaimValid = ResolveClaimConflict()
-    if not isClaimValid then
+    -- Send silent claim message
+    BroadcastClaim()
+    task.wait(0.3)
+
+    if serverOwnerUserId and serverOwnerUserId ~= LocalPlayer.UserId then
         UpdateUI("Yielding Server...", Color3.fromRGB(255, 80, 80))
         task.wait(0.5)
         HopToLowServer()
     else
+        serverOwnerUserId = LocalPlayer.UserId
         UpdateUI("Claimed", Color3.fromRGB(100, 255, 100))
     end
 end
 
-LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(0.5)
-    CheckAndHop()
-end)
-
-Players.PlayerRemoving:Connect(function()
-    hasPrintedClaim = false
-    task.wait(0.3)
-    CheckAndHop()
-end)
-
-Players.PlayerAdded:Connect(function()
-    task.wait(0.2)
-    CheckAndHop()
-end)
-
 task.spawn(function()
-    task.wait((LocalPlayer.UserId % 10) * 0.05)
     while true do
         CheckAndHop()
-        task.wait(0.5)
+        task.wait(1)
     end
 end)
