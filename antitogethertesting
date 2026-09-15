@@ -1,3 +1,5 @@
+-- V2.3
+
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
@@ -92,7 +94,7 @@ local function UpdateUI(statusText, color)
 end
 
 --------------------------------------------------------------------------------
--- CHARACTER-BASED REPLICATED CLAIM SYSTEM
+-- REPLICATED CLAIM SYSTEM (FIXED CONFLICT LOGIC)
 --------------------------------------------------------------------------------
 local hasPrintedClaim = false
 
@@ -102,66 +104,54 @@ local function ClearClaimTag()
     end
 end
 
-local function GetClaimingPlayers()
-    local claimingPlayers = {}
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player and player.Character and player.Character:FindFirstChild("ServerClaimOwner") then
-            table.insert(claimingPlayers, player)
-        end
-    end
-    return claimingPlayers
-end
-
 local function ResolveClaimConflict()
     if not LocalPlayer then return false end
-    
-    -- Wait briefly for Character workspace model to exist
-    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+
+    local char = LocalPlayer.Character
     if not char then return false end
 
-    local count = #Players:GetPlayers()
-    if count < 0 or count > 4 then
+    local totalPlayers = #Players:GetPlayers()
+    if totalPlayers >= 5 then
         ClearClaimTag()
         hasPrintedClaim = false
         return false
     end
 
-    local claimingPlayers = GetClaimingPlayers()
-
-    if #claimingPlayers == 0 then
-        if not char:FindFirstChild("ServerClaimOwner") then
-            local tag = Instance.new("BoolValue")
-            tag.Name = "ServerClaimOwner"
-            tag.Value = true
-            tag.Parent = char
-        end
-        
-        if not hasPrintedClaim then
-            hasPrintedClaim = true
-            print(string.format("[Crowned Hub] Server CLAIMED by %s | Players: %d/5", LocalPlayer.Name, count))
-        end
-        return true
-    end
-
-    for _, owner in ipairs(claimingPlayers) do
-        if owner and owner ~= LocalPlayer then
-            if LocalPlayer.UserId > owner.UserId or owner.Character:FindFirstChild("ServerClaimOwner") then
-                ClearClaimTag()
-                hasPrintedClaim = false
-                return false
+    -- Check all other players for existing claim tags or lower UserIds
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local otherHasTag = player.Character:FindFirstChild("ServerClaimOwner") ~= nil
+            
+            -- If another player has claimed the server:
+            if otherHasTag then
+                -- Direct conflict resolution: Lowest UserId wins
+                if LocalPlayer.UserId > player.UserId then
+                    ClearClaimTag()
+                    hasPrintedClaim = false
+                    return false -- Yield server to player with lower UserId
+                end
             end
         end
     end
 
+    -- Apply claim tag if no higher-priority claim exists
+    if not char:FindFirstChild("ServerClaimOwner") then
+        local tag = Instance.new("BoolValue")
+        tag.Name = "ServerClaimOwner"
+        tag.Value = true
+        tag.Parent = char
+    end
+
     if not hasPrintedClaim then
         hasPrintedClaim = true
-        print(string.format("[Crowned Hub] Server CLAIMED by %s | Players: %d/5", LocalPlayer.Name, count))
+        print(string.format("[Crowned Hub] Server CLAIMED by %s | Players: %d/5", LocalPlayer.Name, totalPlayers))
     end
+    
     return true
 end
 
 --------------------------------------------------------------------------------
--- SERVER FETCHING & HOPPING (TARGET: 0-3 PLAYERS)
+-- SERVER FETCHING & HOPPING
 --------------------------------------------------------------------------------
 local function fetchServers(cursor)
     local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
@@ -238,7 +228,7 @@ local function HopToLowServer()
             
             UpdateUI("Teleporting...", Color3.fromRGB(100, 255, 100))
             
-            local teleportSuccess, err = pcall(function()
+            local teleportSuccess = pcall(function()
                 TeleportService:TeleportToPlaceInstance(PlaceId, selectedServer.id, LocalPlayer)
             end)
 
@@ -258,8 +248,9 @@ end
 -- MONITORING LOOP
 --------------------------------------------------------------------------------
 local function CheckAndHop()
-    local count = #Players:GetPlayers()
+    if isSearching then return end
 
+    local count = #Players:GetPlayers()
     if count >= 5 then
         hasPrintedClaim = false
         ClearClaimTag()
@@ -270,10 +261,9 @@ local function CheckAndHop()
 
     local isClaimValid = ResolveClaimConflict()
     if not isClaimValid then
-        UpdateUI("Server Claimed!", Color3.fromRGB(255, 80, 80))
-        task.wait(0.2)
+        UpdateUI("Yielding Server...", Color3.fromRGB(255, 80, 80))
+        task.wait(0.5)
         HopToLowServer()
-        return
     else
         UpdateUI("Claimed", Color3.fromRGB(100, 255, 100))
     end
@@ -286,10 +276,14 @@ Players.PlayerRemoving:Connect(function()
 end)
 
 Players.PlayerAdded:Connect(function()
+    task.wait(0.2)
     CheckAndHop()
 end)
 
 task.spawn(function()
+    -- Stagger initial check slightly using UserId to prevent instant race conditions
+    task.wait((LocalPlayer.UserId % 10) * 0.05)
+    
     while true do
         CheckAndHop()
         task.wait(0.5)
