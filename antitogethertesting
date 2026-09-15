@@ -1,4 +1,4 @@
--- V2.9 (Added JobTrack Print Statement)
+-- V2.10 (Persistent Server Searching & Auto-Retry on Teleport/HTTP Failure)
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
@@ -141,7 +141,8 @@ local function HopToLowServer()
 
     UpdateUI("Searching...", Color3.fromRGB(255, 180, 50))
 
-    while isSearching do
+    -- Keeps executing continuously until a teleport actually succeeds
+    while true do
         local cursor = nil
         local candidates = {}
 
@@ -150,6 +151,7 @@ local function HopToLowServer()
             if data and data.data then
                 for _, server in ipairs(data.data) do
                     local playingCount = tonumber(server.playing)
+                    -- Hard Requirement: 0 to 3 players
                     local validPlayerCount = playingCount ~= nil and playingCount >= 0 and playingCount <= 3
                     local notCurrentServer = server.id ~= CurrentJobId
                     local notVisited = not visitedServers[server.id]
@@ -169,7 +171,6 @@ local function HopToLowServer()
             local selectedServer = candidates[math.random(1, #candidates)]
             visitedServers[selectedServer.id] = os.time()
             
-            -- PRINT JOBTRACK HERE
             print("JobTrack: Target Server Found - " .. tostring(selectedServer.id) .. " (" .. tostring(selectedServer.playing) .. "/5 players)")
 
             UpdateUI("Teleporting...", Color3.fromRGB(100, 255, 100))
@@ -178,24 +179,22 @@ local function HopToLowServer()
                 TeleportService:TeleportToPlaceInstance(PlaceId, selectedServer.id, LocalPlayer)
             end)
 
-            task.delay(6, function()
-                if isSearching then
-                    isSearching = false
-                    UpdateUI("Retrying Hop...", Color3.fromRGB(255, 80, 80))
-                end
-            end)
-
-            if not teleportSuccess then
-                UpdateUI("Teleport Failed", Color3.fromRGB(255, 80, 80))
-                isSearching = false
-                task.wait(1)
-            else
-                return
+            if teleportSuccess then
+                -- Wait to see if teleport actually takes place, reset if hung for over 8s
+                task.wait(8)
             end
-        end
 
-        UpdateUI("Scanning...", Color3.fromRGB(255, 150, 50))
-        task.wait(1)
+            -- If teleport failed or hung, log and keep scanning
+            UpdateUI("Retrying Hop...", Color3.fromRGB(255, 80, 80))
+            task.wait(1)
+        else
+            -- If no servers with 0-3 players were found in this pass, clear cache if full and retry
+            if next(visitedServers) and #candidates == 0 then
+                visitedServers = {}
+            end
+            UpdateUI("Scanning...", Color3.fromRGB(255, 150, 50))
+            task.wait(1)
+        end
     end
 end
 
@@ -203,7 +202,6 @@ end
 -- MONITORING LOOP & EVENTS
 --------------------------------------------------------------------------------
 TeleportService.TeleportInitFailed:Connect(function()
-    isSearching = false
     UpdateUI("Teleport Failed", Color3.fromRGB(255, 80, 80))
 end)
 
