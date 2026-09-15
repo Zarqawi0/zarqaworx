@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-SERVER FINDER & HOPPER WITH STRICT CONDITION CHECKING
+SERVER FINDER & HOPPER WITH NIL-GUARDS & STRICT REQUIREMENTS
 ================================================================================
 Rules Enforced:
 1. Target Range: Exclusively searches and hops into servers with 0 to 3 players.
@@ -17,7 +17,13 @@ local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 
+-- Ensure LocalPlayer is loaded before running any player-indexed functions
 local LocalPlayer = Players.LocalPlayer
+while not LocalPlayer do
+    task.wait(0.1)
+    LocalPlayer = Players.LocalPlayer
+end
+
 local PlaceId = game.PlaceId
 
 -- Identify supported HTTP request function for executor
@@ -142,21 +148,20 @@ local function UpdateUI(statusText, color, infoText)
 end
 
 --------------------------------------------------------------------------------
--- CLAIM & CONFLICT RESOLUTION SYSTEM (STRICT REQUIREMENTS)
+-- CLAIM & CONFLICT RESOLUTION SYSTEM (NIL-SAFE)
 --------------------------------------------------------------------------------
 local hasPrintedClaim = false
 
 local function ClearClaimTag()
-    local myTag = LocalPlayer:FindFirstChild("ServerClaimOwner")
-    if myTag then
-        myTag:Destroy()
+    if LocalPlayer and LocalPlayer:FindFirstChild("ServerClaimOwner") then
+        LocalPlayer.ServerClaimOwner:Destroy()
     end
 end
 
 local function GetClaimingPlayers()
     local claimingPlayers = {}
     for _, player in ipairs(Players:GetPlayers()) do
-        if player:FindFirstChild("ServerClaimOwner") then
+        if player and player:FindFirstChild("ServerClaimOwner") then
             table.insert(claimingPlayers, player)
         end
     end
@@ -164,6 +169,8 @@ local function GetClaimingPlayers()
 end
 
 local function ResolveClaimConflict()
+    if not LocalPlayer then return false end
+
     local count = #Players:GetPlayers()
 
     -- Reject claim immediately if player count requirements are not met (Must be 0-4)
@@ -199,7 +206,7 @@ local function ResolveClaimConflict()
     -- Conflict Resolution: Yield if another player holds claim and has a lower UserId
     if #claimingPlayers > 0 then
         for _, owner in ipairs(claimingPlayers) do
-            if owner ~= LocalPlayer then
+            if owner and owner ~= LocalPlayer then
                 if LocalPlayer.UserId > owner.UserId then
                     ClaimLabel.Text = "Claim Status: Yielded to " .. owner.Name
                     ClaimLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
