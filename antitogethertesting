@@ -1,4 +1,4 @@
--- V2.3
+-- V2.4
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
@@ -12,6 +12,20 @@ while not LocalPlayer do
 end
 
 local PlaceId = game.PlaceId
+local visitedServers = {} -- [JobId] = timestamp
+
+-- Cleanup visited list periodically
+task.spawn(function()
+    while true do
+        task.wait(60)
+        local now = os.time()
+        for jobId, timestamp in pairs(visitedServers) do
+            if now - timestamp > 300 then -- Expire after 5 minutes
+                visitedServers[jobId] = nil
+            end
+        end
+    end
+end)
 
 -- Executor HTTP compatibility check
 local requestFunc = nil
@@ -94,7 +108,7 @@ local function UpdateUI(statusText, color)
 end
 
 --------------------------------------------------------------------------------
--- REPLICATED CLAIM SYSTEM (FIXED CONFLICT LOGIC)
+-- REPLICATED CLAIM SYSTEM
 --------------------------------------------------------------------------------
 local hasPrintedClaim = false
 
@@ -117,24 +131,19 @@ local function ResolveClaimConflict()
         return false
     end
 
-    -- Check all other players for existing claim tags or lower UserIds
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
             local otherHasTag = player.Character:FindFirstChild("ServerClaimOwner") ~= nil
-            
-            -- If another player has claimed the server:
             if otherHasTag then
-                -- Direct conflict resolution: Lowest UserId wins
                 if LocalPlayer.UserId > player.UserId then
                     ClearClaimTag()
                     hasPrintedClaim = false
-                    return false -- Yield server to player with lower UserId
+                    return false
                 end
             end
         end
     end
 
-    -- Apply claim tag if no higher-priority claim exists
     if not char:FindFirstChild("ServerClaimOwner") then
         local tag = Instance.new("BoolValue")
         tag.Name = "ServerClaimOwner"
@@ -151,7 +160,7 @@ local function ResolveClaimConflict()
 end
 
 --------------------------------------------------------------------------------
--- SERVER FETCHING & HOPPING
+-- IMPROVED SERVER FETCHING & HOPPING
 --------------------------------------------------------------------------------
 local function fetchServers(cursor)
     local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
@@ -179,52 +188,34 @@ local function HopToLowServer()
 
     UpdateUI("Searching...", Color3.fromRGB(255, 180, 50))
 
-    local scanCount = 0
     while true do
-        scanCount = scanCount + 1
-        
-        local randomIndex = math.random(0, 299)
-        local targetSkipPages = math.floor(randomIndex / 100)
-
         local cursor = nil
         local candidates = {}
-        local currentPage = 0
 
         repeat
             local data = fetchServers(cursor)
             if data and data.data then
-                currentPage = currentPage + 1
-                
-                if currentPage >= targetSkipPages then
-                    for _, server in ipairs(data.data) do
-                        local validPlayerCount = server.playing >= 0 and server.playing <= 3
-                        local notCurrentServer = server.id ~= game.JobId
-                        local noInlineQueue = not server.queuedPlayers or #server.queuedPlayers == 0
+                for _, server in ipairs(data.data) do
+                    local validPlayerCount = server.playing >= 0 and server.playing <= 3
+                    local notCurrentServer = server.id ~= game.JobId
+                    local notVisited = not visitedServers[server.id]
+                    local noInlineQueue = not server.queuedPlayers or #server.queuedPlayers == 0
 
-                        if validPlayerCount and notCurrentServer and noInlineQueue then
-                            table.insert(candidates, server)
-                        end
+                    if validPlayerCount and notCurrentServer and notVisited and noInlineQueue then
+                        table.insert(candidates, server)
                     end
                 end
-                
                 cursor = data.nextPageCursor
             else
                 break
             end
-            task.wait(0.15)
-        until not cursor or #candidates >= 10
+            task.wait(0.1)
+        until not cursor or #candidates >= 15
 
         if #candidates > 0 then
-            local randomPool = {}
-            local candidateCopy = { unpack(candidates) }
-            
-            for i = 1, math.min(5, #candidateCopy) do
-                local pickIdx = math.random(1, #candidateCopy)
-                table.insert(randomPool, candidateCopy[pickIdx])
-                table.remove(candidateCopy, pickIdx)
-            end
-
-            local selectedServer = randomPool[math.random(1, #randomPool)]
+            -- Shuffle candidates to avoid picking the exact same target as other hop scripts
+            local selectedServer = candidates[math.random(1, #candidates)]
+            visitedServers[selectedServer.id] = os.time()
             
             UpdateUI("Teleporting...", Color3.fromRGB(100, 255, 100))
             
@@ -235,14 +226,25 @@ local function HopToLowServer()
             if not teleportSuccess then
                 UpdateUI("Teleport Failed", Color3.fromRGB(255, 80, 80))
                 isSearching = false
+                task.wait(1)
             end
             return
         end
 
         UpdateUI("Scanning...", Color3.fromRGB(255, 150, 50))
-        task.wait(1.5)
+        task.wait(1)
     end
 end
+
+-- Engine Teleport Error Handler
+TeleportService.TeleportInitFailed:Connect(function(player, teleportResult, errorMessage)
+    if player == LocalPlayer then
+        UpdateUI("Hop Cancelled", Color3.fromRGB(255, 80, 80))
+        isSearching = false
+        task.wait(1)
+        HopToLowServer()
+    end
+end)
 
 --------------------------------------------------------------------------------
 -- MONITORING LOOP
@@ -281,9 +283,7 @@ Players.PlayerAdded:Connect(function()
 end)
 
 task.spawn(function()
-    -- Stagger initial check slightly using UserId to prevent instant race conditions
     task.wait((LocalPlayer.UserId % 10) * 0.05)
-    
     while true do
         CheckAndHop()
         task.wait(0.5)
