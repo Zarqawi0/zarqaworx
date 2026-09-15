@@ -1,30 +1,48 @@
+-- V2.7
+
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
-while not LocalPlayer do
+while not LocalPlayer or not LocalPlayer.UserId do
     task.wait(0.1)
     LocalPlayer = Players.LocalPlayer
 end
 
 local PlaceId = game.PlaceId
+local CurrentJobId = game.JobId
+local visitedServers = {} -- [JobId] = timestamp
 
--- Executor HTTP compatibility check
-local requestFunc = nil
-if syn and syn.request then
-    requestFunc = syn.request
-elseif http and http.request then
-    requestFunc = http.request
-elseif http_request then
-    requestFunc = http_request
-elseif fluxus and fluxus.request then
-    requestFunc = fluxus.request
-elseif request then
-    requestFunc = request
-else
-    error("No supported HTTP request function found! 😢")
+--------------------------------------------------------------------------------
+-- JOBID DETERMINISTIC CLAIM SYSTEM
+--------------------------------------------------------------------------------
+local function IsCurrentServerClaimedByMe()
+    -- Ignore empty/invalid JobIds (e.g. Studio testing)
+    if not CurrentJobId or CurrentJobId == "" then return true end
+
+    local currentPlayers = Players:GetPlayers()
+    
+    -- If server is over limit (5+), nobody owns it
+    if #currentPlayers >= 5 then
+        return false
+    end
+
+    -- Determine ownership based on JobId seed + lowest UserId algorithm
+    -- This ensures all accounts running the script in this exact JobId agree on who stays
+    local lowestUserId = LocalPlayer.UserId
+
+    for _, player in ipairs(currentPlayers) do
+        if player and player.UserId then
+            if player.UserId < lowestUserId then
+                lowestUserId = player.UserId
+            end
+        end
+    end
+
+    -- If this LocalPlayer has the lowest UserId in this specific JobId server, we claim it
+    return LocalPlayer.UserId == lowestUserId
 end
 
 --------------------------------------------------------------------------------
@@ -34,12 +52,8 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ServerFinderUI"
 ScreenGui.ResetOnSpawn = false
 
-local successUI = pcall(function()
-    ScreenGui.Parent = CoreGui
-end)
-if not successUI then
-    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-end
+local successUI = pcall(function() ScreenGui.Parent = CoreGui end)
+if not successUI then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
@@ -92,82 +106,22 @@ local function UpdateUI(statusText, color)
 end
 
 --------------------------------------------------------------------------------
--- CHARACTER-BASED REPLICATED CLAIM SYSTEM
+-- HTTP EXECUTOR COMPATIBILITY
 --------------------------------------------------------------------------------
-local hasPrintedClaim = false
-
-local function ClearClaimTag()
-    if LocalPlayer and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("ServerClaimOwner") then
-        LocalPlayer.Character.ServerClaimOwner:Destroy()
-    end
-end
-
-local function GetClaimingPlayers()
-    local claimingPlayers = {}
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player and player.Character and player.Character:FindFirstChild("ServerClaimOwner") then
-            table.insert(claimingPlayers, player)
-        end
-    end
-    return claimingPlayers
-end
-
-local function ResolveClaimConflict()
-    if not LocalPlayer then return false end
-    
-    -- Wait briefly for Character workspace model to exist
-    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    if not char then return false end
-
-    local count = #Players:GetPlayers()
-    if count < 0 or count > 4 then
-        ClearClaimTag()
-        hasPrintedClaim = false
-        return false
-    end
-
-    local claimingPlayers = GetClaimingPlayers()
-
-    if #claimingPlayers == 0 then
-        if not char:FindFirstChild("ServerClaimOwner") then
-            local tag = Instance.new("BoolValue")
-            tag.Name = "ServerClaimOwner"
-            tag.Value = true
-            tag.Parent = char
-        end
-        
-        if not hasPrintedClaim then
-            hasPrintedClaim = true
-            print(string.format("[ServerFinder] Server CLAIMED by %s | Players: %d/5", LocalPlayer.Name, count))
-        end
-        return true
-    end
-
-    for _, owner in ipairs(claimingPlayers) do
-        if owner and owner ~= LocalPlayer then
-            if LocalPlayer.UserId > owner.UserId or owner.Character:FindFirstChild("ServerClaimOwner") then
-                ClearClaimTag()
-                hasPrintedClaim = false
-                return false
-            end
-        end
-    end
-
-    if not hasPrintedClaim then
-        hasPrintedClaim = true
-        print(string.format("[ServerFinder] Server CLAIMED by %s | Players: %d/5", LocalPlayer.Name, count))
-    end
-    return true
-end
+local requestFunc = nil
+if syn and syn.request then requestFunc = syn.request
+elseif http and http.request then requestFunc = http.request
+elseif http_request then requestFunc = http_request
+elseif fluxus and fluxus.request then requestFunc = fluxus.request
+elseif request then requestFunc = request
+else error("No supported HTTP request function found!") end
 
 --------------------------------------------------------------------------------
--- SERVER FETCHING & HOPPING (TARGET: 0-3 PLAYERS)
+-- SERVER HOPPER
 --------------------------------------------------------------------------------
 local function fetchServers(cursor)
     local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
-    if cursor then
-        url = url .. "&cursor=" .. cursor
-    end
+    if cursor then url = url .. "&cursor=" .. cursor end
     
     local success, response = pcall(function()
         return requestFunc({ Url = url, Method = "GET" })
@@ -189,68 +143,50 @@ local function HopToLowServer()
 
     UpdateUI("Searching...", Color3.fromRGB(255, 180, 50))
 
-    local scanCount = 0
     while true do
-        scanCount = scanCount + 1
-        
-        local randomIndex = math.random(0, 299)
-        local targetSkipPages = math.floor(randomIndex / 100)
-
         local cursor = nil
         local candidates = {}
-        local currentPage = 0
 
         repeat
             local data = fetchServers(cursor)
             if data and data.data then
-                currentPage = currentPage + 1
-                
-                if currentPage >= targetSkipPages then
-                    for _, server in ipairs(data.data) do
-                        local validPlayerCount = server.playing >= 0 and server.playing <= 3
-                        local notCurrentServer = server.id ~= game.JobId
-                        local noInlineQueue = not server.queuedPlayers or #server.queuedPlayers == 0
+                for _, server in ipairs(data.data) do
+                    local playingCount = tonumber(server.playing)
+                    local validPlayerCount = playingCount ~= nil and playingCount >= 0 and playingCount <= 3
+                    local notCurrentServer = server.id ~= CurrentJobId
+                    local notVisited = not visitedServers[server.id]
 
-                        if validPlayerCount and notCurrentServer and noInlineQueue then
-                            table.insert(candidates, server)
-                        end
+                    if validPlayerCount and notCurrentServer and notVisited then
+                        table.insert(candidates, server)
                     end
                 end
-                
                 cursor = data.nextPageCursor
             else
                 break
             end
-            task.wait(0.15)
-        until not cursor or #candidates >= 10
+            task.wait(0.1)
+        until not cursor or #candidates >= 15
 
         if #candidates > 0 then
-            local randomPool = {}
-            local candidateCopy = { unpack(candidates) }
-            
-            for i = 1, math.min(5, #candidateCopy) do
-                local pickIdx = math.random(1, #candidateCopy)
-                table.insert(randomPool, candidateCopy[pickIdx])
-                table.remove(candidateCopy, pickIdx)
-            end
-
-            local selectedServer = randomPool[math.random(1, #randomPool)]
+            local selectedServer = candidates[math.random(1, #candidates)]
+            visitedServers[selectedServer.id] = os.time()
             
             UpdateUI("Teleporting...", Color3.fromRGB(100, 255, 100))
             
-            local teleportSuccess, err = pcall(function()
+            local teleportSuccess = pcall(function()
                 TeleportService:TeleportToPlaceInstance(PlaceId, selectedServer.id, LocalPlayer)
             end)
 
             if not teleportSuccess then
                 UpdateUI("Teleport Failed", Color3.fromRGB(255, 80, 80))
                 isSearching = false
+                task.wait(1)
             end
             return
         end
 
         UpdateUI("Scanning...", Color3.fromRGB(255, 150, 50))
-        task.wait(1.5)
+        task.wait(1)
     end
 end
 
@@ -258,40 +194,40 @@ end
 -- MONITORING LOOP
 --------------------------------------------------------------------------------
 local function CheckAndHop()
-    local count = #Players:GetPlayers()
+    if isSearching then return end
 
+    local count = #Players:GetPlayers()
     if count >= 5 then
-        hasPrintedClaim = false
-        ClearClaimTag()
         UpdateUI("Hopping...", Color3.fromRGB(255, 80, 80))
         HopToLowServer()
         return
     end
 
-    local isClaimValid = ResolveClaimConflict()
-    if not isClaimValid then
-        UpdateUI("Server Claimed!", Color3.fromRGB(255, 80, 80))
-        task.wait(0.2)
+    local isOwner = IsCurrentServerClaimedByMe()
+
+    if not isOwner then
+        UpdateUI("Yielding JobId...", Color3.fromRGB(255, 80, 80))
+        task.wait(0.5)
         HopToLowServer()
-        return
     else
-        UpdateUI("Claimed", Color3.fromRGB(100, 255, 100))
+        UpdateUI("Claimed (" .. string.sub(CurrentJobId, 1, 6) .. ")", Color3.fromRGB(100, 255, 100))
     end
 end
 
-Players.PlayerRemoving:Connect(function()
-    hasPrintedClaim = false
-    task.wait(0.3)
+-- Monitor player events to re-evaluate ownership
+Players.PlayerAdded:Connect(function()
+    task.wait(0.2)
     CheckAndHop()
 end)
 
-Players.PlayerAdded:Connect(function()
+Players.PlayerRemoving:Connect(function()
+    task.wait(0.2)
     CheckAndHop()
 end)
 
 task.spawn(function()
     while true do
         CheckAndHop()
-        task.wait(0.5)
+        task.wait(1)
     end
 end)
