@@ -1,13 +1,13 @@
 --[[
 ================================================================================
-SERVER FINDER & HOPPER WITH NO-SPAM LOGGING & CONFLICT RESOLUTION
+SERVER FINDER & HOPPER WITH 0-3 TARGET & 0-4 CLAIM RANGE
 ================================================================================
 Rules Enforced:
-1. No Console Spam: Claim confirmation prints exactly ONCE upon state change.
-2. Anti-Script-Conflict: Lower UserId wins claim ties; higher UserId yields & hops.
-3. Claim Range: Claims server when player count is between 1 and 4.
-4. 5+ Player Hop: Auto-hops as soon as player count reaches 5 or more.
-5. Target Range: Exclusively searches and hops into servers with 1 to 3 players.
+1. Target Range: Exclusively searches and hops into servers with 0 to 3 players.
+2. Claim Range: Claims server when player count is between 0 and 4.
+3. 5+ Player Hop: Auto-hops as soon as player count reaches 5 or more.
+4. Anti-Script-Conflict: Lower UserId wins claim ties; higher UserId yields & hops.
+5. Console Spam Guard: Status and claim confirmation prints only upon state changes.
 ================================================================================
 ]]
 
@@ -119,7 +119,7 @@ local InfoLabel = Instance.new("TextLabel")
 InfoLabel.Size = UDim2.new(1, -20, 0, 20)
 InfoLabel.Position = UDim2.new(0, 10, 0, 102)
 InfoLabel.BackgroundTransparency = 1
-InfoLabel.Text = "Activity: Target 1-3 Players"
+InfoLabel.Text = "Activity: Target 0-3 Players"
 InfoLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
 InfoLabel.TextSize = 12
 InfoLabel.Font = Enum.Font.SourceSansItalic
@@ -141,7 +141,7 @@ local function UpdateUI(statusText, color, infoText)
 end
 
 --------------------------------------------------------------------------------
--- CLAIM & CONFLICT RESOLUTION SYSTEM (SPAM PREVENTION)
+-- CLAIM & CONFLICT RESOLUTION SYSTEM (0 TO 4 CLAIM RANGE)
 --------------------------------------------------------------------------------
 local hasPrintedClaim = false
 
@@ -159,9 +159,9 @@ local function ResolveClaimConflict()
     local claimingPlayers = GetClaimingPlayers()
     local count = #Players:GetPlayers()
 
-    -- If no player holds a claim and range is 1-4, attempt local claim
+    -- Attempt claim if no one holds it and player count is between 0 and 4
     if #claimingPlayers == 0 then
-        if count >= 1 and count <= 4 then
+        if count >= 0 and count <= 4 then
             if not LocalPlayer:FindFirstChild("ServerClaimOwner") then
                 local tag = Instance.new("BoolValue")
                 tag.Name = "ServerClaimOwner"
@@ -172,7 +172,6 @@ local function ResolveClaimConflict()
             ClaimLabel.Text = "Claim Status: Owned by YOU"
             ClaimLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
             
-            -- Print only ONCE when newly claimed
             if not hasPrintedClaim then
                 hasPrintedClaim = true
                 print(string.format("[ServerFinder] Server CLAIMED by %s | Players: %d/5", LocalPlayer.Name, count))
@@ -183,11 +182,10 @@ local function ResolveClaimConflict()
         return false
     end
 
-    -- Conflict Resolution: If another player holds a claim
+    -- Conflict Resolution: Yield if another player holds claim and has a lower UserId
     if #claimingPlayers > 0 then
         for _, owner in ipairs(claimingPlayers) do
             if owner ~= LocalPlayer then
-                -- Lower UserId wins tie-breaker
                 if LocalPlayer.UserId > owner.UserId then
                     ClaimLabel.Text = "Claim Status: Yielded to " .. owner.Name
                     ClaimLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
@@ -195,14 +193,14 @@ local function ResolveClaimConflict()
                     local myTag = LocalPlayer:FindFirstChild("ServerClaimOwner")
                     if myTag then myTag:Destroy() end
                     hasPrintedClaim = false
-                    return false -- Conflict lost
+                    return false
                 end
             end
         end
     end
 
-    -- LocalPlayer holds the valid claim
-    ClaimLabel.Text = "Claim Status: Claimed"
+    -- LocalPlayer holds valid claim
+    ClaimLabel.Text = "Claim Status: Owned by YOU"
     ClaimLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
     if not hasPrintedClaim then
         hasPrintedClaim = true
@@ -212,7 +210,7 @@ local function ResolveClaimConflict()
 end
 
 --------------------------------------------------------------------------------
--- SERVER FETCHING & HOPPING (STRICT 1-3 PLAYER TARGET)
+-- SERVER FETCHING & HOPPING (STRICT 0-3 PLAYER TARGET RANGE)
 --------------------------------------------------------------------------------
 local function fetchServers(cursor)
     local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
@@ -238,7 +236,7 @@ local function HopToLowServer()
     if isSearching then return end
     isSearching = true
 
-    UpdateUI("Searching 1-3 Player Server...", Color3.fromRGB(255, 180, 50), "Scanning candidate list...")
+    UpdateUI("Searching 0-3 Player Server...", Color3.fromRGB(255, 180, 50), "Scanning candidate list...")
 
     local scanCount = 0
     while true do
@@ -258,7 +256,8 @@ local function HopToLowServer()
                 
                 if currentPage >= pageSkipTarget then
                     for _, server in ipairs(data.data) do
-                        if server.playing >= 1 and server.playing <= 3 and server.id ~= game.JobId then
+                        -- Enforces target range: 0 to 3 players
+                        if server.playing >= 0 and server.playing <= 3 and server.id ~= game.JobId then
                             table.insert(candidates, server)
                         end
                     end
@@ -290,7 +289,7 @@ local function HopToLowServer()
             return
         end
 
-        UpdateUI("No 1-3 Player Server", Color3.fromRGB(255, 150, 50), "Retrying scan in 1.5s...")
+        UpdateUI("No 0-3 Player Server", Color3.fromRGB(255, 150, 50), "Retrying scan in 1.5s...")
         task.wait(1.5)
     end
 end
@@ -317,7 +316,7 @@ local function CheckAndHop()
         HopToLowServer()
         return
     else
-        if count >= 1 and count <= 4 then
+        if count >= 0 and count <= 4 then
             UpdateUI("Monitoring", Color3.fromRGB(100, 255, 100), "Server safe and claimed. Waiting...")
         end
     end
