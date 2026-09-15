@@ -1,90 +1,47 @@
--- V2.7
-
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
-local TextChatService = game:GetService("TextChatService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LocalPlayer = Players.LocalPlayer
-while not LocalPlayer do
+while not LocalPlayer or not LocalPlayer.UserId do
     task.wait(0.1)
     LocalPlayer = Players.LocalPlayer
 end
 
 local PlaceId = game.PlaceId
+local CurrentJobId = game.JobId
 local visitedServers = {} -- [JobId] = timestamp
 
 --------------------------------------------------------------------------------
--- HIDDEN CHAT-BASED CLAIM NETWORK
+-- JOBID DETERMINISTIC CLAIM SYSTEM
 --------------------------------------------------------------------------------
-local CLAIM_PREFIX = "[CROWNED_HUB_CLAIM]:"
-local serverOwnerUserId = nil
-local myClaimTime = os.clock()
+local function IsCurrentServerClaimedByMe()
+    -- Ignore empty/invalid JobIds (e.g. Studio testing)
+    if not CurrentJobId or CurrentJobId == "" then return true end
 
--- HIDE CLAIM MESSAGES FROM LOCAL CHAT WINDOW
-if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
-    TextChatService.OnIncomingMessage = function(message: TextChatMessage)
-        local props = Instance.new("TextChatMessageProperties")
-        if message.Text:find(CLAIM_PREFIX, 1, true) then
-            -- Make message invisible in the chat UI
-            props.Text = ""
-            props.PrefixText = ""
-        end
-        return props
-    end
-end
-
--- Broadcast claim safely
-local function BroadcastClaim()
-    local message = CLAIM_PREFIX .. tostring(LocalPlayer.UserId) .. ":" .. tostring(myClaimTime)
+    local currentPlayers = Players:GetPlayers()
     
-    if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
-        local generalChannel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
-        if generalChannel then
-            pcall(function() generalChannel:SendAsync(message) end)
-        end
-    else
-        -- Legacy Chat System
-        local defaultChatSystemChatEvents = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
-        if defaultChatSystemChatEvents then
-            local sayMessageRequest = defaultChatSystemChatEvents:FindFirstChild("SayMessageRequest")
-            if sayMessageRequest then
-                pcall(function() sayMessageRequest:FireServer(message, "All") end)
+    -- If server is over limit (5+), nobody owns it
+    if #currentPlayers >= 5 then
+        return false
+    end
+
+    -- Determine ownership based on JobId seed + lowest UserId algorithm
+    -- This ensures all accounts running the script in this exact JobId agree on who stays
+    local lowestUserId = LocalPlayer.UserId
+
+    for _, player in ipairs(currentPlayers) do
+        if player and player.UserId then
+            if player.UserId < lowestUserId then
+                lowestUserId = player.UserId
             end
         end
     end
-end
 
--- Process incoming claim messages
-local function ProcessClaimMessage(sender, message)
-    if not message:find(CLAIM_PREFIX, 1, true) then return end
-    
-    local parts = string.split(message, ":")
-    if #parts >= 3 then
-        local senderUserId = tonumber(parts[2])
-        local senderClaimTime = tonumber(parts[3])
-
-        if senderUserId and senderClaimTime then
-            if senderClaimTime < myClaimTime or (senderClaimTime == myClaimTime and senderUserId < LocalPlayer.UserId) then
-                serverOwnerUserId = senderUserId
-            end
-        end
-    end
+    -- If this LocalPlayer has the lowest UserId in this specific JobId server, we claim it
+    return LocalPlayer.UserId == lowestUserId
 end
-
--- Listen for player chats
-local function RegisterChatListener(player)
-    player.Chatted:Connect(function(msg)
-        ProcessClaimMessage(player, msg)
-    end)
-end
-
-for _, player in ipairs(Players:GetPlayers()) do
-    RegisterChatListener(player)
-end
-Players.PlayerAdded:Connect(RegisterChatListener)
 
 --------------------------------------------------------------------------------
 -- STATUS UI CREATION
@@ -194,7 +151,7 @@ local function HopToLowServer()
                 for _, server in ipairs(data.data) do
                     local playingCount = tonumber(server.playing)
                     local validPlayerCount = playingCount ~= nil and playingCount >= 0 and playingCount <= 3
-                    local notCurrentServer = server.id ~= game.JobId
+                    local notCurrentServer = server.id ~= CurrentJobId
                     local notVisited = not visitedServers[server.id]
 
                     if validPlayerCount and notCurrentServer and notVisited then
@@ -244,19 +201,27 @@ local function CheckAndHop()
         return
     end
 
-    -- Send silent claim message
-    BroadcastClaim()
-    task.wait(0.3)
+    local isOwner = IsCurrentServerClaimedByMe()
 
-    if serverOwnerUserId and serverOwnerUserId ~= LocalPlayer.UserId then
-        UpdateUI("Yielding Server...", Color3.fromRGB(255, 80, 80))
+    if not isOwner then
+        UpdateUI("Yielding JobId...", Color3.fromRGB(255, 80, 80))
         task.wait(0.5)
         HopToLowServer()
     else
-        serverOwnerUserId = LocalPlayer.UserId
-        UpdateUI("Claimed", Color3.fromRGB(100, 255, 100))
+        UpdateUI("Claimed (" .. string.sub(CurrentJobId, 1, 6) .. ")", Color3.fromRGB(100, 255, 100))
     end
 end
+
+-- Monitor player events to re-evaluate ownership
+Players.PlayerAdded:Connect(function()
+    task.wait(0.2)
+    CheckAndHop()
+end)
+
+Players.PlayerRemoving:Connect(function()
+    task.wait(0.2)
+    CheckAndHop()
+end)
 
 task.spawn(function()
     while true do
