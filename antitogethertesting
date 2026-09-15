@@ -1,4 +1,4 @@
--- V2.5
+-- v2.6
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
@@ -108,7 +108,7 @@ local function UpdateUI(statusText, color)
 end
 
 --------------------------------------------------------------------------------
--- REPLICATED CLAIM SYSTEM (SAFE FROM NIL ERRORS)
+-- REPLICATED CLAIM SYSTEM
 --------------------------------------------------------------------------------
 local hasPrintedClaim = false
 
@@ -160,7 +160,7 @@ local function ResolveClaimConflict()
 end
 
 --------------------------------------------------------------------------------
--- IMPROVED SERVER FETCHING & HOPPING
+-- SERVER FETCHING & HOPPING
 --------------------------------------------------------------------------------
 local function fetchServers(cursor)
     local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
@@ -235,7 +235,6 @@ local function HopToLowServer()
     end
 end
 
--- Engine Teleport Error Handler
 TeleportService.TeleportInitFailed:Connect(function(player, teleportResult, errorMessage)
     if player == LocalPlayer then
         UpdateUI("Hop Cancelled", Color3.fromRGB(255, 80, 80))
@@ -270,6 +269,11 @@ local function CheckAndHop()
     end
 end
 
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    CheckAndHop()
+end)
+
 Players.PlayerRemoving:Connect(function()
     hasPrintedClaim = false
     task.wait(0.3)
@@ -282,7 +286,6 @@ Players.PlayerAdded:Connect(function()
 end)
 
 task.spawn(function()
-    -- Stagger initial check using UserId to prevent instant race conditions
     task.wait((LocalPlayer.UserId % 10) * 0.05)
     while true do
         CheckAndHop()
