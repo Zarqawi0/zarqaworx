@@ -1,12 +1,17 @@
 local HttpService = game:GetService("HttpService")
-local TweenService = game:GetService("TweenService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
+while not LocalPlayer do
+    task.wait(0.1)
+    LocalPlayer = Players.LocalPlayer
+end
+
 local PlaceId = game.PlaceId
 
--- Identify supported HTTP request function
+-- Executor HTTP compatibility check
 local requestFunc = nil
 if syn and syn.request then
     requestFunc = syn.request
@@ -23,130 +28,140 @@ else
 end
 
 --------------------------------------------------------------------------------
--- STATUS GUI CREATION (BOTTOM CENTER)
+-- STATUS UI CREATION
 --------------------------------------------------------------------------------
-local OldUI = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("ServerHopStatusGui")
-if OldUI then OldUI:Destroy() end
-
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ServerHopStatusGui"
+ScreenGui.Name = "ServerFinderUI"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local successUI = pcall(function()
+    ScreenGui.Parent = CoreGui
+end)
+if not successUI then
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.Size = UDim2.new(0, 160, 0, 48)
+MainFrame.Position = UDim2.new(0.5, -80, 0.90, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 35, 15)
+MainFrame.BackgroundTransparency = 0.25
 MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.5, -160, 1, -85)
-MainFrame.Size = UDim2.new(0, 320, 0, 75)
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
 
 local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.CornerRadius = UDim.new(0, 6)
 UICorner.Parent = MainFrame
 
-local UIStroke = Instance.new("UIStroke")
-UIStroke.Thickness = 1.5
-UIStroke.Color = Color3.fromRGB(80, 80, 80)
-UIStroke.Parent = MainFrame
-
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Name = "TitleLabel"
-TitleLabel.Parent = MainFrame
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.Position = UDim2.new(0.05, 0, 0.08, 0)
-TitleLabel.Size = UDim2.new(0.9, 0, 0.3, 0)
-TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.Text = "SERVER MONITOR ⚡"
-TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.TextSize = 14
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local PlayerCountLabel = Instance.new("TextLabel")
-PlayerCountLabel.Name = "PlayerCountLabel"
-PlayerCountLabel.Parent = MainFrame
-PlayerCountLabel.BackgroundTransparency = 1
-PlayerCountLabel.Position = UDim2.new(0.05, 0, 0.38, 0)
-PlayerCountLabel.Size = UDim2.new(0.9, 0, 0.25, 0)
-PlayerCountLabel.Font = Enum.Font.Gotham
-PlayerCountLabel.Text = "Players: 0"
-PlayerCountLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-PlayerCountLabel.TextSize = 12
-PlayerCountLabel.TextXAlignment = Enum.TextXAlignment.Left
-
 local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Name = "StatusLabel"
-StatusLabel.Parent = MainFrame
+StatusLabel.Size = UDim2.new(1, -16, 0, 18)
+StatusLabel.Position = UDim2.new(0, 8, 0, 5)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Position = UDim2.new(0.05, 0, 0.65, 0)
-StatusLabel.Size = UDim2.new(0.9, 0, 0.25, 0)
-StatusLabel.Font = Enum.Font.GothamSemibold
 StatusLabel.Text = "Status: Initializing..."
-StatusLabel.TextColor3 = Color3.fromRGB(0, 200, 255)
-StatusLabel.TextSize = 12
+StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+StatusLabel.TextSize = 13
+StatusLabel.Font = Enum.Font.SourceSansBold
 StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+StatusLabel.Parent = MainFrame
 
-local function UpdateUI(statusText, statusColor)
-    StatusLabel.Text = "Status: " .. statusText
-    if statusColor then
-        StatusLabel.TextColor3 = statusColor
+local PlayersLabel = Instance.new("TextLabel")
+PlayersLabel.Size = UDim2.new(1, -16, 0, 18)
+PlayersLabel.Position = UDim2.new(0, 8, 0, 25)
+PlayersLabel.BackgroundTransparency = 1
+PlayersLabel.Text = "Players: 0 / 5"
+PlayersLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+PlayersLabel.TextSize = 13
+PlayersLabel.Font = Enum.Font.SourceSansBold
+PlayersLabel.TextXAlignment = Enum.TextXAlignment.Left
+PlayersLabel.Parent = MainFrame
+
+local function UpdateUI(statusText, color)
+    if statusText then StatusLabel.Text = "Status: " .. statusText end
+    if color then StatusLabel.TextColor3 = color end
+    
+    local count = #Players:GetPlayers()
+    PlayersLabel.Text = string.format("Players: %d / 5", count)
+    if count >= 5 then
+        PlayersLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    else
+        PlayersLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
     end
-    PlayerCountLabel.Text = string.format("Current Players: %d (Max limit: 5)", #Players:GetPlayers())
-    print(string.format("[ServerFinder] %s | Players: %d", statusText, #Players:GetPlayers()))
 end
 
 --------------------------------------------------------------------------------
--- CLAIM & UNCLAIM TRACKING SYSTEM
+-- CHARACTER-BASED REPLICATED CLAIM SYSTEM
 --------------------------------------------------------------------------------
-local currentClaimOwner = nil
+local hasPrintedClaim = false
 
--- Check if anyone in the server is currently holding the claim tag
-local function CheckClaimStatus()
+local function ClearClaimTag()
+    if LocalPlayer and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("ServerClaimOwner") then
+        LocalPlayer.Character.ServerClaimOwner:Destroy()
+    end
+end
+
+local function GetClaimingPlayers()
+    local claimingPlayers = {}
     for _, player in ipairs(Players:GetPlayers()) do
-        if player:FindFirstChild("ServerClaimOwner") then
-            return player
+        if player and player.Character and player.Character:FindFirstChild("ServerClaimOwner") then
+            table.insert(claimingPlayers, player)
         end
     end
-    return nil
+    return claimingPlayers
 end
 
--- Claim the server for LocalPlayer
-local function ClaimServer()
-    if not LocalPlayer:FindFirstChild("ServerClaimOwner") then
-        local tag = Instance.new("BoolValue")
-        tag.Name = "ServerClaimOwner"
-        tag.Value = true
-        tag.Parent = LocalPlayer
-    end
-    currentClaimOwner = LocalPlayer
-    UpdateUI("Server claimed! Monitoring...", Color3.fromRGB(0, 200, 255))
-    print("[ServerFinder] LocalPlayer HAS CLAIMED THIS SERVER.")
-end
-
--- Handle server claim transfers when players leave
-Players.PlayerRemoving:Connect(function(leavingPlayer)
-    print(string.format("[ServerFinder] Player left: %s", leavingPlayer.Name))
+local function ResolveClaimConflict()
+    if not LocalPlayer then return false end
     
-    -- Check if the player who left was the owner of the server claim
-    if leavingPlayer == currentClaimOwner or leavingPlayer:FindFirstChild("ServerClaimOwner") then
-        print("[ServerFinder] The claim owner HAS LEFT the server! Server is now UNCLAIMED.")
-        currentClaimOwner = nil
+    -- Wait briefly for Character workspace model to exist
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    if not char then return false end
+
+    local count = #Players:GetPlayers()
+    if count < 0 or count > 4 then
+        ClearClaimTag()
+        hasPrintedClaim = false
+        return false
+    end
+
+    local claimingPlayers = GetClaimingPlayers()
+
+    if #claimingPlayers == 0 then
+        if not char:FindFirstChild("ServerClaimOwner") then
+            local tag = Instance.new("BoolValue")
+            tag.Name = "ServerClaimOwner"
+            tag.Value = true
+            tag.Parent = char
+        end
         
-        -- Try to claim it for yourself if the server is still safe (< 5 players)
-        task.wait(0.5)
-        if #Players:GetPlayers() < 5 then
-            ClaimServer()
+        if not hasPrintedClaim then
+            hasPrintedClaim = true
+            print(string.format("[ServerFinder] Server CLAIMED by %s | Players: %d/5", LocalPlayer.Name, count))
+        end
+        return true
+    end
+
+    for _, owner in ipairs(claimingPlayers) do
+        if owner and owner ~= LocalPlayer then
+            if LocalPlayer.UserId > owner.UserId or owner.Character:FindFirstChild("ServerClaimOwner") then
+                ClearClaimTag()
+                hasPrintedClaim = false
+                return false
+            end
         end
     end
-    
-    task.wait(0.1)
-    if #Players:GetPlayers() >= 5 then
-        UpdateUI("Server reached 5+ players! Hopping...", Color3.fromRGB(255, 100, 100))
+
+    if not hasPrintedClaim then
+        hasPrintedClaim = true
+        print(string.format("[ServerFinder] Server CLAIMED by %s | Players: %d/5", LocalPlayer.Name, count))
     end
-end)
+    return true
+end
 
 --------------------------------------------------------------------------------
--- SERVER FETCHING WITH RANDOM INDEX & BATCH SELECTION
+-- SERVER FETCHING & HOPPING (TARGET: 0-3 PLAYERS)
 --------------------------------------------------------------------------------
 local function fetchServers(cursor)
     local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
@@ -172,25 +187,31 @@ local function HopToLowServer()
     if isSearching then return end
     isSearching = true
 
+    UpdateUI("Searching...", Color3.fromRGB(255, 180, 50))
+
     local scanCount = 0
     while true do
         scanCount = scanCount + 1
+        
+        local randomIndex = math.random(0, 299)
+        local targetSkipPages = math.floor(randomIndex / 100)
+
         local cursor = nil
         local candidates = {}
-        
-        local pageSkipTarget = math.random(0, 3) 
         local currentPage = 0
-
-        UpdateUI(string.format("Scanning (Pass #%d | Page #%d)...", scanCount, pageSkipTarget), Color3.fromRGB(255, 180, 0))
 
         repeat
             local data = fetchServers(cursor)
             if data and data.data then
                 currentPage = currentPage + 1
                 
-                if currentPage >= pageSkipTarget then
+                if currentPage >= targetSkipPages then
                     for _, server in ipairs(data.data) do
-                        if server.playing >= 1 and server.playing <= 3 and server.id ~= game.JobId then
+                        local validPlayerCount = server.playing >= 0 and server.playing <= 3
+                        local notCurrentServer = server.id ~= game.JobId
+                        local noInlineQueue = not server.queuedPlayers or #server.queuedPlayers == 0
+
+                        if validPlayerCount and notCurrentServer and noInlineQueue then
                             table.insert(candidates, server)
                         end
                     end
@@ -201,52 +222,76 @@ local function HopToLowServer()
                 break
             end
             task.wait(0.15)
-        until not cursor or #candidates >= 5
+        until not cursor or #candidates >= 10
 
         if #candidates > 0 then
-            local randomIndex = math.random(1, math.min(#candidates, 5))
-            local selectedServer = candidates[randomIndex]
+            local randomPool = {}
+            local candidateCopy = { unpack(candidates) }
             
-            UpdateUI(string.format("Selected server (%d players)! Teleporting...", selectedServer.playing), Color3.fromRGB(0, 255, 120))
-            print(string.format("[ServerFinder] Teleporting to Server ID: %s (%d players)", tostring(selectedServer.id), selectedServer.playing))
+            for i = 1, math.min(5, #candidateCopy) do
+                local pickIdx = math.random(1, #candidateCopy)
+                table.insert(randomPool, candidateCopy[pickIdx])
+                table.remove(candidateCopy, pickIdx)
+            end
+
+            local selectedServer = randomPool[math.random(1, #randomPool)]
             
-            TeleportService:TeleportToPlaceInstance(PlaceId, selectedServer.id, LocalPlayer)
+            UpdateUI("Teleporting...", Color3.fromRGB(100, 255, 100))
+            
+            local teleportSuccess, err = pcall(function()
+                TeleportService:TeleportToPlaceInstance(PlaceId, selectedServer.id, LocalPlayer)
+            end)
+
+            if not teleportSuccess then
+                UpdateUI("Teleport Failed", Color3.fromRGB(255, 80, 80))
+                isSearching = false
+            end
             return
         end
 
-        UpdateUI("No suitable 1-3 player server found. Retrying...", Color3.fromRGB(255, 80, 80))
+        UpdateUI("Scanning...", Color3.fromRGB(255, 150, 50))
         task.wait(1.5)
     end
 end
 
+--------------------------------------------------------------------------------
+-- MONITORING LOOP
+--------------------------------------------------------------------------------
 local function CheckAndHop()
     local count = #Players:GetPlayers()
-    PlayerCountLabel.Text = string.format("Current Players: %d (Max limit: 5)", count)
 
     if count >= 5 then
-        UpdateUI("Server reached 5+ players! Hopping...", Color3.fromRGB(255, 100, 100))
+        hasPrintedClaim = false
+        ClearClaimTag()
+        UpdateUI("Hopping...", Color3.fromRGB(255, 80, 80))
         HopToLowServer()
         return
     end
 
-    -- Dynamic Claim Check
-    local existingOwner = CheckClaimStatus()
-    if existingOwner and existingOwner ~= LocalPlayer then
-        UpdateUI(string.format("Server claimed by %s! Hopping...", existingOwner.Name), Color3.fromRGB(255, 80, 80))
-        print(string.format("[ServerFinder] Server currently claimed by %s. Hopping away...", existingOwner.Name))
-        task.wait(0.5)
+    local isClaimValid = ResolveClaimConflict()
+    if not isClaimValid then
+        UpdateUI("Server Claimed!", Color3.fromRGB(255, 80, 80))
+        task.wait(0.2)
         HopToLowServer()
+        return
     else
-        ClaimServer()
+        UpdateUI("Claimed", Color3.fromRGB(100, 255, 100))
     end
 end
 
--- Initialize Monitoring
-task.spawn(function()
-    task.wait(1)
+Players.PlayerRemoving:Connect(function()
+    hasPrintedClaim = false
+    task.wait(0.3)
     CheckAndHop()
 end)
 
 Players.PlayerAdded:Connect(function()
     CheckAndHop()
+end)
+
+task.spawn(function()
+    while true do
+        CheckAndHop()
+        task.wait(0.5)
+    end
 end)
