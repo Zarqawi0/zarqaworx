@@ -1,13 +1,14 @@
 --[[
 ================================================================================
-SERVER FINDER & HOPPER WITH 0-3 TARGET & 0-4 CLAIM RANGE
+SERVER FINDER & HOPPER WITH STRICT CONDITION CHECKING
 ================================================================================
 Rules Enforced:
 1. Target Range: Exclusively searches and hops into servers with 0 to 3 players.
-2. Claim Range: Claims server when player count is between 0 and 4.
-3. 5+ Player Hop: Auto-hops as soon as player count reaches 5 or more.
-4. Anti-Script-Conflict: Lower UserId wins claim ties; higher UserId yields & hops.
-5. Console Spam Guard: Status and claim confirmation prints only upon state changes.
+2. Claim Range: Claims server ONLY when player count is between 0 and 4.
+3. No Invalid Claims: Automatically revokes/prevents claims if requirements aren't met.
+4. 5+ Player Hop: Auto-hops as soon as player count reaches 5 or more.
+5. Anti-Script-Conflict: Lower UserId wins claim ties; higher UserId yields & hops.
+6. Console Spam Guard: Status and claim confirmation prints only upon state changes.
 ================================================================================
 ]]
 
@@ -141,9 +142,16 @@ local function UpdateUI(statusText, color, infoText)
 end
 
 --------------------------------------------------------------------------------
--- CLAIM & CONFLICT RESOLUTION SYSTEM (0 TO 4 CLAIM RANGE)
+-- CLAIM & CONFLICT RESOLUTION SYSTEM (STRICT REQUIREMENTS)
 --------------------------------------------------------------------------------
 local hasPrintedClaim = false
+
+local function ClearClaimTag()
+    local myTag = LocalPlayer:FindFirstChild("ServerClaimOwner")
+    if myTag then
+        myTag:Destroy()
+    end
+end
 
 local function GetClaimingPlayers()
     local claimingPlayers = {}
@@ -156,30 +164,36 @@ local function GetClaimingPlayers()
 end
 
 local function ResolveClaimConflict()
-    local claimingPlayers = GetClaimingPlayers()
     local count = #Players:GetPlayers()
 
-    -- Attempt claim if no one holds it and player count is between 0 and 4
-    if #claimingPlayers == 0 then
-        if count >= 0 and count <= 4 then
-            if not LocalPlayer:FindFirstChild("ServerClaimOwner") then
-                local tag = Instance.new("BoolValue")
-                tag.Name = "ServerClaimOwner"
-                tag.Value = true
-                tag.Parent = LocalPlayer
-            end
-            
-            ClaimLabel.Text = "Claim Status: Owned by YOU"
-            ClaimLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-            
-            if not hasPrintedClaim then
-                hasPrintedClaim = true
-                print(string.format("[ServerFinder] Server CLAIMED by %s | Players: %d/5", LocalPlayer.Name, count))
-            end
-            return true
-        end
+    -- Reject claim immediately if player count requirements are not met (Must be 0-4)
+    if count < 0 or count > 4 then
+        ClearClaimTag()
+        ClaimLabel.Text = "Claim Status: Unclaimed (Invalid Count)"
+        ClaimLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
         hasPrintedClaim = false
         return false
+    end
+
+    local claimingPlayers = GetClaimingPlayers()
+
+    -- Attempt claim if no one holds it and conditions are met
+    if #claimingPlayers == 0 then
+        if not LocalPlayer:FindFirstChild("ServerClaimOwner") then
+            local tag = Instance.new("BoolValue")
+            tag.Name = "ServerClaimOwner"
+            tag.Value = true
+            tag.Parent = LocalPlayer
+        end
+        
+        ClaimLabel.Text = "Claim Status: Owned by YOU"
+        ClaimLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+        
+        if not hasPrintedClaim then
+            hasPrintedClaim = true
+            print(string.format("[ServerFinder] Server CLAIMED by %s | Players: %d/5", LocalPlayer.Name, count))
+        end
+        return true
     end
 
     -- Conflict Resolution: Yield if another player holds claim and has a lower UserId
@@ -190,8 +204,7 @@ local function ResolveClaimConflict()
                     ClaimLabel.Text = "Claim Status: Yielded to " .. owner.Name
                     ClaimLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
                     
-                    local myTag = LocalPlayer:FindFirstChild("ServerClaimOwner")
-                    if myTag then myTag:Destroy() end
+                    ClearClaimTag()
                     hasPrintedClaim = false
                     return false
                 end
@@ -256,7 +269,6 @@ local function HopToLowServer()
                 
                 if currentPage >= pageSkipTarget then
                     for _, server in ipairs(data.data) do
-                        -- Enforces target range: 0 to 3 players
                         if server.playing >= 0 and server.playing <= 3 and server.id ~= game.JobId then
                             table.insert(candidates, server)
                         end
@@ -303,6 +315,7 @@ local function CheckAndHop()
     -- 1. Immediate Hop if server reaches 5 or more players
     if count >= 5 then
         hasPrintedClaim = false
+        ClearClaimTag()
         UpdateUI("Hopping Server", Color3.fromRGB(255, 80, 80), string.format("Player count reached %d (>= 5)", count))
         HopToLowServer()
         return
@@ -310,7 +323,7 @@ local function CheckAndHop()
 
     -- 2. Resolve claims and script conflicts
     local isClaimValid = ResolveClaimConflict()
-    if not isClaimValid and count >= 1 then
+    if not isClaimValid and count >= 1 and count <= 4 then
         UpdateUI("Script Conflict!", Color3.fromRGB(255, 80, 80), "Other script user detected - Hopping...")
         task.wait(0.2)
         HopToLowServer()
