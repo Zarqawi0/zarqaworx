@@ -1,4 +1,4 @@
--- V2.7
+-- V2.8 (Fixed UI Counter Desync & Server Search Deadlocks)
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
@@ -19,20 +19,14 @@ local visitedServers = {} -- [JobId] = timestamp
 -- JOBID DETERMINISTIC CLAIM SYSTEM
 --------------------------------------------------------------------------------
 local function IsCurrentServerClaimedByMe()
-    -- Ignore empty/invalid JobIds (e.g. Studio testing)
     if not CurrentJobId or CurrentJobId == "" then return true end
 
     local currentPlayers = Players:GetPlayers()
-    
-    -- If server is over limit (5+), nobody owns it
     if #currentPlayers >= 5 then
         return false
     end
 
-    -- Determine ownership based on JobId seed + lowest UserId algorithm
-    -- This ensures all accounts running the script in this exact JobId agree on who stays
     local lowestUserId = LocalPlayer.UserId
-
     for _, player in ipairs(currentPlayers) do
         if player and player.UserId then
             if player.UserId < lowestUserId then
@@ -41,7 +35,6 @@ local function IsCurrentServerClaimedByMe()
         end
     end
 
-    -- If this LocalPlayer has the lowest UserId in this specific JobId server, we claim it
     return LocalPlayer.UserId == lowestUserId
 end
 
@@ -92,10 +85,7 @@ PlayersLabel.Font = Enum.Font.SourceSansBold
 PlayersLabel.TextXAlignment = Enum.TextXAlignment.Left
 PlayersLabel.Parent = MainFrame
 
-local function UpdateUI(statusText, color)
-    if statusText then StatusLabel.Text = "Status: " .. statusText end
-    if color then StatusLabel.TextColor3 = color end
-    
+local function RefreshPlayerCount()
     local count = #Players:GetPlayers()
     PlayersLabel.Text = string.format("Players: %d / 5", count)
     if count >= 5 then
@@ -103,6 +93,13 @@ local function UpdateUI(statusText, color)
     else
         PlayersLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
     end
+    return count
+end
+
+local function UpdateUI(statusText, color)
+    if statusText then StatusLabel.Text = "Status: " .. statusText end
+    if color then StatusLabel.TextColor3 = color end
+    RefreshPlayerCount()
 end
 
 --------------------------------------------------------------------------------
@@ -137,13 +134,14 @@ local function fetchServers(cursor)
 end
 
 local isSearching = false
+
 local function HopToLowServer()
     if isSearching then return end
     isSearching = true
 
     UpdateUI("Searching...", Color3.fromRGB(255, 180, 50))
 
-    while true do
+    while isSearching do
         local cursor = nil
         local candidates = {}
 
@@ -177,12 +175,21 @@ local function HopToLowServer()
                 TeleportService:TeleportToPlaceInstance(PlaceId, selectedServer.id, LocalPlayer)
             end)
 
+            -- If teleport failed or stayed stuck over 6 seconds, reset lock to allow re-scanning
+            task.delay(6, function()
+                if isSearching then
+                    isSearching = false
+                    UpdateUI("Retrying Hop...", Color3.fromRGB(255, 80, 80))
+                end
+            end)
+
             if not teleportSuccess then
                 UpdateUI("Teleport Failed", Color3.fromRGB(255, 80, 80))
                 isSearching = false
                 task.wait(1)
+            else
+                return
             end
-            return
         end
 
         UpdateUI("Scanning...", Color3.fromRGB(255, 150, 50))
@@ -191,9 +198,16 @@ local function HopToLowServer()
 end
 
 --------------------------------------------------------------------------------
--- MONITORING LOOP
+-- MONITORING LOOP & EVENTS
 --------------------------------------------------------------------------------
+-- Dynamic TeleportInit error listener to catch failed attempts
+TeleportService.TeleportInitFailed:Connect(function()
+    isSearching = false
+    UpdateUI("Teleport Failed", Color3.fromRGB(255, 80, 80))
+end)
+
 local function CheckAndHop()
+    RefreshPlayerCount()
     if isSearching then return end
 
     local count = #Players:GetPlayers()
@@ -210,18 +224,17 @@ local function CheckAndHop()
         task.wait(0.5)
         HopToLowServer()
     else
-        UpdateUI("Claimed (" .. string.sub(CurrentJobId, 1, 6) .. ")", Color3.fromRGB(100, 255, 100))
+        UpdateUI("Claimed (" .. string.sub(tostring(CurrentJobId), 1, 6) .. ")", Color3.fromRGB(100, 255, 100))
     end
 end
 
--- Monitor player events to re-evaluate ownership
 Players.PlayerAdded:Connect(function()
-    task.wait(0.2)
+    task.wait(0.1)
     CheckAndHop()
 end)
 
 Players.PlayerRemoving:Connect(function()
-    task.wait(0.2)
+    task.wait(0.1)
     CheckAndHop()
 end)
 
