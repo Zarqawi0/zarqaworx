@@ -1,14 +1,15 @@
 --[[
 ================================================================================
-SERVER FINDER & HOPPER WITH NIL-GUARDS & STRICT REQUIREMENTS
+SERVER FINDER & HOPPER WITH RANDOM INDEX & DYNAMIC CLAIM SCANNING
 ================================================================================
-Rules Enforced:
-1. Target Range: Exclusively searches and hops into servers with 0 to 3 players.
-2. Claim Range: Claims server ONLY when player count is between 0 and 4.
-3. No Invalid Claims: Automatically revokes/prevents claims if requirements aren't met.
-4. 5+ Player Hop: Auto-hops as soon as player count reaches 5 or more.
-5. Anti-Script-Conflict: Lower UserId wins claim ties; higher UserId yields & hops.
-6. Console Spam Guard: Status and claim confirmation prints only upon state changes.
+Updates Enforced:
+1. Random Page Index (0-299) when requesting Roblox public server pages.
+2. Target candidate server player range strictly forced to 1-3 players.
+3. Queue Guard: Ignores servers that have queued/in-line joining players.
+4. Selection Pool: Gathers valid candidates, isolates 5 random choices, and picks 1.
+5. Infinite Hop Loop: Continuously scans until a valid target server is found.
+6. Dynamic Re-claiming: Continuously checks claims—if a claim holder leaves, 
+   the script immediately claims ownership for LocalPlayer.
 ================================================================================
 ]]
 
@@ -17,7 +18,6 @@ local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 
--- Ensure LocalPlayer is loaded before running any player-indexed functions
 local LocalPlayer = Players.LocalPlayer
 while not LocalPlayer do
     task.wait(0.1)
@@ -26,7 +26,7 @@ end
 
 local PlaceId = game.PlaceId
 
--- Identify supported HTTP request function for executor
+-- Executor HTTP compatibility check
 local requestFunc = nil
 if syn and syn.request then
     requestFunc = syn.request
@@ -43,7 +43,7 @@ else
 end
 
 --------------------------------------------------------------------------------
--- STATUS UI CREATION (TOP CENTER POSITIONING)
+-- STATUS UI CREATION
 --------------------------------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ServerFinderUI"
@@ -126,7 +126,7 @@ local InfoLabel = Instance.new("TextLabel")
 InfoLabel.Size = UDim2.new(1, -20, 0, 20)
 InfoLabel.Position = UDim2.new(0, 10, 0, 102)
 InfoLabel.BackgroundTransparency = 1
-InfoLabel.Text = "Activity: Target 0-3 Players"
+InfoLabel.Text = "Activity: Target 1-3 Players"
 InfoLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
 InfoLabel.TextSize = 12
 InfoLabel.Font = Enum.Font.SourceSansItalic
@@ -148,7 +148,7 @@ local function UpdateUI(statusText, color, infoText)
 end
 
 --------------------------------------------------------------------------------
--- CLAIM & CONFLICT RESOLUTION SYSTEM (NIL-SAFE)
+-- CLAIM & CONFLICT RESOLUTION SYSTEM
 --------------------------------------------------------------------------------
 local hasPrintedClaim = false
 
@@ -173,8 +173,8 @@ local function ResolveClaimConflict()
 
     local count = #Players:GetPlayers()
 
-    -- Reject claim immediately if player count requirements are not met (Must be 0-4)
-    if count < 0 or count > 4 then
+    -- Must have 1 to 4 players to hold or claim a server
+    if count < 1 or count > 4 then
         ClearClaimTag()
         ClaimLabel.Text = "Claim Status: Unclaimed (Invalid Count)"
         ClaimLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -184,7 +184,7 @@ local function ResolveClaimConflict()
 
     local claimingPlayers = GetClaimingPlayers()
 
-    -- Attempt claim if no one holds it and conditions are met
+    -- Dynamic reclaim check: If nobody currently holds the claim tag (or claim owner left), claim it
     if #claimingPlayers == 0 then
         if not LocalPlayer:FindFirstChild("ServerClaimOwner") then
             local tag = Instance.new("BoolValue")
@@ -203,23 +203,21 @@ local function ResolveClaimConflict()
         return true
     end
 
-    -- Conflict Resolution: Yield if another player holds claim and has a lower UserId
-    if #claimingPlayers > 0 then
-        for _, owner in ipairs(claimingPlayers) do
-            if owner and owner ~= LocalPlayer then
-                if LocalPlayer.UserId > owner.UserId then
-                    ClaimLabel.Text = "Claim Status: Yielded to " .. owner.Name
-                    ClaimLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-                    
-                    ClearClaimTag()
-                    hasPrintedClaim = false
-                    return false
-                end
+    -- Conflict resolution if multiple clients have claim tags
+    for _, owner in ipairs(claimingPlayers) do
+        if owner and owner ~= LocalPlayer then
+            if LocalPlayer.UserId > owner.UserId then
+                ClaimLabel.Text = "Claim Status: Yielded to " .. owner.Name
+                ClaimLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+                
+                ClearClaimTag()
+                hasPrintedClaim = false
+                return false
             end
         end
     end
 
-    -- LocalPlayer holds valid claim
+    -- LocalPlayer holds the valid lower UserId claim
     ClaimLabel.Text = "Claim Status: Owned by YOU"
     ClaimLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
     if not hasPrintedClaim then
@@ -230,7 +228,7 @@ local function ResolveClaimConflict()
 end
 
 --------------------------------------------------------------------------------
--- SERVER FETCHING & HOPPING (STRICT 0-3 PLAYER TARGET RANGE)
+-- SERVER FETCHING & HOPPING
 --------------------------------------------------------------------------------
 local function fetchServers(cursor)
     local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
@@ -256,27 +254,37 @@ local function HopToLowServer()
     if isSearching then return end
     isSearching = true
 
-    UpdateUI("Searching 0-3 Player Server...", Color3.fromRGB(255, 180, 50), "Scanning candidate list...")
+    UpdateUI("Searching 1-3 Player Server...", Color3.fromRGB(255, 180, 50), "Scanning candidate list...")
 
     local scanCount = 0
     while true do
         scanCount = scanCount + 1
+        
+        -- Pick a random index between 0 and 299 to convert into page depth offsets
+        local randomIndex = math.random(0, 299)
+        local targetSkipPages = math.floor(randomIndex / 100)
+
+        print(string.format("[ServerFinder] Pass #%d | Random Starting Index: %d (Skip Pages: %d)...", scanCount, randomIndex, targetSkipPages))
+
         local cursor = nil
         local candidates = {}
-        
-        local pageSkipTarget = math.random(0, 3) 
         local currentPage = 0
-
-        print(string.format("[ServerFinder] Scanning servers (Pass #%d | Random Page #%d)...", scanCount, pageSkipTarget))
 
         repeat
             local data = fetchServers(cursor)
             if data and data.data then
                 currentPage = currentPage + 1
                 
-                if currentPage >= pageSkipTarget then
+                if currentPage >= targetSkipPages then
                     for _, server in ipairs(data.data) do
-                        if server.playing >= 0 and server.playing <= 3 and server.id ~= game.JobId then
+                        -- 1. Target range strictly between 1 and 3 players
+                        local validPlayerCount = server.playing >= 1 and server.playing <= 3
+                        -- 2. Prevent teleporting to the same server
+                        local notCurrentServer = server.id ~= game.JobId
+                        -- 3. Inline/Queue Check: Reject server if players are waiting in queue
+                        local noInlineQueue = not server.queuedPlayers or #server.queuedPlayers == 0
+
+                        if validPlayerCount and notCurrentServer and noInlineQueue then
                             table.insert(candidates, server)
                         end
                     end
@@ -287,11 +295,21 @@ local function HopToLowServer()
                 break
             end
             task.wait(0.15)
-        until not cursor or #candidates >= 5
+        until not cursor or #candidates >= 10
 
+        -- Pick 5 random candidate servers from the gathered pool
         if #candidates > 0 then
-            local randomIndex = math.random(1, math.min(#candidates, 5))
-            local selectedServer = candidates[randomIndex]
+            local randomPool = {}
+            local candidateCopy = { unpack(candidates) }
+            
+            for i = 1, math.min(5, #candidateCopy) do
+                local pickIdx = math.random(1, #candidateCopy)
+                table.insert(randomPool, candidateCopy[pickIdx])
+                table.remove(candidateCopy, pickIdx)
+            end
+
+            -- Pick 1 server from the 5 selected random servers
+            local selectedServer = randomPool[math.random(1, #randomPool)]
             
             UpdateUI("Teleporting...", Color3.fromRGB(100, 255, 100), string.format("Target ID (%d players)", selectedServer.playing))
             print(string.format("[ServerFinder] Target server found (%d players)! Teleporting to Server ID: %s", selectedServer.playing, tostring(selectedServer.id)))
@@ -301,14 +319,14 @@ local function HopToLowServer()
             end)
 
             if not teleportSuccess then
-                print("[ServerFinder] Teleport failed: " .. tostring(err) .. ". Resetting search state...")
+                print("[ServerFinder] Teleport failed: " .. tostring(err) .. ". Retrying scan loop...")
                 UpdateUI("Teleport Failed", Color3.fromRGB(255, 80, 80), "Retrying in 1.5s...")
                 isSearching = false
             end
             return
         end
 
-        UpdateUI("No 0-3 Player Server", Color3.fromRGB(255, 150, 50), "Retrying scan in 1.5s...")
+        UpdateUI("No Valid Server", Color3.fromRGB(255, 150, 50), "Retrying scan loop in 1.5s...")
         task.wait(1.5)
     end
 end
@@ -319,7 +337,7 @@ end
 local function CheckAndHop()
     local count = #Players:GetPlayers()
 
-    -- 1. Immediate Hop if server reaches 5 or more players
+    -- 1. Hop immediately if player count is 5 or more
     if count >= 5 then
         hasPrintedClaim = false
         ClearClaimTag()
@@ -328,21 +346,21 @@ local function CheckAndHop()
         return
     end
 
-    -- 2. Resolve claims and script conflicts
+    -- 2. Resolve claims dynamically and hop on conflict losing state
     local isClaimValid = ResolveClaimConflict()
     if not isClaimValid and count >= 1 and count <= 4 then
-        UpdateUI("Script Conflict!", Color3.fromRGB(255, 80, 80), "Other script user detected - Hopping...")
+        UpdateUI("Script Conflict!", Color3.fromRGB(255, 80, 80), "Yielded to lower UserId - Hopping...")
         task.wait(0.2)
         HopToLowServer()
         return
     else
-        if count >= 0 and count <= 4 then
+        if count >= 1 and count <= 4 then
             UpdateUI("Monitoring", Color3.fromRGB(100, 255, 100), "Server safe and claimed. Waiting...")
         end
     end
 end
 
--- Event Listeners
+-- Continuous claim monitoring when player leaves (enabling auto-reclaim)
 Players.PlayerRemoving:Connect(function()
     hasPrintedClaim = false
     task.wait(0.3)
