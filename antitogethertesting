@@ -1,0 +1,182 @@
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+
+local LocalPlayer = Players.LocalPlayer
+local PlaceId = game.PlaceId
+
+-- Identify supported HTTP request function for executor
+local requestFunc = nil
+if syn and syn.request then
+    requestFunc = syn.request
+elseif http and http.request then
+    requestFunc = http.request
+elseif http_request then
+    requestFunc = http_request
+elseif fluxus and fluxus.request then
+    requestFunc = fluxus.request
+elseif request then
+    requestFunc = request
+else
+    error("No supported HTTP request function found! 😢")
+end
+
+--------------------------------------------------------------------------------
+-- CLAIM & UNCLAIM TRACKING SYSTEM
+--------------------------------------------------------------------------------
+local currentClaimOwner = nil
+
+-- Check if anyone in the server is currently holding the claim tag
+local function CheckClaimStatus()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player:FindFirstChild("ServerClaimOwner") then
+            return player
+        end
+    end
+    return nil
+end
+
+-- Claim the server for LocalPlayer
+local function ClaimServer()
+    if not LocalPlayer:FindFirstChild("ServerClaimOwner") then
+        local tag = Instance.new("BoolValue")
+        tag.Name = "ServerClaimOwner"
+        tag.Value = true
+        tag.Parent = LocalPlayer
+    end
+    currentClaimOwner = LocalPlayer
+    print(string.format("[ServerFinder] Server CLAIMED by %s | Players: %d/5", LocalPlayer.Name, #Players:GetPlayers()))
+end
+
+--------------------------------------------------------------------------------
+-- SERVER FETCHING & HOPPING
+--------------------------------------------------------------------------------
+local function fetchServers(cursor)
+    local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
+    if cursor then
+        url = url .. "&cursor=" .. cursor
+    end
+    
+    local success, response = pcall(function()
+        return requestFunc({ Url = url, Method = "GET" })
+    end)
+    
+    if success and response and response.Body then
+        local successDecode, decoded = pcall(function()
+            return HttpService:JSONDecode(response.Body)
+        end)
+        if successDecode then return decoded end
+    end
+    return nil
+end
+
+local isSearching = false
+local function HopToLowServer()
+    if isSearching then return end
+    isSearching = true
+
+    local scanCount = 0
+    while true do
+        scanCount = scanCount + 1
+        local cursor = nil
+        local candidates = {}
+        
+        local pageSkipTarget = math.random(0, 3) 
+        local currentPage = 0
+
+        print(string.format("[ServerFinder] Scanning servers (Pass #%d | Random Page #%d)...", scanCount, pageSkipTarget))
+
+        repeat
+            local data = fetchServers(cursor)
+            if data and data.data then
+                currentPage = currentPage + 1
+                
+                if currentPage >= pageSkipTarget then
+                    for _, server in ipairs(data.data) do
+                        if server.playing >= 1 and server.playing <= 3 and server.id ~= game.JobId then
+                            table.insert(candidates, server)
+                        end
+                    end
+                end
+                
+                cursor = data.nextPageCursor
+            else
+                break
+            end
+            task.wait(0.15)
+        until not cursor or #candidates >= 5
+
+        -- Pick a random server out of candidates
+        if #candidates > 0 then
+            local randomIndex = math.random(1, math.min(#candidates, 5))
+            local selectedServer = candidates[randomIndex]
+            
+            print(string.format("[ServerFinder] Target server found (%d players)! Teleporting to Server ID: %s", selectedServer.playing, tostring(selectedServer.id)))
+            
+            local teleportSuccess, err = pcall(function()
+                TeleportService:TeleportToPlaceInstance(PlaceId, selectedServer.id, LocalPlayer)
+            end)
+
+            if not teleportSuccess then
+                print("[ServerFinder] Teleport failed: " .. tostring(err) .. ". Retrying...")
+            end
+            task.wait(2)
+        else
+            print("[ServerFinder] No suitable 1-3 player server found. Retrying in 1.5 seconds...")
+            task.wait(1.5)
+        end
+    end
+end
+
+--------------------------------------------------------------------------------
+-- MONITORING & CONTROL LOGIC
+--------------------------------------------------------------------------------
+local function CheckAndHop()
+    local count = #Players:GetPlayers()
+
+    -- RULE 1: ONLY hop if player count is 5 or more
+    if count >= 5 then
+        print(string.format("[ServerFinder] Player limit reached (%d >= 5)! Auto-hopping...", count))
+        HopToLowServer()
+        return
+    end
+
+    -- RULE 2: If under 5 players, manage claim tag, but NEVER hop
+    local existingOwner = CheckClaimStatus()
+    if not existingOwner then
+        ClaimServer()
+    elseif existingOwner == LocalPlayer then
+        currentClaimOwner = LocalPlayer
+    end
+end
+
+-- Event Listeners
+Players.PlayerAdded:Connect(function(player)
+    print(string.format("[ServerFinder] Player joined: %s | Total: %d", player.Name, #Players:GetPlayers()))
+    CheckAndHop()
+end)
+
+Players.PlayerRemoving:Connect(function(leavingPlayer)
+    print(string.format("[ServerFinder] Player left: %s | Total: %d", leavingPlayer.Name, #Players:GetPlayers()))
+    
+    if leavingPlayer == currentClaimOwner or leavingPlayer:FindFirstChild("ServerClaimOwner") then
+        print("[ServerFinder] Claim owner left. Re-claiming server...")
+        currentClaimOwner = nil
+        task.wait(0.2)
+        if #Players:GetPlayers() < 5 then
+            ClaimServer()
+        end
+    end
+    
+    CheckAndHop()
+end)
+
+--------------------------------------------------------------------------------
+-- CONTINUOUS BACKGROUND LOOP (HEARTBEAT CHECK)
+--------------------------------------------------------------------------------
+task.spawn(function()
+    while true do
+        CheckAndHop()
+        task.wait(1) -- Scans player count every second
+    end
+end)
