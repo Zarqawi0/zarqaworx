@@ -1,3 +1,19 @@
+--[[
+================================================================================
+SERVER FINDER & HOPPER
+================================================================================
+Key Improvements Made:
+1. Dynamic Claim Hopping: The player will now automatically hop to a new server if 
+   the current server is already claimed by someone else.
+2. Threshold Enforcement: Automatically hops whenever the server reaches 5 or 
+   more players.
+3. Continuous Monitoring Loop: A background loop runs continuously (`task.wait(1)`) 
+   to monitor both player threshold and claim status.
+4. Teleport Safety: Includes pcall error handling on TeleportToPlaceInstance to 
+   gracefully handle and retry failed teleports.
+================================================================================
+]]
+
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
@@ -49,7 +65,7 @@ local function ClaimServer()
 end
 
 --------------------------------------------------------------------------------
--- SERVER FETCHING & HOPPING
+-- SERVER FETCHING WITH RANDOM INDEX & BATCH SELECTION
 --------------------------------------------------------------------------------
 local function fetchServers(cursor)
     local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
@@ -106,7 +122,7 @@ local function HopToLowServer()
             task.wait(0.15)
         until not cursor or #candidates >= 5
 
-        -- Pick a random server out of candidates
+        -- Pick a random server out of candidate matches
         if #candidates > 0 then
             local randomIndex = math.random(1, math.min(#candidates, 5))
             local selectedServer = candidates[randomIndex]
@@ -118,51 +134,52 @@ local function HopToLowServer()
             end)
 
             if not teleportSuccess then
-                print("[ServerFinder] Teleport failed: " .. tostring(err) .. ". Retrying...")
+                print("[ServerFinder] Teleport failed: " .. tostring(err) .. ". Resetting search state and retrying...")
+                isSearching = false
             end
-            task.wait(2)
-        else
-            print("[ServerFinder] No suitable 1-3 player server found. Retrying in 1.5 seconds...")
-            task.wait(1.5)
+            return
         end
+
+        print("[ServerFinder] No suitable 1-3 player server found. Retrying in 1.5 seconds...")
+        task.wait(1.5)
     end
 end
 
 --------------------------------------------------------------------------------
--- MONITORING & CONTROL LOGIC
+-- CHECK & MONITORING LOGIC
 --------------------------------------------------------------------------------
 local function CheckAndHop()
     local count = #Players:GetPlayers()
 
-    -- RULE 1: ONLY hop if player count is 5 or more
+    -- 1. Check if the server reached 5 or more players
     if count >= 5 then
-        print(string.format("[ServerFinder] Player limit reached (%d >= 5)! Auto-hopping...", count))
+        print(string.format("[ServerFinder] Server player count reached %d (>= 5)! Auto-hopping...", count))
         HopToLowServer()
         return
     end
 
-    -- RULE 2: If under 5 players, manage claim tag, but NEVER hop
+    -- 2. Check if the server is already claimed by someone else
     local existingOwner = CheckClaimStatus()
-    if not existingOwner then
+    if existingOwner and existingOwner ~= LocalPlayer then
+        print(string.format("[ServerFinder] Server already claimed by %s! Auto-hopping...", existingOwner.Name))
+        task.wait(0.5)
+        HopToLowServer()
+        return
+    else
+        -- Claim the server if no one owns it
         ClaimServer()
-    elseif existingOwner == LocalPlayer then
-        currentClaimOwner = LocalPlayer
     end
 end
 
 -- Event Listeners
-Players.PlayerAdded:Connect(function(player)
-    print(string.format("[ServerFinder] Player joined: %s | Total: %d", player.Name, #Players:GetPlayers()))
-    CheckAndHop()
-end)
-
 Players.PlayerRemoving:Connect(function(leavingPlayer)
-    print(string.format("[ServerFinder] Player left: %s | Total: %d", leavingPlayer.Name, #Players:GetPlayers()))
+    print(string.format("[ServerFinder] Player left: %s", leavingPlayer.Name))
     
     if leavingPlayer == currentClaimOwner or leavingPlayer:FindFirstChild("ServerClaimOwner") then
-        print("[ServerFinder] Claim owner left. Re-claiming server...")
+        print("[ServerFinder] The claim owner HAS LEFT the server! Server is now UNCLAIMED.")
         currentClaimOwner = nil
-        task.wait(0.2)
+        
+        task.wait(0.5)
         if #Players:GetPlayers() < 5 then
             ClaimServer()
         end
@@ -171,12 +188,16 @@ Players.PlayerRemoving:Connect(function(leavingPlayer)
     CheckAndHop()
 end)
 
+Players.PlayerAdded:Connect(function()
+    CheckAndHop()
+end)
+
 --------------------------------------------------------------------------------
--- CONTINUOUS BACKGROUND LOOP (HEARTBEAT CHECK)
+-- CONTINUOUS MONITORING LOOP
 --------------------------------------------------------------------------------
 task.spawn(function()
     while true do
         CheckAndHop()
-        task.wait(1) -- Scans player count every second
+        task.wait(1) -- Constantly checks player count and claim status every 1 second
     end
 end)
