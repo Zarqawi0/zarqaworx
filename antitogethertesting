@@ -1,4 +1,4 @@
--- V2.8 (Fixed UI Counter Desync & Server Search Deadlocks)
+-- V2.9 (Added JobTrack Print Statement)
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
@@ -169,13 +169,15 @@ local function HopToLowServer()
             local selectedServer = candidates[math.random(1, #candidates)]
             visitedServers[selectedServer.id] = os.time()
             
+            -- PRINT JOBTRACK HERE
+            print("JobTrack: Target Server Found - " .. tostring(selectedServer.id) .. " (" .. tostring(selectedServer.playing) .. "/5 players)")
+
             UpdateUI("Teleporting...", Color3.fromRGB(100, 255, 100))
             
             local teleportSuccess = pcall(function()
                 TeleportService:TeleportToPlaceInstance(PlaceId, selectedServer.id, LocalPlayer)
             end)
 
-            -- If teleport failed or stayed stuck over 6 seconds, reset lock to allow re-scanning
             task.delay(6, function()
                 if isSearching then
                     isSearching = false
@@ -200,7 +202,6 @@ end
 --------------------------------------------------------------------------------
 -- MONITORING LOOP & EVENTS
 --------------------------------------------------------------------------------
--- Dynamic TeleportInit error listener to catch failed attempts
 TeleportService.TeleportInitFailed:Connect(function()
     isSearching = false
     UpdateUI("Teleport Failed", Color3.fromRGB(255, 80, 80))
