@@ -1,4 +1,4 @@
--- v2.6
+-- V2.6
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
@@ -160,7 +160,7 @@ local function ResolveClaimConflict()
 end
 
 --------------------------------------------------------------------------------
--- SERVER FETCHING & HOPPING
+-- SERVER FETCHING & HOPPING (FIXED NIL CHECKS)
 --------------------------------------------------------------------------------
 local function fetchServers(cursor)
     local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
@@ -196,7 +196,10 @@ local function HopToLowServer()
             local data = fetchServers(cursor)
             if data and data.data then
                 for _, server in ipairs(data.data) do
-                    local validPlayerCount = server.playing >= 0 and server.playing <= 3
+                    -- Nil Guard: Ensure playing field exists and is a valid number
+                    local playingCount = tonumber(server.playing)
+                    local validPlayerCount = playingCount ~= nil and playingCount >= 0 and playingCount <= 3
+                    
                     local notCurrentServer = server.id ~= game.JobId
                     local notVisited = not visitedServers[server.id]
                     local noInlineQueue = not server.queuedPlayers or #server.queuedPlayers == 0
