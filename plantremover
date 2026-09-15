@@ -96,6 +96,56 @@ local function UpdateUI(statusText, statusColor)
 end
 
 --------------------------------------------------------------------------------
+-- CLAIM & UNCLAIM TRACKING SYSTEM
+--------------------------------------------------------------------------------
+local currentClaimOwner = nil
+
+-- Check if anyone in the server is currently holding the claim tag
+local function CheckClaimStatus()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player:FindFirstChild("ServerClaimOwner") then
+            return player
+        end
+    end
+    return nil
+end
+
+-- Claim the server for LocalPlayer
+local function ClaimServer()
+    if not LocalPlayer:FindFirstChild("ServerClaimOwner") then
+        local tag = Instance.new("BoolValue")
+        tag.Name = "ServerClaimOwner"
+        tag.Value = true
+        tag.Parent = LocalPlayer
+    end
+    currentClaimOwner = LocalPlayer
+    UpdateUI("Server claimed! Monitoring...", Color3.fromRGB(0, 200, 255))
+    print("[ServerFinder] LocalPlayer HAS CLAIMED THIS SERVER.")
+end
+
+-- Handle server claim transfers when players leave
+Players.PlayerRemoving:Connect(function(leavingPlayer)
+    print(string.format("[ServerFinder] Player left: %s", leavingPlayer.Name))
+    
+    -- Check if the player who left was the owner of the server claim
+    if leavingPlayer == currentClaimOwner or leavingPlayer:FindFirstChild("ServerClaimOwner") then
+        print("[ServerFinder] The claim owner HAS LEFT the server! Server is now UNCLAIMED.")
+        currentClaimOwner = nil
+        
+        -- Try to claim it for yourself if the server is still safe (< 5 players)
+        task.wait(0.5)
+        if #Players:GetPlayers() < 5 then
+            ClaimServer()
+        end
+    end
+    
+    task.wait(0.1)
+    if #Players:GetPlayers() >= 5 then
+        UpdateUI("Server reached 5+ players! Hopping...", Color3.fromRGB(255, 100, 100))
+    end
+end)
+
+--------------------------------------------------------------------------------
 -- SERVER FETCHING WITH RANDOM INDEX & BATCH SELECTION
 --------------------------------------------------------------------------------
 local function fetchServers(cursor)
@@ -128,7 +178,6 @@ local function HopToLowServer()
         local cursor = nil
         local candidates = {}
         
-        -- Random page skip for random index selection
         local pageSkipTarget = math.random(0, 3) 
         local currentPage = 0
 
@@ -139,7 +188,6 @@ local function HopToLowServer()
             if data and data.data then
                 currentPage = currentPage + 1
                 
-                -- Collect servers matching 1-3 player criteria
                 if currentPage >= pageSkipTarget then
                     for _, server in ipairs(data.data) do
                         if server.playing >= 1 and server.playing <= 3 and server.id ~= game.JobId then
@@ -155,7 +203,6 @@ local function HopToLowServer()
             task.wait(0.15)
         until not cursor or #candidates >= 5
 
-        -- Pick a random server from up to 5 collected candidates
         if #candidates > 0 then
             local randomIndex = math.random(1, math.min(#candidates, 5))
             local selectedServer = candidates[randomIndex]
@@ -179,9 +226,18 @@ local function CheckAndHop()
     if count >= 5 then
         UpdateUI("Server reached 5+ players! Hopping...", Color3.fromRGB(255, 100, 100))
         HopToLowServer()
+        return
+    end
+
+    -- Dynamic Claim Check
+    local existingOwner = CheckClaimStatus()
+    if existingOwner and existingOwner ~= LocalPlayer then
+        UpdateUI(string.format("Server claimed by %s! Hopping...", existingOwner.Name), Color3.fromRGB(255, 80, 80))
+        print(string.format("[ServerFinder] Server currently claimed by %s. Hopping away...", existingOwner.Name))
+        task.wait(0.5)
+        HopToLowServer()
     else
-        UpdateUI("Server claimed & safe! Monitoring...", Color3.fromRGB(0, 200, 255))
-        print(string.format("[ServerFinder] Server successfully claimed by LocalPlayer. Monitoring continuous player count (%d/5)...", count))
+        ClaimServer()
     end
 end
 
@@ -192,10 +248,5 @@ task.spawn(function()
 end)
 
 Players.PlayerAdded:Connect(function()
-    CheckAndHop()
-end)
-
-Players.PlayerRemoving:Connect(function()
-    task.wait(0.1)
     CheckAndHop()
 end)
