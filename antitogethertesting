@@ -1,13 +1,13 @@
 --[[
 ================================================================================
-SERVER FINDER & HOPPER WITH TIE-BREAKER CLAIM CONFLICT RESOLUTION
+SERVER FINDER & HOPPER WITH NO-SPAM LOGGING & CONFLICT RESOLUTION
 ================================================================================
 Rules Enforced:
-1. Anti-Script-Conflict: If two players run this script, the lower UserId wins 
-   the claim, forcing the higher UserId player to immediately hop.
-2. Claim Range: Claims server when player count is between 1 and 4.
-3. 5+ Player Hop: Auto-hops as soon as player count reaches 5 or more.
-4. Target Search: Exclusively hops to servers with 1 to 3 players.
+1. No Console Spam: Claim confirmation prints exactly ONCE upon state change.
+2. Anti-Script-Conflict: Lower UserId wins claim ties; higher UserId yields & hops.
+3. Claim Range: Claims server when player count is between 1 and 4.
+4. 5+ Player Hop: Auto-hops as soon as player count reaches 5 or more.
+5. Target Range: Exclusively searches and hops into servers with 1 to 3 players.
 ================================================================================
 ]]
 
@@ -141,8 +141,10 @@ local function UpdateUI(statusText, color, infoText)
 end
 
 --------------------------------------------------------------------------------
--- CLAIM & CONFLICT RESOLUTION SYSTEM
+-- CLAIM & CONFLICT RESOLUTION SYSTEM (SPAM PREVENTION)
 --------------------------------------------------------------------------------
+local hasPrintedClaim = false
+
 local function GetClaimingPlayers()
     local claimingPlayers = {}
     for _, player in ipairs(Players:GetPlayers()) do
@@ -166,10 +168,18 @@ local function ResolveClaimConflict()
                 tag.Value = true
                 tag.Parent = LocalPlayer
             end
+            
             ClaimLabel.Text = "Claim Status: Owned by YOU"
             ClaimLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-            return true -- Successfully claimed
+            
+            -- Print only ONCE when newly claimed
+            if not hasPrintedClaim then
+                hasPrintedClaim = true
+                print(string.format("[ServerFinder] Server CLAIMED by %s | Players: %d/5", LocalPlayer.Name, count))
+            end
+            return true
         end
+        hasPrintedClaim = false
         return false
     end
 
@@ -177,23 +187,27 @@ local function ResolveClaimConflict()
     if #claimingPlayers > 0 then
         for _, owner in ipairs(claimingPlayers) do
             if owner ~= LocalPlayer then
-                -- Tie-breaker: Compare UserIds to determine priority
+                -- Lower UserId wins tie-breaker
                 if LocalPlayer.UserId > owner.UserId then
-                    -- Lower UserId wins; LocalPlayer loses and must hop
                     ClaimLabel.Text = "Claim Status: Yielded to " .. owner.Name
                     ClaimLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
                     
                     local myTag = LocalPlayer:FindFirstChild("ServerClaimOwner")
                     if myTag then myTag:Destroy() end
+                    hasPrintedClaim = false
                     return false -- Conflict lost
                 end
             end
         end
     end
 
-    -- LocalPlayer holds the legitimate claim
+    -- LocalPlayer holds the valid claim
     ClaimLabel.Text = "Claim Status: Owned by YOU"
     ClaimLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+    if not hasPrintedClaim then
+        hasPrintedClaim = true
+        print(string.format("[ServerFinder] Server CLAIMED by %s | Players: %d/5", LocalPlayer.Name, count))
+    end
     return true
 end
 
@@ -287,14 +301,15 @@ end
 local function CheckAndHop()
     local count = #Players:GetPlayers()
 
-    -- 1. Check if server reaches 5 or more players -> Immediate Hop
+    -- 1. Immediate Hop if server reaches 5 or more players
     if count >= 5 then
+        hasPrintedClaim = false
         UpdateUI("Hopping Server", Color3.fromRGB(255, 80, 80), string.format("Player count reached %d (>= 5)", count))
         HopToLowServer()
         return
     end
 
-    -- 2. Resolve claims and script conflict
+    -- 2. Resolve claims and script conflicts
     local isClaimValid = ResolveClaimConflict()
     if not isClaimValid and count >= 1 then
         UpdateUI("Script Conflict!", Color3.fromRGB(255, 80, 80), "Other script user detected - Hopping...")
@@ -310,6 +325,7 @@ end
 
 -- Event Listeners
 Players.PlayerRemoving:Connect(function()
+    hasPrintedClaim = false
     task.wait(0.3)
     CheckAndHop()
 end)
