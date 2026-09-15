@@ -1,11 +1,12 @@
 --[[
 ================================================================================
-SERVER FINDER & HOPPER WITH TOP-CENTERED STATUS UI (STRICT 1-3 TARGET RANGE)
+SERVER FINDER & HOPPER WITH REAL-TIME CLAIM MONITOR & TOP STATUS UI
 ================================================================================
-Rules Enforced:
-1. Low-Server Filter: Scans and hops ONLY into servers with 1 to 3 players.
-2. Immediate Hop Trigger: Triggers a hop as soon as player count reaches 5 or more.
-3. Claim Security: Auto-hops if the current server becomes claimed by another player.
+Key Rules:
+1. Dynamic Claim Kick: Instantly hops to a new server if another player holds or gains the claim tag.
+2. 5+ Player Limit: Auto-hops as soon as player count reaches 5 or more.
+3. Target Range: Exclusively hops to servers with 1 to 3 players.
+4. Top-Centered UI: Displays live server activity, current claim status, and player counts.
 ================================================================================
 ]]
 
@@ -117,7 +118,7 @@ local InfoLabel = Instance.new("TextLabel")
 InfoLabel.Size = UDim2.new(1, -20, 0, 20)
 InfoLabel.Position = UDim2.new(0, 10, 0, 102)
 InfoLabel.BackgroundTransparency = 1
-InfoLabel.Text = "Activity: Target: 1-3 Player Server"
+InfoLabel.Text = "Activity: Target 1-3 Players"
 InfoLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
 InfoLabel.TextSize = 12
 InfoLabel.Font = Enum.Font.SourceSansItalic
@@ -212,7 +213,6 @@ local function HopToLowServer()
                 
                 if currentPage >= pageSkipTarget then
                     for _, server in ipairs(data.data) do
-                        -- Enforces 1 to 3 player limit on candidate servers
                         if server.playing >= 1 and server.playing <= 3 and server.id ~= game.JobId then
                             table.insert(candidates, server)
                         end
@@ -263,13 +263,18 @@ local function CheckAndHop()
         return
     end
 
-    -- 2. Check claim status
+    -- 2. Check claim status -> Auto-hop immediately if server belongs to someone else
     local existingOwner = CheckClaimStatus()
     if existingOwner and existingOwner ~= LocalPlayer then
         ClaimLabel.Text = "Claim Status: Owned by " .. existingOwner.Name
         ClaimLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-        UpdateUI("Hopping Server", Color3.fromRGB(255, 80, 80), "Server already claimed!")
-        task.wait(0.5)
+        UpdateUI("Claim Conflict!", Color3.fromRGB(255, 80, 80), "Claimed by " .. existingOwner.Name .. " - Hopping...")
+        
+        -- Remove local tag if present to avoid false state
+        local myTag = LocalPlayer:FindFirstChild("ServerClaimOwner")
+        if myTag then myTag:Destroy() end
+        
+        task.wait(0.2)
         HopToLowServer()
         return
     else
@@ -302,6 +307,6 @@ end)
 task.spawn(function()
     while true do
         CheckAndHop()
-        task.wait(0.5) -- Frequent checks every 0.5s for instant reaction
+        task.wait(0.5) -- Scans for claims and player counts every 0.5 seconds
     end
 end)
