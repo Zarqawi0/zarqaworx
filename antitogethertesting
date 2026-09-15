@@ -1,12 +1,12 @@
 --[[
 ================================================================================
-SERVER FINDER & HOPPER WITH REAL-TIME CLAIM MONITOR & TOP STATUS UI
+SERVER FINDER & HOPPER WITH 1-4 PLAYER CLAIM & IMMEDIATE 5+ HOP
 ================================================================================
-Key Rules:
-1. Dynamic Claim Kick: Instantly hops to a new server if another player holds or gains the claim tag.
-2. 5+ Player Limit: Auto-hops as soon as player count reaches 5 or more.
-3. Target Range: Exclusively hops to servers with 1 to 3 players.
-4. Top-Centered UI: Displays live server activity, current claim status, and player counts.
+Rules Enforced:
+1. Conditional Claiming: Server is ONLY claimed if player count is 1 to 4.
+2. Immediate Hop (5+ Players): Auto-hops as soon as player count reaches 5+.
+3. Claim Conflict Hop: Auto-hops instantly if another player holds the claim tag.
+4. Target Range: Exclusively searches and hops into servers with 1 to 3 players.
 ================================================================================
 ]]
 
@@ -154,16 +154,29 @@ local function CheckClaimStatus()
 end
 
 local function ClaimServer()
-    if not LocalPlayer:FindFirstChild("ServerClaimOwner") then
-        local tag = Instance.new("BoolValue")
-        tag.Name = "ServerClaimOwner"
-        tag.Value = true
-        tag.Parent = LocalPlayer
+    local count = #Players:GetPlayers()
+    
+    -- ONLY allow claiming if player count is strictly between 1 and 4
+    if count >= 1 and count <= 4 then
+        if not LocalPlayer:FindFirstChild("ServerClaimOwner") then
+            local tag = Instance.new("BoolValue")
+            tag.Name = "ServerClaimOwner"
+            tag.Value = true
+            tag.Parent = LocalPlayer
+        end
+        currentClaimOwner = LocalPlayer
+        ClaimLabel.Text = "Claim Status: Owned by YOU"
+        ClaimLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+        print(string.format("[ServerFinder] Server CLAIMED by %s | Players: %d/5", LocalPlayer.Name, count))
+    else
+        -- Remove local claim if player count goes outside 1-4 range
+        local existingTag = LocalPlayer:FindFirstChild("ServerClaimOwner")
+        if existingTag then
+            existingTag:Destroy()
+        end
+        ClaimLabel.Text = "Claim Status: Not Claimable (" .. count .. " players)"
+        ClaimLabel.TextColor3 = Color3.fromRGB(220, 180, 80)
     end
-    currentClaimOwner = LocalPlayer
-    ClaimLabel.Text = "Claim Status: Owned by YOU"
-    ClaimLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-    print(string.format("[ServerFinder] Server CLAIMED by %s | Players: %d/5", LocalPlayer.Name, #Players:GetPlayers()))
 end
 
 --------------------------------------------------------------------------------
@@ -263,14 +276,13 @@ local function CheckAndHop()
         return
     end
 
-    -- 2. Check claim status -> Auto-hop immediately if server belongs to someone else
+    -- 2. Check claim status -> Auto-hop if another player owns the claim
     local existingOwner = CheckClaimStatus()
     if existingOwner and existingOwner ~= LocalPlayer then
         ClaimLabel.Text = "Claim Status: Owned by " .. existingOwner.Name
         ClaimLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
         UpdateUI("Claim Conflict!", Color3.fromRGB(255, 80, 80), "Claimed by " .. existingOwner.Name .. " - Hopping...")
         
-        -- Remove local tag if present to avoid false state
         local myTag = LocalPlayer:FindFirstChild("ServerClaimOwner")
         if myTag then myTag:Destroy() end
         
@@ -278,8 +290,11 @@ local function CheckAndHop()
         HopToLowServer()
         return
     else
+        -- Claim server if within 1 to 4 player range
         ClaimServer()
-        UpdateUI("Monitoring", Color3.fromRGB(100, 255, 100), "Server safe. Waiting for joins...")
+        if count >= 1 and count <= 4 then
+            UpdateUI("Monitoring", Color3.fromRGB(100, 255, 100), "Server safe and claimed. Waiting...")
+        end
     end
 end
 
@@ -290,9 +305,6 @@ Players.PlayerRemoving:Connect(function(leavingPlayer)
         ClaimLabel.Text = "Claim Status: Unclaimed"
         ClaimLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
         task.wait(0.5)
-        if #Players:GetPlayers() < 5 then
-            ClaimServer()
-        end
     end
     CheckAndHop()
 end)
@@ -307,6 +319,6 @@ end)
 task.spawn(function()
     while true do
         CheckAndHop()
-        task.wait(0.5) -- Scans for claims and player counts every 0.5 seconds
+        task.wait(0.5)
     end
 end)
