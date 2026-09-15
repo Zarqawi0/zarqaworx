@@ -25,6 +25,13 @@ else
 end
 
 --------------------------------------------------------------------------------
+-- CONFIGURATION
+--------------------------------------------------------------------------------
+-- If using Open Cloud v2, supply your API Key here. Otherwise leave as nil for standard web endpoints.
+local OPEN_CLOUD_API_KEY = nil 
+local UNIVERSE_ID = nil -- Mandatory for Open Cloud v2 endpoints
+
+--------------------------------------------------------------------------------
 -- STATUS GUI CREATION (BOTTOM CENTER)
 --------------------------------------------------------------------------------
 local OldUI = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("ServerHopStatusGui")
@@ -59,7 +66,7 @@ TitleLabel.BackgroundTransparency = 1
 TitleLabel.Position = UDim2.new(0.05, 0, 0.08, 0)
 TitleLabel.Size = UDim2.new(0.9, 0, 0.3, 0)
 TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.Text = "SERVER MONITOR ⚡"
+TitleLabel.Text = "SERVER MONITOR ⚡ (v2 API)"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextSize = 14
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -97,15 +104,14 @@ local function UpdateUI(statusText, statusColor)
 end
 
 --------------------------------------------------------------------------------
--- SERVER CLAIMING MECHANISM (SCRIPT-TO-SCRIPT COMMUNICATION)
+-- SERVER CLAIMING MECHANISM
 --------------------------------------------------------------------------------
-local CLAIM_TAG = "[SCRIPT_SERVER_CLAIM_V1]"
-local RESP_TAG  = "[SCRIPT_SERVER_TAKEN_V1]"
+local CLAIM_TAG = "[SCRIPT_SERVER_CLAIM_V2]"
+local RESP_TAG  = "[SCRIPT_SERVER_TAKEN_V2]"
 
 local isServerOwner = false
 local isConflictFound = false
 
--- Send a hidden handshake signal via text channels or legacy chat
 local function SendSignal(msg)
     pcall(function()
         if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
@@ -119,27 +125,19 @@ local function SendSignal(msg)
     end)
 end
 
--- Listen for other script users claiming or answering claims
 local function ListenForClaims()
-    -- Modern TextChatService Listener
     pcall(function()
         TextChatService.MessageReceived:Connect(function(message)
-            if not message.TextSource then return end
-            if message.TextSource.UserId == LocalPlayer.UserId then return end
+            if not message.TextSource or message.TextSource.UserId == LocalPlayer.UserId then return end
             
             if message.Text == CLAIM_TAG then
-                -- Someone else joined and is checking if server is claimed
-                if isServerOwner then
-                    SendSignal(RESP_TAG) -- Inform them this server is already claimed
-                end
+                if isServerOwner then SendSignal(RESP_TAG) end
             elseif message.Text == RESP_TAG then
-                -- Another user already claims this server
                 isConflictFound = true
             end
         end)
     end)
 
-    -- Player Chat Fallback
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             player.Chatted:Connect(function(msg)
@@ -166,18 +164,28 @@ end
 ListenForClaims()
 
 --------------------------------------------------------------------------------
--- LOGIC & API FUNCTIONS
+-- LOGIC & API FUNCTIONS (v2 ROUTING)
 --------------------------------------------------------------------------------
-local function fetchServers(cursor)
-    local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
-    if cursor then
-        url = url .. "&cursor=" .. cursor
+local function fetchServersV2(cursor)
+    local url
+    local headers = {}
+
+    -- Route to Open Cloud v2 if an API Key is available
+    if OPEN_CLOUD_API_KEY and UNIVERSE_ID then
+        url = string.format("https://apis.roblox.com/cloud/v2/universes/%s/places/%d/instances", tostring(UNIVERSE_ID), PlaceId)
+        if cursor then url = url .. "?pageToken=" .. cursor end
+        headers["x-api-key"] = OPEN_CLOUD_API_KEY
+    else
+        -- Standard public server listing URL
+        url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
+        if cursor then url = url .. "&cursor=" .. cursor end
     end
     
     local success, response = pcall(function()
         return requestFunc({
             Url = url,
-            Method = "GET"
+            Method = "GET",
+            Headers = headers
         })
     end)
     
@@ -205,10 +213,11 @@ local function HopToLowServer()
         repeat
             UpdateUI(string.format("Looking for 1-2 player server (Pass #%d)...", scanCount), Color3.fromRGB(255, 180, 0))
             
-            local data = fetchServers(cursor)
+            local data = fetchServersV2(cursor)
+            
+            -- Parsing data payload based on API response structure
             if data and data.data then
                 for _, server in ipairs(data.data) do
-                    -- STRICT FILTER: Must have 1 or 2 players and not be current server
                     if (server.playing == 1 or server.playing == 2) and server.id ~= game.JobId then
                         serverFound = true
                         UpdateUI(string.format("Found server with %d player(s)! Teleporting...", server.playing), Color3.fromRGB(0, 255, 120))
@@ -238,7 +247,6 @@ local function CheckAndHop()
         return
     end
 
-    -- Server claim handshake check
     isConflictFound = false
     UpdateUI("Verifying server ownership...", Color3.fromRGB(255, 255, 0))
     SendSignal(CLAIM_TAG)
@@ -256,7 +264,7 @@ end
 
 -- Initialize Monitoring
 task.spawn(function()
-    task.wait(1.5) -- Small delay on load for Chat System initialization
+    task.wait(1.5)
     CheckAndHop()
 end)
 
