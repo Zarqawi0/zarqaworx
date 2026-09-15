@@ -155,7 +155,7 @@ local function ResolveClaimConflict()
 
     if not hasPrintedClaim then
         hasPrintedClaim = true
-        print(string.format("[ServerFinder] Server CLAIMED by %s | Players: %d/5", LocalPlayer.Name, count))
+        print(string.format("[Crowned Hub] Server CLAIMED by %s | Players: %d/5", LocalPlayer.Name, count))
     end
     return true
 end
