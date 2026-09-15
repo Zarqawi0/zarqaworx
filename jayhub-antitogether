@@ -1,3 +1,19 @@
+--[[
+================================================================================
+SERVER FINDER & HOPPER
+================================================================================
+Key Improvements Made:
+1. Dynamic Claim Hopping: The player will now automatically hop to a new server if 
+   the current server is already claimed by someone else.
+2. Threshold Enforcement: Automatically hops whenever the server reaches 5 or 
+   more players.
+3. Continuous Monitoring Loop: A background loop runs continuously (`task.wait(1)`) 
+   to monitor both player threshold and claim status.
+4. Teleport Safety: Includes pcall error handling on TeleportToPlaceInstance to 
+   gracefully handle and retry failed teleports.
+================================================================================
+]]
+
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
@@ -106,13 +122,21 @@ local function HopToLowServer()
             task.wait(0.15)
         until not cursor or #candidates >= 5
 
-        -- Pick a random server out of 5 candidate matches
+        -- Pick a random server out of candidate matches
         if #candidates > 0 then
             local randomIndex = math.random(1, math.min(#candidates, 5))
             local selectedServer = candidates[randomIndex]
             
             print(string.format("[ServerFinder] Target server found (%d players)! Teleporting to Server ID: %s", selectedServer.playing, tostring(selectedServer.id)))
-            TeleportService:TeleportToPlaceInstance(PlaceId, selectedServer.id, LocalPlayer)
+            
+            local teleportSuccess, err = pcall(function()
+                TeleportService:TeleportToPlaceInstance(PlaceId, selectedServer.id, LocalPlayer)
+            end)
+
+            if not teleportSuccess then
+                print("[ServerFinder] Teleport failed: " .. tostring(err) .. ". Resetting search state and retrying...")
+                isSearching = false
+            end
             return
         end
 
@@ -121,27 +145,33 @@ local function HopToLowServer()
     end
 end
 
+--------------------------------------------------------------------------------
+-- CHECK & MONITORING LOGIC
+--------------------------------------------------------------------------------
 local function CheckAndHop()
     local count = #Players:GetPlayers()
 
+    -- 1. Check if the server reached 5 or more players
     if count >= 5 then
         print(string.format("[ServerFinder] Server player count reached %d (>= 5)! Auto-hopping...", count))
         HopToLowServer()
         return
     end
 
-    -- Dynamic Claim Check
+    -- 2. Check if the server is already claimed by someone else
     local existingOwner = CheckClaimStatus()
     if existingOwner and existingOwner ~= LocalPlayer then
-        print(string.format("[ServerFinder] Server already claimed by %s! Hopping to another...", existingOwner.Name))
+        print(string.format("[ServerFinder] Server already claimed by %s! Auto-hopping...", existingOwner.Name))
         task.wait(0.5)
         HopToLowServer()
+        return
     else
+        -- Claim the server if no one owns it
         ClaimServer()
     end
 end
 
--- Handle claim transfer when players leave
+-- Event Listeners
 Players.PlayerRemoving:Connect(function(leavingPlayer)
     print(string.format("[ServerFinder] Player left: %s", leavingPlayer.Name))
     
@@ -155,19 +185,19 @@ Players.PlayerRemoving:Connect(function(leavingPlayer)
         end
     end
     
-    task.wait(0.1)
-    if #Players:GetPlayers() >= 5 then
-        print(string.format("[ServerFinder] Server player count reached %d (>= 5)! Auto-hopping...", #Players:GetPlayers()))
-        HopToLowServer()
-    end
-end)
-
--- Initialize Monitoring
-task.spawn(function()
-    task.wait(1)
     CheckAndHop()
 end)
 
 Players.PlayerAdded:Connect(function()
     CheckAndHop()
+end)
+
+--------------------------------------------------------------------------------
+-- CONTINUOUS MONITORING LOOP
+--------------------------------------------------------------------------------
+task.spawn(function()
+    while true do
+        CheckAndHop()
+        task.wait(1) -- Constantly checks player count and claim status every 1 second
+    end
 end)
