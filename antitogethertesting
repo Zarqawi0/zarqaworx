@@ -28,7 +28,7 @@ else
 end
 
 --------------------------------------------------------------------------------
--- STATUS UI CREATION (EXACTLY AS REQUESTED)
+-- STATUS UI CREATION
 --------------------------------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ServerFinderUI"
@@ -44,8 +44,8 @@ end
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 160, 0, 48)
-MainFrame.Position = UDim2.new(0.5, -80, 0.90, 0) -- Placed down in the middle
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 35, 15) -- Olive/Dark Green theme
+MainFrame.Position = UDim2.new(0.5, -80, 0.90, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 35, 15)
 MainFrame.BackgroundTransparency = 0.25
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -78,7 +78,7 @@ PlayersLabel.Font = Enum.Font.SourceSansBold
 PlayersLabel.TextXAlignment = Enum.TextXAlignment.Left
 PlayersLabel.Parent = MainFrame
 
-local function UpdateUI(statusText, color, infoText)
+local function UpdateUI(statusText, color)
     if statusText then StatusLabel.Text = "Status: " .. statusText end
     if color then StatusLabel.TextColor3 = color end
     
@@ -92,20 +92,20 @@ local function UpdateUI(statusText, color, infoText)
 end
 
 --------------------------------------------------------------------------------
--- CLAIM & CONFLICT RESOLUTION SYSTEM
+-- CHARACTER-BASED REPLICATED CLAIM SYSTEM
 --------------------------------------------------------------------------------
 local hasPrintedClaim = false
 
 local function ClearClaimTag()
-    if LocalPlayer and LocalPlayer:FindFirstChild("ServerClaimOwner") then
-        LocalPlayer.ServerClaimOwner:Destroy()
+    if LocalPlayer and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("ServerClaimOwner") then
+        LocalPlayer.Character.ServerClaimOwner:Destroy()
     end
 end
 
 local function GetClaimingPlayers()
     local claimingPlayers = {}
     for _, player in ipairs(Players:GetPlayers()) do
-        if player and player:FindFirstChild("ServerClaimOwner") then
+        if player and player.Character and player.Character:FindFirstChild("ServerClaimOwner") then
             table.insert(claimingPlayers, player)
         end
     end
@@ -114,9 +114,12 @@ end
 
 local function ResolveClaimConflict()
     if not LocalPlayer then return false end
+    
+    -- Wait briefly for Character workspace model to exist
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    if not char then return false end
 
     local count = #Players:GetPlayers()
-
     if count < 0 or count > 4 then
         ClearClaimTag()
         hasPrintedClaim = false
@@ -125,13 +128,12 @@ local function ResolveClaimConflict()
 
     local claimingPlayers = GetClaimingPlayers()
 
-    -- If no player holds a claim tag, claim it
     if #claimingPlayers == 0 then
-        if not LocalPlayer:FindFirstChild("ServerClaimOwner") then
+        if not char:FindFirstChild("ServerClaimOwner") then
             local tag = Instance.new("BoolValue")
             tag.Name = "ServerClaimOwner"
             tag.Value = true
-            tag.Parent = LocalPlayer
+            tag.Parent = char
         end
         
         if not hasPrintedClaim then
@@ -141,10 +143,9 @@ local function ResolveClaimConflict()
         return true
     end
 
-    -- Conflict Resolution: If another player ALREADY claimed the server, yield immediately
     for _, owner in ipairs(claimingPlayers) do
         if owner and owner ~= LocalPlayer then
-            if LocalPlayer.UserId > owner.UserId or owner:FindFirstChild("ServerClaimOwner") then
+            if LocalPlayer.UserId > owner.UserId or owner.Character:FindFirstChild("ServerClaimOwner") then
                 ClearClaimTag()
                 hasPrintedClaim = false
                 return false
@@ -195,8 +196,6 @@ local function HopToLowServer()
         local randomIndex = math.random(0, 299)
         local targetSkipPages = math.floor(randomIndex / 100)
 
-        print(string.format("[ServerFinder] Pass #%d | Random Index: %d", scanCount, randomIndex))
-
         local cursor = nil
         local candidates = {}
         local currentPage = 0
@@ -238,14 +237,12 @@ local function HopToLowServer()
             local selectedServer = randomPool[math.random(1, #randomPool)]
             
             UpdateUI("Teleporting...", Color3.fromRGB(100, 255, 100))
-            print(string.format("[ServerFinder] Target server found (%d players)! Teleporting to Server ID: %s", selectedServer.playing, tostring(selectedServer.id)))
             
             local teleportSuccess, err = pcall(function()
                 TeleportService:TeleportToPlaceInstance(PlaceId, selectedServer.id, LocalPlayer)
             end)
 
             if not teleportSuccess then
-                print("[ServerFinder] Teleport failed: " .. tostring(err) .. ". Retrying scan loop...")
                 UpdateUI("Teleport Failed", Color3.fromRGB(255, 80, 80))
                 isSearching = false
             end
@@ -258,7 +255,7 @@ local function HopToLowServer()
 end
 
 --------------------------------------------------------------------------------
--- CHECK & MONITORING LOGIC
+-- MONITORING LOOP
 --------------------------------------------------------------------------------
 local function CheckAndHop()
     local count = #Players:GetPlayers()
@@ -273,13 +270,11 @@ local function CheckAndHop()
 
     local isClaimValid = ResolveClaimConflict()
     if not isClaimValid then
-        -- Server claimed by someone else: Immediately Hop
         UpdateUI("Server Claimed!", Color3.fromRGB(255, 80, 80))
         task.wait(0.2)
         HopToLowServer()
         return
     else
-        -- Current player successfully claims the server
         UpdateUI("Claimed", Color3.fromRGB(100, 255, 100))
     end
 end
@@ -294,9 +289,6 @@ Players.PlayerAdded:Connect(function()
     CheckAndHop()
 end)
 
---------------------------------------------------------------------------------
--- CONTINUOUS MONITORING LOOP
---------------------------------------------------------------------------------
 task.spawn(function()
     while true do
         CheckAndHop()
