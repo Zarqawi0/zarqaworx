@@ -2,8 +2,6 @@ local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
-local TextChatService = game:GetService("TextChatService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
@@ -94,58 +92,8 @@ local function UpdateUI(statusText, statusColor)
         StatusLabel.TextColor3 = statusColor
     end
     PlayerCountLabel.Text = string.format("Current Players: %d (Max limit: 5)", #Players:GetPlayers())
+    print(string.format("[ServerFinder] %s | Players: %d", statusText, #Players:GetPlayers()))
 end
-
---------------------------------------------------------------------------------
--- SCRIPT OCCUPANCY & CLAIM HANDSHAKE
---------------------------------------------------------------------------------
-local CLAIM_TAG = "[SCRIPT_SERVER_CLAIM_V2]"
-local RESP_TAG  = "[SCRIPT_SERVER_TAKEN_V2]"
-
-local isServerOwner = false
-local isConflictFound = false
-
-local function SendSignal(msg)
-    pcall(function()
-        if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
-            local generalChannel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
-            if generalChannel then generalChannel:SendAsync(msg) end
-        else
-            ReplicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer(msg, "All")
-        end
-    end)
-end
-
-local function ListenForClaims()
-    pcall(function()
-        TextChatService.MessageReceived:Connect(function(message)
-            if not message.TextSource or message.TextSource.UserId == LocalPlayer.UserId then return end
-            if message.Text == CLAIM_TAG and isServerOwner then
-                SendSignal(RESP_TAG)
-            elseif message.Text == RESP_TAG then
-                isConflictFound = true
-            end
-        end)
-    end)
-
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            player.Chatted:Connect(function(msg)
-                if msg == CLAIM_TAG and isServerOwner then SendSignal(RESP_TAG)
-                elseif msg == RESP_TAG then isConflictFound = true end
-            end)
-        end
-    end
-
-    Players.PlayerAdded:Connect(function(player)
-        player.Chatted:Connect(function(msg)
-            if msg == CLAIM_TAG and isServerOwner then SendSignal(RESP_TAG)
-            elseif msg == RESP_TAG then isConflictFound = true end
-        end)
-    end)
-end
-
-ListenForClaims()
 
 --------------------------------------------------------------------------------
 -- SERVER FETCHING WITH RANDOM INDEX & BATCH SELECTION
@@ -173,7 +121,6 @@ local isSearching = false
 local function HopToLowServer()
     if isSearching then return end
     isSearching = true
-    isServerOwner = false
 
     local scanCount = 0
     while true do
@@ -181,11 +128,11 @@ local function HopToLowServer()
         local cursor = nil
         local candidates = {}
         
-        -- Jump to a random offset between 0 and 299 by advancing pages randomly
+        -- Random page skip for random index selection
         local pageSkipTarget = math.random(0, 3) 
         local currentPage = 0
 
-        UpdateUI(string.format("Scanning (Pass #%d | Offset Page #%d)...", scanCount, pageSkipTarget), Color3.fromRGB(255, 180, 0))
+        UpdateUI(string.format("Scanning (Pass #%d | Page #%d)...", scanCount, pageSkipTarget), Color3.fromRGB(255, 180, 0))
 
         repeat
             local data = fetchServers(cursor)
@@ -206,16 +153,16 @@ local function HopToLowServer()
                 break
             end
             task.wait(0.15)
-        -- Collect until we have at least 5 candidates or run out of pages
         until not cursor or #candidates >= 5
 
-        -- If we found candidates, randomly select from up to 5 matching servers
+        -- Pick a random server from up to 5 collected candidates
         if #candidates > 0 then
-            -- Random index between 1 and total found candidates (max 5)
             local randomIndex = math.random(1, math.min(#candidates, 5))
             local selectedServer = candidates[randomIndex]
             
             UpdateUI(string.format("Selected server (%d players)! Teleporting...", selectedServer.playing), Color3.fromRGB(0, 255, 120))
+            print(string.format("[ServerFinder] Teleporting to Server ID: %s (%d players)", tostring(selectedServer.id), selectedServer.playing))
+            
             TeleportService:TeleportToPlaceInstance(PlaceId, selectedServer.id, LocalPlayer)
             return
         end
@@ -232,28 +179,15 @@ local function CheckAndHop()
     if count >= 5 then
         UpdateUI("Server reached 5+ players! Hopping...", Color3.fromRGB(255, 100, 100))
         HopToLowServer()
-        return
-    end
-
-    -- Verify if another script user is already in this server ("inline" check)
-    isConflictFound = false
-    UpdateUI("Checking for inline script users...", Color3.fromRGB(255, 255, 0))
-    SendSignal(CLAIM_TAG)
-    task.wait(1)
-
-    if isConflictFound then
-        UpdateUI("Inline user detected! Hopping to another...", Color3.fromRGB(255, 50, 50))
-        task.wait(0.5)
-        HopToLowServer()
     else
-        isServerOwner = true
-        UpdateUI("Server active & safe! Monitoring...", Color3.fromRGB(0, 200, 255))
+        UpdateUI("Server claimed & safe! Monitoring...", Color3.fromRGB(0, 200, 255))
+        print(string.format("[ServerFinder] Server successfully claimed by LocalPlayer. Monitoring continuous player count (%d/5)...", count))
     end
 end
 
--- Initialize Loop
+-- Initialize Monitoring
 task.spawn(function()
-    task.wait(1.5)
+    task.wait(1)
     CheckAndHop()
 end)
 
