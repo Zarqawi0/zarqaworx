@@ -1,9 +1,9 @@
 --[[
 ================================================================================
-SERVER FINDER & HOPPER WITH STATUS UI
+SERVER FINDER & HOPPER WITH TOP-CENTERED STATUS UI
 ================================================================================
 Features:
-1. Status UI: Real-time visual tracking of player count, server claim status, and script activity.
+1. Top-Centered Status UI: Centered near the main Roblox top bar / player list.
 2. Dynamic Claim Hopping: Automatically hops if the server is claimed by another player.
 3. Threshold Enforcement: Automatically hops whenever the server reaches 5 or more players.
 4. Continuous Monitoring Loop: A background heartbeat loop (`task.wait(1)`) continuously verifies state.
@@ -35,7 +35,7 @@ else
 end
 
 --------------------------------------------------------------------------------
--- STATUS UI CREATION
+-- STATUS UI CREATION (TOP CENTER POSITIONING)
 --------------------------------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ServerFinderUI"
@@ -51,10 +51,12 @@ end
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 260, 0, 140)
-MainFrame.Position = UDim2.new(0.015, 0, 0.4, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-MainFrame.BackgroundTransparency = 0.15
+MainFrame.Size = UDim2.new(0, 260, 0, 135)
+-- Positioned Top-Center (50% X offset, shifted left by half frame width: -130px)
+MainFrame.Position = UDim2.new(0.5, -130, 0.02, 0)
+MainFrame.AnchorPoint = Vector2.new(0, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+MainFrame.BackgroundTransparency = 0.2
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
@@ -77,14 +79,14 @@ Title.Parent = MainFrame
 
 local Divider = Instance.new("Frame")
 Divider.Size = UDim2.new(1, -20, 0, 1)
-Divider.Position = UDim2.new(0, 10, 0, 32)
+Divider.Position = UDim2.new(0, 10, 0, 30)
 Divider.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
 Divider.BorderSizePixel = 0
 Divider.Parent = MainFrame
 
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(1, -20, 0, 20)
-StatusLabel.Position = UDim2.new(0, 10, 0, 40)
+StatusLabel.Position = UDim2.new(0, 10, 0, 36)
 StatusLabel.BackgroundTransparency = 1
 StatusLabel.Text = "Status: Initializing..."
 StatusLabel.TextColor3 = Color3.fromRGB(220, 220, 100)
@@ -95,7 +97,7 @@ StatusLabel.Parent = MainFrame
 
 local PlayersLabel = Instance.new("TextLabel")
 PlayersLabel.Size = UDim2.new(1, -20, 0, 20)
-PlayersLabel.Position = UDim2.new(0, 10, 0, 62)
+PlayersLabel.Position = UDim2.new(0, 10, 0, 58)
 PlayersLabel.BackgroundTransparency = 1
 PlayersLabel.Text = "Players: 0 / 5"
 PlayersLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -106,7 +108,7 @@ PlayersLabel.Parent = MainFrame
 
 local ClaimLabel = Instance.new("TextLabel")
 ClaimLabel.Size = UDim2.new(1, -20, 0, 20)
-ClaimLabel.Position = UDim2.new(0, 10, 0, 84)
+ClaimLabel.Position = UDim2.new(0, 10, 0, 80)
 ClaimLabel.BackgroundTransparency = 1
 ClaimLabel.Text = "Claim Status: Checking..."
 ClaimLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -117,7 +119,7 @@ ClaimLabel.Parent = MainFrame
 
 local InfoLabel = Instance.new("TextLabel")
 InfoLabel.Size = UDim2.new(1, -20, 0, 20)
-InfoLabel.Position = UDim2.new(0, 10, 0, 106)
+InfoLabel.Position = UDim2.new(0, 10, 0, 102)
 InfoLabel.BackgroundTransparency = 1
 InfoLabel.Text = "Activity: Idle"
 InfoLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
