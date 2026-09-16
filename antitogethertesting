@@ -1,4 +1,4 @@
--- V2.11 (Deterministic Auto-Yielding Server Ownership)
+-- V2.12 (Strict 0-3 Search, 0-4 JobId Claiming & Instant Conflict Yield)
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
@@ -16,19 +16,20 @@ local CurrentJobId = game.JobId
 local visitedServers = {} -- [JobId] = timestamp
 
 --------------------------------------------------------------------------------
--- DETERMINISTIC CLAIM SYSTEM
+-- DETERMINISTIC SERVER CLAIM SYSTEM (PULLS USERID RANKING)
 --------------------------------------------------------------------------------
 local function IsCurrentServerClaimedByMe()
     if not CurrentJobId or CurrentJobId == "" then return true end
 
     local currentPlayers = Players:GetPlayers()
+    
+    -- If player count exceeds 4 (5+), nobody can claim this server -> auto-hop
     if #currentPlayers >= 5 then
         return false
     end
 
-    -- Compare UserIds across all current players in the server
+    -- Deterministic tie-breaker: Lowest UserId claims the server
     local lowestUserId = LocalPlayer.UserId
-
     for _, player in ipairs(currentPlayers) do
         if player and player.UserId then
             if player.UserId < lowestUserId then
@@ -37,7 +38,7 @@ local function IsCurrentServerClaimedByMe()
         end
     end
 
-    -- Only the account with the lowest UserId stays; others yield
+    -- If this player has the lowest UserId, claim it. All other script users yield instantly.
     return LocalPlayer.UserId == lowestUserId
 end
 
@@ -117,7 +118,7 @@ elseif request then requestFunc = request
 else error("No supported HTTP request function found!") end
 
 --------------------------------------------------------------------------------
--- SERVER HOPPER
+-- INFINITE SERVER HOPPER LOOP (STRICT 0-3 TARGET SEARCH)
 --------------------------------------------------------------------------------
 local function fetchServers(cursor)
     local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
@@ -142,9 +143,10 @@ local function HopToLowServer()
     if isSearching then return end
     isSearching = true
 
-    UpdateUI("Searching...", Color3.fromRGB(255, 180, 50))
+    UpdateUI("Searching 0-3...", Color3.fromRGB(255, 180, 50))
 
-    while isSearching do
+    -- Loops indefinitely until a join succeeds into a 0-3 player server
+    while true do
         local cursor = nil
         local candidates = {}
 
@@ -153,6 +155,7 @@ local function HopToLowServer()
             if data and data.data then
                 for _, server in ipairs(data.data) do
                     local playingCount = tonumber(server.playing)
+                    -- Hard constraint: MUST be 0 to 3 players
                     local validPlayerCount = playingCount ~= nil and playingCount >= 0 and playingCount <= 3
                     local notCurrentServer = server.id ~= CurrentJobId
                     local notVisited = not visitedServers[server.id]
@@ -169,6 +172,7 @@ local function HopToLowServer()
         until not cursor or #candidates >= 15
 
         if #candidates > 0 then
+            -- Random offset selection (math.random(3, #candidates)) prevents 2 script users hitting the exact same server
             local minIndex = math.min(3, #candidates)
             local selectedIndex = math.random(minIndex, #candidates)
             local selectedServer = candidates[selectedIndex]
@@ -187,10 +191,12 @@ local function HopToLowServer()
                 task.wait(8)
             end
 
-            UpdateUI("Resuming Scan...", Color3.fromRGB(255, 80, 80))
+            -- Resume loop automatically if teleport gets canceled or times out
+            UpdateUI("Retrying Hop...", Color3.fromRGB(255, 80, 80))
             task.wait(0.5)
         else
-            if next(visitedServers) and #candidates == 0 then
+            -- If cache fills up without finding 0-3 servers, wipe visited cache and keep retrying
+            if next(visitedServers) then
                 visitedServers = {}
             end
             UpdateUI("Scanning...", Color3.fromRGB(255, 150, 50))
@@ -200,8 +206,9 @@ local function HopToLowServer()
 end
 
 --------------------------------------------------------------------------------
--- MONITORING LOOP & AUTOMATIC YIELDING
+-- MONITORING & CONFLICT DISCOVERY
 --------------------------------------------------------------------------------
+-- Resume search instantly if game engine fails or cancels teleport
 TeleportService.TeleportInitFailed:Connect(function()
     isSearching = false
     UpdateUI("Teleport Canceled", Color3.fromRGB(255, 80, 80))
@@ -213,32 +220,35 @@ local function CheckAndHop()
     if isSearching then return end
 
     local count = #Players:GetPlayers()
+
+    -- Requirement: Automatically hop if server has 5 or more players
     if count >= 5 then
-        UpdateUI("Hopping...", Color3.fromRGB(255, 80, 80))
+        UpdateUI("Server Full (5+)", Color3.fromRGB(255, 80, 80))
         HopToLowServer()
         return
     end
 
+    -- Requirement: Claim server JobId if player count is 0 to 4
     local isOwner = IsCurrentServerClaimedByMe()
 
     if not isOwner then
-        -- Automatically hop higher-UserId script users out of the server
+        -- Requirement: When another script user joins a claimed server, auto-hop the second user
         UpdateUI("Yielding JobId...", Color3.fromRGB(255, 80, 80))
-        task.wait(0.5)
+        task.wait(0.3)
         HopToLowServer()
     else
         UpdateUI("Claimed (" .. string.sub(tostring(CurrentJobId), 1, 6) .. ")", Color3.fromRGB(100, 255, 100))
     end
 end
 
--- Monitor player events so newly joining accounts immediately yield if lower UserId claims it
+-- Monitor player entry/exit to trigger instant yield response for incoming users
 Players.PlayerAdded:Connect(function()
-    task.wait(0.2)
+    task.wait(0.1)
     CheckAndHop()
 end)
 
 Players.PlayerRemoving:Connect(function()
-    task.wait(0.2)
+    task.wait(0.1)
     CheckAndHop()
 end)
 
