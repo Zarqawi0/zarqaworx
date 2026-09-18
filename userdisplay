@@ -1,0 +1,81 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "TightProfileGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Tight Container Frame (Centered like crosshair)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 0, 0, 48) -- Automatically sizes width based on text
+mainFrame.AutomaticSize = Enum.AutomaticSize.X
+mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 32)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 8)
+frameCorner.Parent = mainFrame
+
+-- UI Padding (Para exact at sagad ang space ng box)
+local padding = Instance.new("UIPadding")
+padding.PaddingLeft = UDim.new(0, 5)
+padding.PaddingRight = UDim.new(0, 10)
+padding.PaddingTop = UDim.new(0, 5)
+padding.PaddingBottom = UDim.new(0, 5)
+padding.Parent = mainFrame
+
+-- Layout for automatic positioning
+local listLayout = Instance.new("UIListLayout")
+listLayout.FillDirection = Enum.FillDirection.Horizontal
+listLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding = UDim.new(0, 6) -- Maliit na distansya sa pagitan ng avatar at pangalan
+listLayout.Parent = mainFrame
+
+-- Avatar Image
+local avatarImage = Instance.new("ImageLabel")
+avatarImage.Name = "AvatarImage"
+avatarImage.Size = UDim2.new(0, 38, 0, 38)
+avatarImage.BackgroundTransparency = 1
+avatarImage.BorderSizePixel = 0
+avatarImage.LayoutOrder = 1
+avatarImage.Parent = mainFrame
+
+local imgCorner = Instance.new("UICorner")
+imgCorner.CornerRadius = UDim.new(0, 6)
+imgCorner.Parent = avatarImage
+
+-- Display Name Label (katabi agad ng picture)
+local displayNameLabel = Instance.new("TextLabel")
+displayNameLabel.Name = "DisplayNameLabel"
+displayNameLabel.Size = UDim2.new(0, 0, 1, 0)
+displayNameLabel.AutomaticSize = Enum.AutomaticSize.X
+displayNameLabel.BackgroundTransparency = 1
+displayNameLabel.Text = LocalPlayer.DisplayName
+displayNameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+displayNameLabel.TextSize = 14
+displayNameLabel.Font = Enum.Font.GothamBold
+displayNameLabel.TextXAlignment = Enum.TextXAlignment.Left
+displayNameLabel.TextYAlignment = Enum.TextYAlignment.Center
+displayNameLabel.LayoutOrder = 2
+displayNameLabel.Parent = mainFrame
+
+-- Fetch Avatar Headshot
+task.spawn(function()
+	local content, isReady = Players:GetUserThumbnailAsync(
+		LocalPlayer.UserId, 
+		Enum.ThumbnailType.HeadShot, 
+		Enum.ThumbnailSize.Size150x150
+	)
+	if isReady then
+		avatarImage.Image = content
+	end
+end)
