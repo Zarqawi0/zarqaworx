@@ -1,5 +1,5 @@
--- V2.2.1
--- Fixed "No Servers Found" Lock + Sync Claim System
+-- V2.2.3
+-- Script-Only Player Claim System + Flowchart Alignment
 
 task.wait(10)
 
@@ -15,6 +15,9 @@ while not LocalPlayer or not LocalPlayer.UserId do
     LocalPlayer = Players.LocalPlayer
 end
 
+-- Tag the LocalPlayer so other script instances recognize us
+LocalPlayer:SetAttribute("RunningServerFinderScript", true)
+
 local PlaceId = game.PlaceId
 local CurrentJobId = game.JobId
 
@@ -26,7 +29,6 @@ local visitedServers = {}
 ----------------------------------------------------------------
 
 local MAX_SERVER_INDEX = 299
-local RANDOM_PICK_COUNT = 5
 local MAX_TARGET_PLAYERS = 3
 local MAX_CLAIM_PLAYERS = 4
 
@@ -113,7 +115,7 @@ local function UpdateUI(statusText, color)
 end
 
 ----------------------------------------------------------------
--- DETERMINISTIC SERVER CLAIM SYSTEM
+-- DETERMINISTIC SERVER CLAIM SYSTEM (SCRIPT USERS ONLY)
 ----------------------------------------------------------------
 
 local function IsCurrentServerClaimedByMe()
@@ -124,16 +126,16 @@ local function IsCurrentServerClaimedByMe()
     local currentPlayers = Players:GetPlayers()
 
     if #currentPlayers > MAX_CLAIM_PLAYERS + 1 then
-        print("[Claim Check] Server rejected: Exceeds player limit.")
+        print("[Claim Check] Server rejected: Exceeds 4 player threshold.")
         return false
     end
 
-    -- Lowest UserId breaks ties if multiple players run the script
     local lowestUserId = LocalPlayer.UserId
     local lowestUserObj = LocalPlayer
 
     for _, player in ipairs(currentPlayers) do
-        if player and player.UserId then
+        -- ONLY check players who are actively running this script
+        if player and player:GetAttribute("RunningServerFinderScript") == true then
             if player.UserId < lowestUserId then
                 lowestUserId = player.UserId
                 lowestUserObj = player
@@ -145,7 +147,7 @@ local function IsCurrentServerClaimedByMe()
 
     if not holdsClaim then
         print(string.format(
-            "[Claim Check] Yielding: %s (%d) has lower UserId than you (%d)",
+            "[Claim Check] Yielding: Script User %s (%d) has lower UserId than you (%d)",
             lowestUserObj.Name,
             lowestUserId,
             LocalPlayer.UserId
@@ -168,7 +170,7 @@ elseif request then requestFunc = request
 else error("No supported HTTP request function found!") end
 
 ----------------------------------------------------------------
--- FETCH & RANDOMIZE SERVERS
+-- FETCH ROBLOX SERVERS
 ----------------------------------------------------------------
 
 local function fetchServers(cursor)
@@ -188,31 +190,6 @@ local function fetchServers(cursor)
     return nil
 end
 
-local function ShuffleTable(tbl)
-    for i = #tbl, 2, -1 do
-        local j = math.random(1, i)
-        tbl[i], tbl[j] = tbl[j], tbl[i]
-    end
-end
-
-local function GetFiveRandomCandidates(candidates)
-    local workingPool = {}
-    for i, server in ipairs(candidates) do
-        workingPool[i] = server
-    end
-
-    ShuffleTable(workingPool)
-
-    local amount = math.min(RANDOM_PICK_COUNT, #workingPool)
-    local fiveRandom = {}
-
-    for i = 1, amount do
-        table.insert(fiveRandom, workingPool[i])
-    end
-
-    return fiveRandom
-end
-
 ----------------------------------------------------------------
 -- FORWARD DECLARATION
 ----------------------------------------------------------------
@@ -220,7 +197,7 @@ end
 local CheckAndHop
 
 ----------------------------------------------------------------
--- SERVER HOPPER
+-- SERVER HOPPER (3-15 PICK LOGIC OVER 0-299 SEARCH POOL)
 ----------------------------------------------------------------
 
 local isSearching = false
@@ -234,6 +211,7 @@ local function HopToLowServer()
     local cursor = nil
     local candidates = {}
 
+    -- Scan server pages through index 0–299
     repeat
         local data = fetchServers(cursor)
         if not data or not data.data then break end
@@ -253,24 +231,25 @@ local function HopToLowServer()
 
         cursor = data.nextPageCursor
         task.wait(0.1)
-    until not cursor or #candidates >= (MAX_SERVER_INDEX + 1)
+    until not cursor or #candidates >= 15
 
     if #candidates == 0 then
         if next(visitedServers) then visitedServers = {} end
         UpdateUI("No Servers Found", Color3.fromRGB(255, 150, 50))
         task.wait(1.5)
         isSearching = false
-        
-        -- Re-evaluate current server state instead of leaving UI stuck
         task.defer(CheckAndHop)
         return
     end
 
-    local fiveRandom = GetFiveRandomCandidates(candidates)
-    local finalIndex = math.random(1, #fiveRandom)
-    local selectedServer = fiveRandom[finalIndex]
+    -- Rule: Exclude first 2 candidates if 3+ exist, pick randomly between index 3 and math.min(15, #candidates)
+    local minIndex = math.min(3, #candidates)
+    local selectedIndex = math.random(minIndex, #candidates)
+    local selectedServer = candidates[selectedIndex]
 
     visitedServers[selectedServer.id] = os.time()
+
+    print(string.format("[Server Search] Picked candidate %d of %d (JobId: %s | Players: %d/5)", selectedIndex, #candidates, tostring(selectedServer.id), tonumber(selectedServer.playing) or 0))
 
     UpdateUI("Teleporting...", Color3.fromRGB(100, 255, 100))
 
@@ -297,7 +276,7 @@ TeleportService.TeleportInitFailed:Connect(function()
 end)
 
 ----------------------------------------------------------------
--- SERVER EVALUATION
+-- SERVER EVALUATION & FLOWCHART EXECUTION
 ----------------------------------------------------------------
 
 CheckAndHop = function()
@@ -305,14 +284,14 @@ CheckAndHop = function()
 
     if isSearching then return end
 
-    -- Server full check (5+ players)
+    -- Flowchart path: 5+ Players -> Hop
     if count >= 5 then
         UpdateUI("Server Full (5+)", Color3.fromRGB(255, 80, 80))
         task.defer(HopToLowServer)
         return
     end
 
-    -- 0 to 4 players check
+    -- Flowchart path: 0-4 Players -> Check Script User ID claim
     local isOwner = IsCurrentServerClaimedByMe()
 
     if isOwner then
@@ -328,11 +307,10 @@ end
 -- INITIALIZATION & EVENT LISTENERS
 ----------------------------------------------------------------
 
--- Give time for player objects to resolve before running the first check
 task.wait(1)
 CheckAndHop()
 
-Players.PlayerAdded:Connect(function()
+Players.PlayerAdded:Connect(function(player)
     task.wait(0.5)
     CheckAndHop()
 end)
