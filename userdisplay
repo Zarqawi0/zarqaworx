@@ -1,6 +1,18 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
+
+-- Siguraduhin na loaded ang game at LocalPlayer
+if not game:IsLoaded() then
+	game.Loaded:Wait()
+end
+
+local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
+local playerGui = LocalPlayer:WaitForChild("PlayerGui", 15)
+
+if not playerGui then
+	warn("PlayerGui not found!")
+	return
+end
 
 local is3DEnabled = true
 
@@ -11,7 +23,6 @@ local function maskName(name)
 		return name
 	end
 	
-	-- Kukunin ang unang 50% (kalahati) ng pangalan
 	local keepLength = math.ceil(length * 0.50)
 	local visiblePart = string.sub(name, 1, keepLength)
 	local maskedPart = string.rep("*", length - keepLength)
@@ -23,7 +34,7 @@ end
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "TightProfileGUI"
 screenGui.ResetOnSpawn = false
-screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+screenGui.Parent = playerGui
 
 -- Tight Container Frame (Centered like crosshair)
 local mainFrame = Instance.new("Frame")
@@ -77,7 +88,7 @@ displayNameLabel.Name = "DisplayNameLabel"
 displayNameLabel.Size = UDim2.new(0, 0, 1, 0)
 displayNameLabel.AutomaticSize = Enum.AutomaticSize.X
 displayNameLabel.BackgroundTransparency = 1
-displayNameLabel.Text = maskName(LocalPlayer.DisplayName) -- 50% masked
+displayNameLabel.Text = maskName(LocalPlayer.DisplayName or LocalPlayer.Name)
 displayNameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 displayNameLabel.TextSize = 14
 displayNameLabel.Font = Enum.Font.GothamBold
@@ -88,14 +99,16 @@ displayNameLabel.Parent = mainFrame
 
 -- Fetch Avatar Headshot
 task.spawn(function()
-	local content, isReady = Players:GetUserThumbnailAsync(
-		LocalPlayer.UserId, 
-		Enum.ThumbnailType.HeadShot, 
-		Enum.ThumbnailSize.Size150x150
-	)
-	if isReady then
-		avatarImage.Image = content
-	end
+	pcall(function()
+		local content, isReady = Players:GetUserThumbnailAsync(
+			LocalPlayer.UserId, 
+			Enum.ThumbnailType.HeadShot, 
+			Enum.ThumbnailSize.Size150x150
+		)
+		if isReady then
+			avatarImage.Image = content
+		end
+	end)
 end)
 
 -- Toggle 3D Rendering on UI Click
