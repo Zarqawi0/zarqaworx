@@ -1,5 +1,5 @@
--- V2.2.3
--- Script-Only Player Claim System + Flowchart Alignment
+-- V2.2.5
+-- Server Claiming System Based directly on JobId & UserId Priority
 
 task.wait(10)
 
@@ -7,6 +7,7 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
+local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -15,11 +16,25 @@ while not LocalPlayer or not LocalPlayer.UserId do
     LocalPlayer = Players.LocalPlayer
 end
 
--- Tag the LocalPlayer so other script instances recognize us
-LocalPlayer:SetAttribute("RunningServerFinderScript", true)
-
 local PlaceId = game.PlaceId
 local CurrentJobId = game.JobId
+
+-- Shared workspace folder so script instances on the same JobId recognize each other
+local claimFolder = Workspace:FindFirstChild("JobIdClaims")
+if not claimFolder then
+    claimFolder = Instance.new("Folder")
+    claimFolder.Name = "JobIdClaims"
+    claimFolder.Parent = Workspace
+end
+
+-- Register player's UserId under the current JobId
+local myClaimTag = claimFolder:FindFirstChild(tostring(LocalPlayer.UserId))
+if not myClaimTag then
+    myClaimTag = Instance.new("StringValue")
+    myClaimTag.Name = tostring(LocalPlayer.UserId)
+    myClaimTag.Value = tostring(CurrentJobId)
+    myClaimTag.Parent = claimFolder
+end
 
 -- [JobId] = timestamp
 local visitedServers = {}
@@ -115,10 +130,10 @@ local function UpdateUI(statusText, color)
 end
 
 ----------------------------------------------------------------
--- DETERMINISTIC SERVER CLAIM SYSTEM (SCRIPT USERS ONLY)
+-- JOBID CLAIM EVALUATION SYSTEM
 ----------------------------------------------------------------
 
-local function IsCurrentServerClaimedByMe()
+local function IsCurrentJobIdClaimedByMe()
     if not CurrentJobId or CurrentJobId == "" then
         return true
     end
@@ -126,19 +141,25 @@ local function IsCurrentServerClaimedByMe()
     local currentPlayers = Players:GetPlayers()
 
     if #currentPlayers > MAX_CLAIM_PLAYERS + 1 then
-        print("[Claim Check] Server rejected: Exceeds 4 player threshold.")
+        print("[JobId System] Server player count exceeds 4. Rejecting claim.")
         return false
     end
 
     local lowestUserId = LocalPlayer.UserId
     local lowestUserObj = LocalPlayer
 
+    -- Check all players currently in this JobId
     for _, player in ipairs(currentPlayers) do
-        -- ONLY check players who are actively running this script
-        if player and player:GetAttribute("RunningServerFinderScript") == true then
-            if player.UserId < lowestUserId then
-                lowestUserId = player.UserId
-                lowestUserObj = player
+        if player and player.UserId then
+            local playerTag = claimFolder:FindFirstChild(tostring(player.UserId))
+            
+            -- If another player in this JobId is also running the script
+            if playerTag and playerTag.Value == tostring(CurrentJobId) then
+                -- The player with the LOWER UserId wins the claim; HIGHER UserId must hop
+                if player.UserId < lowestUserId then
+                    lowestUserId = player.UserId
+                    lowestUserObj = player
+                end
             end
         end
     end
@@ -147,10 +168,11 @@ local function IsCurrentServerClaimedByMe()
 
     if not holdsClaim then
         print(string.format(
-            "[Claim Check] Yielding: Script User %s (%d) has lower UserId than you (%d)",
+            "[JobId System] Higher UserId detected (%d). Yielding JobId %s to Player: %s (%d)",
+            LocalPlayer.UserId,
+            tostring(CurrentJobId),
             lowestUserObj.Name,
-            lowestUserId,
-            LocalPlayer.UserId
+            lowestUserId
         ))
     end
 
@@ -211,7 +233,6 @@ local function HopToLowServer()
     local cursor = nil
     local candidates = {}
 
-    -- Scan server pages through index 0–299
     repeat
         local data = fetchServers(cursor)
         if not data or not data.data then break end
@@ -242,14 +263,11 @@ local function HopToLowServer()
         return
     end
 
-    -- Rule: Exclude first 2 candidates if 3+ exist, pick randomly between index 3 and math.min(15, #candidates)
     local minIndex = math.min(3, #candidates)
     local selectedIndex = math.random(minIndex, #candidates)
     local selectedServer = candidates[selectedIndex]
 
     visitedServers[selectedServer.id] = os.time()
-
-    print(string.format("[Server Search] Picked candidate %d of %d (JobId: %s | Players: %d/5)", selectedIndex, #candidates, tostring(selectedServer.id), tonumber(selectedServer.playing) or 0))
 
     UpdateUI("Teleporting...", Color3.fromRGB(100, 255, 100))
 
@@ -276,7 +294,7 @@ TeleportService.TeleportInitFailed:Connect(function()
 end)
 
 ----------------------------------------------------------------
--- SERVER EVALUATION & FLOWCHART EXECUTION
+-- SERVER EVALUATION
 ----------------------------------------------------------------
 
 CheckAndHop = function()
@@ -284,15 +302,13 @@ CheckAndHop = function()
 
     if isSearching then return end
 
-    -- Flowchart path: 5+ Players -> Hop
     if count >= 5 then
         UpdateUI("Server Full (5+)", Color3.fromRGB(255, 80, 80))
         task.defer(HopToLowServer)
         return
     end
 
-    -- Flowchart path: 0-4 Players -> Check Script User ID claim
-    local isOwner = IsCurrentServerClaimedByMe()
+    local isOwner = IsCurrentJobIdClaimedByMe()
 
     if isOwner then
         UpdateUI("Claimed (" .. string.sub(tostring(CurrentJobId), 1, 6) .. ")", Color3.fromRGB(100, 255, 100))
@@ -310,7 +326,12 @@ end
 task.wait(1)
 CheckAndHop()
 
-Players.PlayerAdded:Connect(function(player)
+claimFolder.ChildAdded:Connect(function()
+    task.wait(0.5)
+    CheckAndHop()
+end)
+
+Players.PlayerAdded:Connect(function()
     task.wait(0.5)
     CheckAndHop()
 end)
