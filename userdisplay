@@ -1,15 +1,15 @@
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- Function para i-censor ang 75% ng pangalan (25% lang ang makikita)
+-- Function para i-censor ang 50% ng pangalan
 local function maskName(name)
 	local length = #name
 	if length <= 1 then
 		return name
 	end
 	
-	-- Kukunin ang 25% (unang 1/4) ng pangalan, siguradong may 1 letter na lalabas
-	local keepLength = math.max(1, math.floor(length * 0.25))
+	-- Kukunin ang unang 50% (kalahati) ng pangalan
+	local keepLength = math.ceil(length * 0.50)
 	local visiblePart = string.sub(name, 1, keepLength)
 	local maskedPart = string.rep("*", length - keepLength)
 	
@@ -74,7 +74,7 @@ displayNameLabel.Name = "DisplayNameLabel"
 displayNameLabel.Size = UDim2.new(0, 0, 1, 0)
 displayNameLabel.AutomaticSize = Enum.AutomaticSize.X
 displayNameLabel.BackgroundTransparency = 1
-displayNameLabel.Text = maskName(LocalPlayer.DisplayName) -- 75% masked
+displayNameLabel.Text = maskName(LocalPlayer.DisplayName) -- 50% masked
 displayNameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 displayNameLabel.TextSize = 14
 displayNameLabel.Font = Enum.Font.GothamBold
