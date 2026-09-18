@@ -1,6 +1,11 @@
--- V2.1.9 (10s Initial Delay + Direct 0-4 Claim Flow)
+-- V2.2.0
+-- 10s Initial Delay + Random 0-299 Server Pool
+-- Select 5 Random Candidates -> Randomly Select 1 Final Server
 
+----------------------------------------------------------------
 -- 10 SECOND DELAY BEFORE SCRIPT EXECUTION
+----------------------------------------------------------------
+
 task.wait(10)
 
 local HttpService = game:GetService("HttpService")
@@ -9,6 +14,7 @@ local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
+
 while not LocalPlayer or not LocalPlayer.UserId do
     task.wait(0.1)
     LocalPlayer = Players.LocalPlayer
@@ -16,57 +22,102 @@ end
 
 local PlaceId = game.PlaceId
 local CurrentJobId = game.JobId
-local visitedServers = {} -- [JobId] = timestamp
 
---------------------------------------------------------------------------------
+-- [JobId] = timestamp
+local visitedServers = {}
+
+----------------------------------------------------------------
+-- CONFIGURATION
+----------------------------------------------------------------
+
+local MAX_SERVER_INDEX = 299
+local RANDOM_PICK_COUNT = 5
+
+-- Server search target:
+-- 0, 1, 2, or 3 players
+local MAX_TARGET_PLAYERS = 3
+
+-- Current server can be claimed when it has 0-4 players
+local MAX_CLAIM_PLAYERS = 4
+
+----------------------------------------------------------------
 -- DETERMINISTIC SERVER CLAIM SYSTEM
---------------------------------------------------------------------------------
+----------------------------------------------------------------
+
 local function IsCurrentServerClaimedByMe()
-    if not CurrentJobId or CurrentJobId == "" then return true end
+
+    if not CurrentJobId or CurrentJobId == "" then
+        return true
+    end
 
     local currentPlayers = Players:GetPlayers()
-    
+
     -- Reject claim if server has 5 or more players
     if #currentPlayers >= 5 then
-        print("[Claim Check] Server rejected: Has " .. #currentPlayers .. " players (Max allowed is 4)")
+        print(
+            "[Claim Check] Server rejected: Has "
+            .. #currentPlayers
+            .. " players (Max allowed is 4)"
+        )
+
         return false
     end
 
-    -- Lowest UserId breaks tie if multiple script users are in the same server
+    -- Lowest UserId wins the claim
     local lowestUserId = LocalPlayer.UserId
     local lowestUserObj = LocalPlayer
 
     for _, player in ipairs(currentPlayers) do
+
         if player and player.UserId then
+
             if player.UserId < lowestUserId then
                 lowestUserId = player.UserId
                 lowestUserObj = player
             end
+
         end
+
     end
 
-    local holdsClaim = (LocalPlayer.UserId == lowestUserId)
+    local holdsClaim = LocalPlayer.UserId == lowestUserId
+
     if not holdsClaim then
-        print(string.format("[Claim Check] Yielding: %s (%d) has lower UserId than you (%d)", lowestUserObj.Name, lowestUserId, LocalPlayer.UserId))
+
+        print(
+            string.format(
+                "[Claim Check] Yielding: %s (%d) has lower UserId than you (%d)",
+                lowestUserObj.Name,
+                lowestUserId,
+                LocalPlayer.UserId
+            )
+        )
+
     end
 
     return holdsClaim
 end
 
---------------------------------------------------------------------------------
--- STATUS UI CREATION
---------------------------------------------------------------------------------
+----------------------------------------------------------------
+-- STATUS UI
+----------------------------------------------------------------
+
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ServerFinderUI"
 ScreenGui.ResetOnSpawn = false
 
-local successUI = pcall(function() ScreenGui.Parent = CoreGui end)
-if not successUI then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+local successUI = pcall(function()
+    ScreenGui.Parent = CoreGui
+end)
+
+if not successUI then
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 160, 0, 48)
-MainFrame.Position = UDim2.new(0.5, -80, 0.90, 0)
+MainFrame.Size = UDim2.new(0, 180, 0, 48)
+MainFrame.Position = UDim2.new(0.5, -90, 0.90, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 35, 15)
 MainFrame.BackgroundTransparency = 0.25
 MainFrame.BorderSizePixel = 0
@@ -100,164 +151,551 @@ PlayersLabel.Font = Enum.Font.SourceSansBold
 PlayersLabel.TextXAlignment = Enum.TextXAlignment.Left
 PlayersLabel.Parent = MainFrame
 
+----------------------------------------------------------------
+-- PLAYER COUNT
+----------------------------------------------------------------
+
 local function RefreshPlayerCount()
+
     local count = #Players:GetPlayers()
-    PlayersLabel.Text = string.format("Players: %d / 5", count)
+
+    PlayersLabel.Text = string.format(
+        "Players: %d / 5",
+        count
+    )
+
     if count >= 5 then
-        PlayersLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+
+        PlayersLabel.TextColor3 =
+            Color3.fromRGB(255, 100, 100)
+
     else
-        PlayersLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+
+        PlayersLabel.TextColor3 =
+            Color3.fromRGB(100, 255, 100)
+
     end
+
     return count
 end
 
 local function UpdateUI(statusText, color)
-    if statusText then StatusLabel.Text = "Status: " .. statusText end
-    if color then StatusLabel.TextColor3 = color end
+
+    if statusText then
+        StatusLabel.Text = "Status: " .. statusText
+    end
+
+    if color then
+        StatusLabel.TextColor3 = color
+    end
+
     RefreshPlayerCount()
 end
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------
 -- HTTP EXECUTOR COMPATIBILITY
---------------------------------------------------------------------------------
-local requestFunc = nil
-if syn and syn.request then requestFunc = syn.request
-elseif http and http.request then requestFunc = http.request
-elseif http_request then requestFunc = http_request
-elseif fluxus and fluxus.request then requestFunc = fluxus.request
-elseif request then requestFunc = request
-else error("No supported HTTP request function found!") end
+----------------------------------------------------------------
 
---------------------------------------------------------------------------------
--- SERVER HOPPER LOGIC (TARGETS 0-3 PLAYER SERVERS)
---------------------------------------------------------------------------------
+local requestFunc = nil
+
+if syn and syn.request then
+
+    requestFunc = syn.request
+
+elseif http and http.request then
+
+    requestFunc = http.request
+
+elseif http_request then
+
+    requestFunc = http_request
+
+elseif fluxus and fluxus.request then
+
+    requestFunc = fluxus.request
+
+elseif request then
+
+    requestFunc = request
+
+else
+
+    error("No supported HTTP request function found!")
+
+end
+
+----------------------------------------------------------------
+-- FETCH ROBLOX SERVERS
+----------------------------------------------------------------
+
 local function fetchServers(cursor)
-    local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
-    if cursor then url = url .. "&cursor=" .. cursor end
-    
-    local success, response = pcall(function()
-        return requestFunc({ Url = url, Method = "GET" })
-    end)
-    
-    if success and response and response.Body then
-        local successDecode, decoded = pcall(function()
-            return HttpService:JSONDecode(response.Body)
-        end)
-        if successDecode then return decoded end
+
+    local url = string.format(
+        "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100",
+        PlaceId
+    )
+
+    if cursor then
+        url = url .. "&cursor=" .. cursor
     end
+
+    local success, response = pcall(function()
+
+        return requestFunc({
+            Url = url,
+            Method = "GET"
+        })
+
+    end)
+
+    if success and response and response.Body then
+
+        local successDecode, decoded = pcall(function()
+
+            return HttpService:JSONDecode(response.Body)
+
+        end)
+
+        if successDecode then
+            return decoded
+        end
+
+    end
+
     return nil
 end
+
+----------------------------------------------------------------
+-- RANDOMIZE TABLE
+----------------------------------------------------------------
+
+local function ShuffleTable(tbl)
+
+    for i = #tbl, 2, -1 do
+
+        local j = math.random(1, i)
+
+        tbl[i], tbl[j] = tbl[j], tbl[i]
+
+    end
+
+end
+
+----------------------------------------------------------------
+-- PICK 5 RANDOM CANDIDATES
+----------------------------------------------------------------
+
+local function GetFiveRandomCandidates(candidates)
+
+    local workingPool = {}
+
+    -- Copy candidates
+    for i, server in ipairs(candidates) do
+        workingPool[i] = server
+    end
+
+    -- Completely randomize the pool
+    ShuffleTable(workingPool)
+
+    local amount = math.min(
+        RANDOM_PICK_COUNT,
+        #workingPool
+    )
+
+    local fiveRandom = {}
+
+    for i = 1, amount do
+
+        table.insert(
+            fiveRandom,
+            workingPool[i]
+        )
+
+    end
+
+    return fiveRandom
+end
+
+----------------------------------------------------------------
+-- SERVER HOPPER
+--
+-- Collects up to 300 eligible servers.
+--
+-- Conceptual indexes:
+-- 0
+-- 1
+-- 2
+-- ...
+-- 299
+--
+-- Lua internally uses 1-300.
+----------------------------------------------------------------
 
 local isSearching = false
 
 local function HopToLowServer()
-    if isSearching then return end
+
+    if isSearching then
+        return
+    end
+
     isSearching = true
 
-    UpdateUI("Searching 0-3...", Color3.fromRGB(255, 180, 50))
+    UpdateUI(
+        "Searching 0-299...",
+        Color3.fromRGB(255, 180, 50)
+    )
 
     local cursor = nil
     local candidates = {}
 
-    repeat
-        local data = fetchServers(cursor)
-        if data and data.data then
-            for _, server in ipairs(data.data) do
-                local playingCount = tonumber(server.playing)
-                local validPlayerCount = playingCount ~= nil and playingCount >= 0 and playingCount <= 3
-                local notCurrentServer = server.id ~= CurrentJobId
-                local notVisited = not visitedServers[server.id]
+    ----------------------------------------------------------------
+    -- COLLECT UP TO 300 SERVERS
+    ----------------------------------------------------------------
 
-                if validPlayerCount and notCurrentServer and notVisited then
-                    table.insert(candidates, server)
-                end
-            end
-            cursor = data.nextPageCursor
-        else
+    repeat
+
+        local data = fetchServers(cursor)
+
+        if not data or not data.data then
             break
         end
-        task.wait(0.1)
-    until not cursor or #candidates >= 15
 
-    if #candidates > 0 then
-        local minIndex = math.min(3, #candidates)
-        local selectedIndex = math.random(minIndex, #candidates)
-        local selectedServer = candidates[selectedIndex]
+        for _, server in ipairs(data.data) do
 
-        visitedServers[selectedServer.id] = os.time()
-        
-        print("JobTrack: Target Server Found - " .. tostring(selectedServer.id) .. " (" .. tostring(selectedServer.playing) .. "/5 players)")
+            -- Stop once we have 300 candidates
+            if #candidates >= (MAX_SERVER_INDEX + 1) then
+                break
+            end
 
-        UpdateUI("Teleporting...", Color3.fromRGB(100, 255, 100))
-        
-        local teleportSuccess = pcall(function()
-            TeleportService:TeleportToPlaceInstance(PlaceId, selectedServer.id, LocalPlayer)
-        end)
+            local playingCount = tonumber(server.playing)
 
-        if not teleportSuccess then
-            UpdateUI("Teleport Failed", Color3.fromRGB(255, 80, 80))
-            task.wait(1)
-            isSearching = false
+            local validPlayerCount =
+                playingCount ~= nil
+                and playingCount >= 0
+                and playingCount <= MAX_TARGET_PLAYERS
+
+            local notCurrentServer =
+                server.id ~= CurrentJobId
+
+            local notVisited =
+                not visitedServers[server.id]
+
+            if validPlayerCount
+                and notCurrentServer
+                and notVisited then
+
+                table.insert(
+                    candidates,
+                    server
+                )
+
+            end
+
         end
-    else
+
+        cursor = data.nextPageCursor
+
+        task.wait(0.1)
+
+    until
+        not cursor
+        or #candidates >= (MAX_SERVER_INDEX + 1)
+
+    ----------------------------------------------------------------
+    -- NO CANDIDATES
+    ----------------------------------------------------------------
+
+    if #candidates == 0 then
+
         if next(visitedServers) then
             visitedServers = {}
         end
-        UpdateUI("No Servers Found", Color3.fromRGB(255, 150, 50))
+
+        UpdateUI(
+            "No Servers Found",
+            Color3.fromRGB(255, 150, 50)
+        )
+
         task.wait(1)
+
         isSearching = false
-    end
-end
 
---------------------------------------------------------------------------------
--- SERVER EVALUATION & MONITORING LOOP
---------------------------------------------------------------------------------
-TeleportService.TeleportInitFailed:Connect(function()
-    isSearching = false
-    UpdateUI("Teleport Canceled", Color3.fromRGB(255, 80, 80))
-end)
-
-local function CheckAndHop()
-    local count = RefreshPlayerCount()
-    if isSearching then return end
-
-    -- REQUIREMENT CHECK: Server has 5 or more players -> Search for 0-3 server
-    if count >= 5 then
-        UpdateUI("Server Full (5+)", Color3.fromRGB(255, 80, 80))
-        task.defer(HopToLowServer)
         return
     end
 
-    -- REQUIREMENT CHECK: Server has 0-4 players -> Immediately claim
-    local isOwner = IsCurrentServerClaimedByMe()
+    ----------------------------------------------------------------
+    -- SHOW POOL SIZE
+    ----------------------------------------------------------------
 
-    if isOwner then
-        UpdateUI("Claimed (" .. string.sub(tostring(CurrentJobId), 1, 6) .. ")", Color3.fromRGB(100, 255, 100))
-    else
-        UpdateUI("Yielding JobId...", Color3.fromRGB(255, 80, 80))
-        task.wait(0.3)
-        task.defer(HopToLowServer)
+    print(
+        "[Server Search] Found "
+        .. #candidates
+        .. " eligible servers."
+    )
+
+    ----------------------------------------------------------------
+    -- SELECT 5 RANDOM SERVERS
+    ----------------------------------------------------------------
+
+    local fiveRandom =
+        GetFiveRandomCandidates(candidates)
+
+    print(
+        "[Server Search] Selected "
+        .. #fiveRandom
+        .. " random candidates."
+    )
+
+    ----------------------------------------------------------------
+    -- PRINT THE 5 RANDOM CANDIDATES
+    ----------------------------------------------------------------
+
+    for index, server in ipairs(fiveRandom) do
+
+        print(
+            string.format(
+                "[Random Candidate %d] %s (%d/5 players)",
+                index,
+                tostring(server.id),
+                tonumber(server.playing) or 0
+            )
+        )
+
+    end
+
+    ----------------------------------------------------------------
+    -- RANDOMLY PICK ONE OF THE 5
+    ----------------------------------------------------------------
+
+    local finalIndex =
+        math.random(1, #fiveRandom)
+
+    local selectedServer =
+        fiveRandom[finalIndex]
+
+    ----------------------------------------------------------------
+    -- CONVERT TO CONCEPTUAL 0-299 INDEX
+    ----------------------------------------------------------------
+
+    -- candidates is Lua 1-based.
+    -- Therefore:
+    --
+    -- Lua index 1 = conceptual index 0
+    -- Lua index 2 = conceptual index 1
+    -- ...
+    -- Lua index 300 = conceptual index 299
+
+    local conceptualIndex = nil
+
+    for i, server in ipairs(candidates) do
+
+        if server.id == selectedServer.id then
+
+            conceptualIndex = i - 1
+            break
+
+        end
+
+    end
+
+    ----------------------------------------------------------------
+    -- MARK VISITED
+    ----------------------------------------------------------------
+
+    visitedServers[selectedServer.id] = os.time()
+
+    print(
+        "================================================"
+    )
+
+    print(
+        "[Server Search] FINAL RANDOM PICK"
+    )
+
+    print(
+        "[Server Search] Index: "
+        .. tostring(conceptualIndex)
+        .. " / 299"
+    )
+
+    print(
+        "[Server Search] JobId: "
+        .. tostring(selectedServer.id)
+    )
+
+    print(
+        "[Server Search] Players: "
+        .. tostring(selectedServer.playing)
+        .. "/5"
+    )
+
+    print(
+        "[Server Search] Chosen from "
+        .. #fiveRandom
+        .. " random candidates."
+    )
+
+    print(
+        "================================================"
+    )
+
+    ----------------------------------------------------------------
+    -- UPDATE UI
+    ----------------------------------------------------------------
+
+    UpdateUI(
+        "Teleporting...",
+        Color3.fromRGB(100, 255, 100)
+    )
+
+    ----------------------------------------------------------------
+    -- TELEPORT
+    ----------------------------------------------------------------
+
+    local teleportSuccess = pcall(function()
+
+        TeleportService:TeleportToPlaceInstance(
+            PlaceId,
+            selectedServer.id,
+            LocalPlayer
+        )
+
+    end)
+
+    if not teleportSuccess then
+
+        UpdateUI(
+            "Teleport Failed",
+            Color3.fromRGB(255, 80, 80)
+        )
+
+        task.wait(1)
+
+        isSearching = false
+
     end
 end
 
--- Immediately scan on script load
+----------------------------------------------------------------
+-- TELEPORT FAILURE
+----------------------------------------------------------------
+
+TeleportService.TeleportInitFailed:Connect(function()
+
+    isSearching = false
+
+    UpdateUI(
+        "Teleport Canceled",
+        Color3.fromRGB(255, 80, 80)
+    )
+
+end)
+
+----------------------------------------------------------------
+-- SERVER EVALUATION
+----------------------------------------------------------------
+
+local function CheckAndHop()
+
+    local count = RefreshPlayerCount()
+
+    if isSearching then
+        return
+    end
+
+    ----------------------------------------------------------------
+    -- 5+ PLAYERS = SERVER TOO FULL
+    ----------------------------------------------------------------
+
+    if count >= 5 then
+
+        UpdateUI(
+            "Server Full (5+)",
+            Color3.fromRGB(255, 80, 80)
+        )
+
+        task.defer(HopToLowServer)
+
+        return
+    end
+
+    ----------------------------------------------------------------
+    -- 0-4 PLAYERS = CHECK CLAIM
+    ----------------------------------------------------------------
+
+    local isOwner =
+        IsCurrentServerClaimedByMe()
+
+    if isOwner then
+
+        UpdateUI(
+            "Claimed ("
+            .. string.sub(
+                tostring(CurrentJobId),
+                1,
+                6
+            )
+            .. ")",
+            Color3.fromRGB(100, 255, 100)
+        )
+
+    else
+
+        UpdateUI(
+            "Yielding JobId...",
+            Color3.fromRGB(255, 80, 80)
+        )
+
+        task.wait(0.3)
+
+        task.defer(HopToLowServer)
+
+    end
+end
+
+----------------------------------------------------------------
+-- INITIAL CHECK
+----------------------------------------------------------------
+
 CheckAndHop()
 
--- Monitor player joins and leaves
+----------------------------------------------------------------
+-- PLAYER JOIN
+----------------------------------------------------------------
+
 Players.PlayerAdded:Connect(function()
+
     task.wait(0.3)
+
     CheckAndHop()
+
 end)
+
+----------------------------------------------------------------
+-- PLAYER LEAVE
+----------------------------------------------------------------
 
 Players.PlayerRemoving:Connect(function()
+
     task.wait(0.3)
+
     CheckAndHop()
+
 end)
 
--- Background loop to continuously enforce state
+----------------------------------------------------------------
+-- BACKGROUND MONITOR
+----------------------------------------------------------------
+
 task.spawn(function()
+
     while true do
+
         CheckAndHop()
+
         task.wait(3)
+
     end
+
 end)
