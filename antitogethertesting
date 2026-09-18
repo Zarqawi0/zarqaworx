@@ -1,4 +1,4 @@
--- V2.1.6 (Strict 0-3 Search, Instant 0-4 JobId Claiming & 3s Scan Loop)
+-- V2.1.7 (Fixed Replica Delay & Claiming Logic)
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
@@ -15,6 +15,14 @@ local PlaceId = game.PlaceId
 local CurrentJobId = game.JobId
 local visitedServers = {} -- [JobId] = timestamp
 
+-- Buffer to wait for existing players to load into LocalPlayer's memory on join
+local INITIAL_LOAD_DELAY = 3 
+local isLoaded = false
+
+task.delay(INITIAL_LOAD_DELAY, function()
+    isLoaded = true
+end)
+
 --------------------------------------------------------------------------------
 -- DETERMINISTIC SERVER CLAIM SYSTEM (PULLS USERID RANKING)
 --------------------------------------------------------------------------------
@@ -25,21 +33,29 @@ local function IsCurrentServerClaimedByMe()
     
     -- If player count exceeds 4 (5+), nobody can claim this server -> auto-hop
     if #currentPlayers >= 5 then
+        print("[Claim Check] Server rejected: Has " .. #currentPlayers .. " players (Max allowed is 4)")
         return false
     end
 
     -- Deterministic tie-breaker: Lowest UserId claims the server
     local lowestUserId = LocalPlayer.UserId
+    local lowestUserObj = LocalPlayer
+
     for _, player in ipairs(currentPlayers) do
         if player and player.UserId then
             if player.UserId < lowestUserId then
                 lowestUserId = player.UserId
+                lowestUserObj = player
             end
         end
     end
 
-    -- If this player has the lowest UserId, return true
-    return LocalPlayer.UserId == lowestUserId
+    local holdsClaim = (LocalPlayer.UserId == lowestUserId)
+    if not holdsClaim then
+        print(string.format("[Claim Check] Yielding: %s (%d) has lower UserId than you (%d)", lowestUserObj.Name, lowestUserId, LocalPlayer.UserId))
+    end
+
+    return holdsClaim
 end
 
 --------------------------------------------------------------------------------
@@ -213,6 +229,12 @@ local function CheckAndHop()
     RefreshPlayerCount()
     if isSearching then return end
 
+    -- Wait for initial player list to load completely before executing checks
+    if not isLoaded then
+        UpdateUI("Syncing Players...", Color3.fromRGB(255, 200, 50))
+        return
+    end
+
     local count = #Players:GetPlayers()
 
     -- Auto-hop if server has 5 or more players
@@ -234,14 +256,14 @@ local function CheckAndHop()
     end
 end
 
--- Monitor player entry/exit for instant response
+-- Monitor player entry/exit
 Players.PlayerAdded:Connect(function()
-    task.wait(0.1)
+    task.wait(0.5)
     CheckAndHop()
 end)
 
 Players.PlayerRemoving:Connect(function()
-    task.wait(0.1)
+    task.wait(0.5)
     CheckAndHop()
 end)
 
