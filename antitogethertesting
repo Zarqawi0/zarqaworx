@@ -1,4 +1,7 @@
--- V2.1.8 (Fixed Permanent Searching State & Claim Checks)
+-- V2.1.9 (5s Initial Delay + Direct 0-4 Claim Flow)
+
+-- 5 SECOND DELAY BEFORE SCRIPT EXECUTION
+task.wait(5)
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
@@ -15,29 +18,21 @@ local PlaceId = game.PlaceId
 local CurrentJobId = game.JobId
 local visitedServers = {} -- [JobId] = timestamp
 
--- Buffer to wait for existing players to load into LocalPlayer's memory on join
-local INITIAL_LOAD_DELAY = 3 
-local isLoaded = false
-
-task.delay(INITIAL_LOAD_DELAY, function()
-    isLoaded = true
-end)
-
 --------------------------------------------------------------------------------
--- DETERMINISTIC SERVER CLAIM SYSTEM (PULLS USERID RANKING)
+-- DETERMINISTIC SERVER CLAIM SYSTEM
 --------------------------------------------------------------------------------
 local function IsCurrentServerClaimedByMe()
     if not CurrentJobId or CurrentJobId == "" then return true end
 
     local currentPlayers = Players:GetPlayers()
     
-    -- If player count exceeds 4 (5+), nobody can claim this server -> auto-hop
+    -- Reject claim if server has 5 or more players
     if #currentPlayers >= 5 then
         print("[Claim Check] Server rejected: Has " .. #currentPlayers .. " players (Max allowed is 4)")
         return false
     end
 
-    -- Deterministic tie-breaker: Lowest UserId claims the server
+    -- Lowest UserId breaks tie if multiple script users are in the same server
     local lowestUserId = LocalPlayer.UserId
     local lowestUserObj = LocalPlayer
 
@@ -134,7 +129,7 @@ elseif request then requestFunc = request
 else error("No supported HTTP request function found!") end
 
 --------------------------------------------------------------------------------
--- SERVER HOPPER LOGIC
+-- SERVER HOPPER LOGIC (TARGETS 0-3 PLAYER SERVERS)
 --------------------------------------------------------------------------------
 local function fetchServers(cursor)
     local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
@@ -164,7 +159,6 @@ local function HopToLowServer()
     local cursor = nil
     local candidates = {}
 
-    -- Single pass search attempt (prevents infinite loop deadlock)
     repeat
         local data = fetchServers(cursor)
         if data and data.data then
@@ -216,7 +210,7 @@ local function HopToLowServer()
 end
 
 --------------------------------------------------------------------------------
--- MONITORING & CONFLICT DISCOVERY
+-- SERVER EVALUATION & MONITORING LOOP
 --------------------------------------------------------------------------------
 TeleportService.TeleportInitFailed:Connect(function()
     isSearching = false
@@ -224,48 +218,43 @@ TeleportService.TeleportInitFailed:Connect(function()
 end)
 
 local function CheckAndHop()
-    RefreshPlayerCount()
+    local count = RefreshPlayerCount()
     if isSearching then return end
 
-    -- Wait for initial player list to load completely before executing checks
-    if not isLoaded then
-        UpdateUI("Syncing Players...", Color3.fromRGB(255, 200, 50))
-        return
-    end
-
-    local count = #Players:GetPlayers()
-
-    -- Auto-hop if server has 5 or more players
+    -- REQUIREMENT CHECK: Server has 5 or more players -> Search for 0-3 server
     if count >= 5 then
         UpdateUI("Server Full (5+)", Color3.fromRGB(255, 80, 80))
         task.defer(HopToLowServer)
         return
     end
 
-    -- Server fits 0-4 players criterion
+    -- REQUIREMENT CHECK: Server has 0-4 players -> Immediately claim
     local isOwner = IsCurrentServerClaimedByMe()
 
-    if not isOwner then
+    if isOwner then
+        UpdateUI("Claimed (" .. string.sub(tostring(CurrentJobId), 1, 6) .. ")", Color3.fromRGB(100, 255, 100))
+    else
         UpdateUI("Yielding JobId...", Color3.fromRGB(255, 80, 80))
         task.wait(0.3)
         task.defer(HopToLowServer)
-    else
-        UpdateUI("Claimed (" .. string.sub(tostring(CurrentJobId), 1, 6) .. ")", Color3.fromRGB(100, 255, 100))
     end
 end
 
--- Monitor player entry/exit
+-- Immediately scan on script load
+CheckAndHop()
+
+-- Monitor player joins and leaves
 Players.PlayerAdded:Connect(function()
-    task.wait(0.5)
+    task.wait(0.3)
     CheckAndHop()
 end)
 
 Players.PlayerRemoving:Connect(function()
-    task.wait(0.5)
+    task.wait(0.3)
     CheckAndHop()
 end)
 
--- Scan server state every 3 seconds
+-- Background loop to continuously enforce state
 task.spawn(function()
     while true do
         CheckAndHop()
