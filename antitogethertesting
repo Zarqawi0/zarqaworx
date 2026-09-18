@@ -1,4 +1,4 @@
--- V2.15 (Strict 0-3 Search, Instant 0-4 JobId Claiming & 3s Scan Loop)
+-- V2.1.6 (Strict 0-3 Search, Instant 0-4 JobId Claiming & 3s Scan Loop)
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
