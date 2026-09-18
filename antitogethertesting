@@ -1,4 +1,4 @@
--- V2.12 (Strict 0-3 Search, 0-4 JobId Claiming & Instant Conflict Yield)
+-- V2.1.5 (Strict 0-3 Search, 0-4 JobId Claiming with 3s Non-Blocking Delay & 3s Scan Loop)
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
@@ -14,6 +14,9 @@ end
 local PlaceId = game.PlaceId
 local CurrentJobId = game.JobId
 local visitedServers = {} -- [JobId] = timestamp
+
+local isClaimPending = false
+local currentClaimThread = nil
 
 --------------------------------------------------------------------------------
 -- DETERMINISTIC SERVER CLAIM SYSTEM (PULLS USERID RANKING)
@@ -38,7 +41,7 @@ local function IsCurrentServerClaimedByMe()
         end
     end
 
-    -- If this player has the lowest UserId, claim it. All other script users yield instantly.
+    -- If this player has the lowest UserId, return true
     return LocalPlayer.UserId == lowestUserId
 end
 
@@ -145,7 +148,6 @@ local function HopToLowServer()
 
     UpdateUI("Searching 0-3...", Color3.fromRGB(255, 180, 50))
 
-    -- Loops indefinitely until a join succeeds into a 0-3 player server
     while true do
         local cursor = nil
         local candidates = {}
@@ -155,7 +157,6 @@ local function HopToLowServer()
             if data and data.data then
                 for _, server in ipairs(data.data) do
                     local playingCount = tonumber(server.playing)
-                    -- Hard constraint: MUST be 0 to 3 players
                     local validPlayerCount = playingCount ~= nil and playingCount >= 0 and playingCount <= 3
                     local notCurrentServer = server.id ~= CurrentJobId
                     local notVisited = not visitedServers[server.id]
@@ -172,7 +173,6 @@ local function HopToLowServer()
         until not cursor or #candidates >= 15
 
         if #candidates > 0 then
-            -- Random offset selection (math.random(3, #candidates)) prevents 2 script users hitting the exact same server
             local minIndex = math.min(3, #candidates)
             local selectedIndex = math.random(minIndex, #candidates)
             local selectedServer = candidates[selectedIndex]
@@ -191,11 +191,9 @@ local function HopToLowServer()
                 task.wait(8)
             end
 
-            -- Resume loop automatically if teleport gets canceled or times out
             UpdateUI("Retrying Hop...", Color3.fromRGB(255, 80, 80))
             task.wait(0.5)
         else
-            -- If cache fills up without finding 0-3 servers, wipe visited cache and keep retrying
             if next(visitedServers) then
                 visitedServers = {}
             end
@@ -208,7 +206,6 @@ end
 --------------------------------------------------------------------------------
 -- MONITORING & CONFLICT DISCOVERY
 --------------------------------------------------------------------------------
--- Resume search instantly if game engine fails or cancels teleport
 TeleportService.TeleportInitFailed:Connect(function()
     isSearching = false
     UpdateUI("Teleport Canceled", Color3.fromRGB(255, 80, 80))
@@ -221,27 +218,57 @@ local function CheckAndHop()
 
     local count = #Players:GetPlayers()
 
-    -- Requirement: Automatically hop if server has 5 or more players
+    -- Auto-hop if server has 5 or more players
     if count >= 5 then
+        if currentClaimThread then
+            task.cancel(currentClaimThread)
+            currentClaimThread = nil
+        end
+        isClaimPending = false
         UpdateUI("Server Full (5+)", Color3.fromRGB(255, 80, 80))
         HopToLowServer()
         return
     end
 
-    -- Requirement: Claim server JobId if player count is 0 to 4
-    local isOwner = IsCurrentServerClaimedByMe()
+    -- Server fits 0-4 players criterion
+    local correspondsOwnership = IsCurrentServerClaimedByMe()
 
-    if not isOwner then
-        -- Requirement: When another script user joins a claimed server, auto-hop the second user
+    if not correspondsOwnership then
+        if currentClaimThread then
+            task.cancel(currentClaimThread)
+            currentClaimThread = nil
+        end
+        isClaimPending = false
         UpdateUI("Yielding JobId...", Color3.fromRGB(255, 80, 80))
         task.wait(0.3)
         HopToLowServer()
     else
-        UpdateUI("Claimed (" .. string.sub(tostring(CurrentJobId), 1, 6) .. ")", Color3.fromRGB(100, 255, 100))
+        -- Don't restart countdown if already waiting to claim
+        if isClaimPending then return end
+
+        isClaimPending = true
+        UpdateUI("Claiming in 3s...", Color3.fromRGB(255, 220, 100))
+        
+        -- Run delay asynchronously so the loop and events aren't blocked
+        currentClaimThread = task.spawn(function()
+            task.wait(3)
+            
+            isClaimPending = false
+            currentClaimThread = nil
+            
+            local recheckCount = #Players:GetPlayers()
+            local recheckOwnership = IsCurrentServerClaimedByMe()
+            
+            if recheckCount < 5 and recheckOwnership then
+                UpdateUI("Claimed (" .. string.sub(tostring(CurrentJobId), 1, 6) .. ")", Color3.fromRGB(100, 255, 100))
+            else
+                CheckAndHop()
+            end
+        end)
     end
 end
 
--- Monitor player entry/exit to trigger instant yield response for incoming users
+-- Monitor player entry/exit for instant response
 Players.PlayerAdded:Connect(function()
     task.wait(0.1)
     CheckAndHop()
@@ -252,9 +279,10 @@ Players.PlayerRemoving:Connect(function()
     CheckAndHop()
 end)
 
+-- Scan server state every 3 seconds
 task.spawn(function()
     while true do
         CheckAndHop()
-        task.wait(1)
+        task.wait(3)
     end
 end)
