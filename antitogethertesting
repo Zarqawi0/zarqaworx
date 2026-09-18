@@ -1,4 +1,4 @@
--- V2.1.9 (5s Initial Delay + Direct 0-4 Claim Flow)
+-- V2.1.9 (10s Initial Delay + Direct 0-4 Claim Flow)
 
 -- 10 SECOND DELAY BEFORE SCRIPT EXECUTION
 task.wait(10)
