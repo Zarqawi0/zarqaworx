@@ -1,5 +1,8 @@
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
+
+local is3DEnabled = true
 
 -- Function para i-censor ang 50% ng pangalan
 local function maskName(name)
@@ -92,5 +95,13 @@ task.spawn(function()
 	)
 	if isReady then
 		avatarImage.Image = content
+	end
+end)
+
+-- Toggle 3D Rendering on UI Click
+mainFrame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		is3DEnabled = not is3DEnabled
+		RunService:Set3dRenderingEnabled(is3DEnabled)
 	end
 end)
