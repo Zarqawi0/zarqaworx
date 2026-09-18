@@ -1,7 +1,7 @@
 -- V2.1.9 (5s Initial Delay + Direct 0-4 Claim Flow)
 
--- 5 SECOND DELAY BEFORE SCRIPT EXECUTION
-task.wait(5)
+-- 10 SECOND DELAY BEFORE SCRIPT EXECUTION
+task.wait(10)
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
