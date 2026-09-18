@@ -1,6 +1,21 @@
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
+-- Function para i-censor ang kalahati ng pangalan
+local function maskName(name)
+	local length = #name
+	if length <= 1 then
+		return name
+	end
+	
+	-- Kukunin ang unang kalahati ng pangalan
+	local keepLength = math.ceil(length / 2)
+	local visiblePart = string.sub(name, 1, keepLength)
+	local maskedPart = string.rep("*", length - keepLength)
+	
+	return visiblePart .. maskedPart
+end
+
 -- ScreenGui
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "TightProfileGUI"
@@ -10,7 +25,7 @@ screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 -- Tight Container Frame (Centered like crosshair)
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 0, 0, 48) -- Automatically sizes width based on text
+mainFrame.Size = UDim2.new(0, 0, 0, 48)
 mainFrame.AutomaticSize = Enum.AutomaticSize.X
 mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -24,7 +39,7 @@ local frameCorner = Instance.new("UICorner")
 frameCorner.CornerRadius = UDim.new(0, 8)
 frameCorner.Parent = mainFrame
 
--- UI Padding (Para exact at sagad ang space ng box)
+-- UI Padding
 local padding = Instance.new("UIPadding")
 padding.PaddingLeft = UDim.new(0, 5)
 padding.PaddingRight = UDim.new(0, 10)
@@ -32,12 +47,12 @@ padding.PaddingTop = UDim.new(0, 5)
 padding.PaddingBottom = UDim.new(0, 5)
 padding.Parent = mainFrame
 
--- Layout for automatic positioning
+-- Layout
 local listLayout = Instance.new("UIListLayout")
 listLayout.FillDirection = Enum.FillDirection.Horizontal
 listLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-listLayout.Padding = UDim.new(0, 6) -- Maliit na distansya sa pagitan ng avatar at pangalan
+listLayout.Padding = UDim.new(0, 6)
 listLayout.Parent = mainFrame
 
 -- Avatar Image
@@ -53,13 +68,13 @@ local imgCorner = Instance.new("UICorner")
 imgCorner.CornerRadius = UDim.new(0, 6)
 imgCorner.Parent = avatarImage
 
--- Display Name Label (katabi agad ng picture)
+-- Display Name Label (May Privacy Masking)
 local displayNameLabel = Instance.new("TextLabel")
 displayNameLabel.Name = "DisplayNameLabel"
 displayNameLabel.Size = UDim2.new(0, 0, 1, 0)
 displayNameLabel.AutomaticSize = Enum.AutomaticSize.X
 displayNameLabel.BackgroundTransparency = 1
-displayNameLabel.Text = LocalPlayer.DisplayName
+displayNameLabel.Text = maskName(LocalPlayer.DisplayName) -- Inilapat ang privacy filter dito
 displayNameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 displayNameLabel.TextSize = 14
 displayNameLabel.Font = Enum.Font.GothamBold
