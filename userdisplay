@@ -1,11 +1,7 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
--- Force 3D Rendering OFF immediately when executed
-RunService:Set3dRenderingEnabled(false)
-local is3DEnabled = false
-
--- Ensure game and LocalPlayer are loaded
+-- Ensure game and LocalPlayer are loaded before doing operations
 if not game:IsLoaded() then
 	game.Loaded:Wait()
 end
@@ -18,18 +14,41 @@ if not playerGui then
 	return
 end
 
+-- State Management
+local is3DEnabled = false
+local renderConnection = nil
+
+-- Throttles execution rate when 3D rendering is disabled to prevent CPU maxing out
+local function update3DRendering(enabled)
+	is3DEnabled = enabled
+	RunService:Set3dRenderingEnabled(enabled)
+	
+	if not enabled then
+		-- Cap rendering loops to ~30 FPS to drop CPU usage while 3D is off
+		if not renderConnection then
+			renderConnection = RunService.RenderStepped:Connect(function()
+				task.wait(1 / 30)
+			end)
+		end
+	else
+		-- Clean up throttler when 3D rendering is restored
+		if renderConnection then
+			renderConnection:Disconnect()
+			renderConnection = nil
+		end
+	end
+end
+
+-- Initialize 3D Rendering OFF
+update3DRendering(false)
+
 -- Function to mask 50% of the display name
 local function maskName(name)
 	local length = #name
-	if length <= 1 then
-		return name
-	end
+	if length <= 1 then return name end
 	
 	local keepLength = math.ceil(length * 0.50)
-	local visiblePart = string.sub(name, 1, keepLength)
-	local maskedPart = string.rep("*", length - keepLength)
-	
-	return visiblePart .. maskedPart
+	return string.sub(name, 1, keepLength) .. string.rep("*", length - keepLength)
 end
 
 -- ScreenGui Setup
@@ -99,24 +118,24 @@ displayNameLabel.TextYAlignment = Enum.TextYAlignment.Center
 displayNameLabel.LayoutOrder = 2
 displayNameLabel.Parent = mainFrame
 
--- Fetch Avatar Headshot
-task.spawn(function()
-	pcall(function()
-		local content, isReady = Players:GetUserThumbnailAsync(
+-- Fetch Avatar Headshot asynchronously
+task.defer(function()
+	local success, content, isReady = pcall(function()
+		return Players:GetUserThumbnailAsync(
 			LocalPlayer.UserId,
 			Enum.ThumbnailType.HeadShot,
 			Enum.ThumbnailSize.Size150x150
 		)
-		if isReady then
-			avatarImage.Image = content
-		end
 	end)
+	
+	if success and isReady then
+		avatarImage.Image = content
+	end
 end)
 
 -- Toggle 3D Rendering on UI Click
 mainFrame.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		is3DEnabled = not is3DEnabled
-		RunService:Set3dRenderingEnabled(is3DEnabled)
+		update3DRendering(not is3DEnabled)
 	end
 end)
