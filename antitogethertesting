@@ -1,6 +1,6 @@
--- V2.2.9
+-- V2.3.1
 -- Protected Player Aware & JSON File Claiming Server Hopper System
--- Features: Immediate hop on 1-5 players, anti-race claim locking, continuous auto-scan
+-- Features: Immediate scan/claim on join, immediate hop on 1-5 players, anti-race claim locking
 
 task.wait(10)
 
@@ -75,7 +75,6 @@ local function fetchJobs()
                     if decodeSuccess and parsed and parsed.jobId and parsed.userId then
                         -- Ignore stale claims older than 10 minutes (600s)
                         if parsed.updatedAt and (os.time() - parsed.updatedAt) < 600 then
-                            -- Store full metadata to resolve conflicts
                             if not claimedJobs[parsed.jobId] or (parsed.updatedAt < claimedJobs[parsed.jobId].updatedAt) then
                                 claimedJobs[parsed.jobId] = parsed
                             end
@@ -150,7 +149,6 @@ local function RefreshPlayerCount()
     local count = #Players:GetPlayers()
     PlayersLabel.Text = string.format("Players: %d", count)
 
-    -- Any player count between 1 and 5 (excluding self) triggers red status
     if count >= 1 and count <= 5 then
         PlayersLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
     else
@@ -345,7 +343,6 @@ checkPlayerCount = function()
         return true
     end
 
-    -- IMMEDIATELY HOP IF PLAYERS ARE BETWEEN 1 AND 5
     if count >= 1 and count <= 5 then
         isHopping = true
         UpdateUI("1-5 Players (Hopping)", Color3.fromRGB(255, 80, 80))
@@ -358,7 +355,7 @@ checkPlayerCount = function()
 end
 
 ----------------------------------------------------------------
--- CHECK CURRENT SERVER PROCESS (checkCurrentServer)
+-- CHECK & CLAIM CURRENT SERVER
 ----------------------------------------------------------------
 
 checkCurrentServer = function()
@@ -377,7 +374,7 @@ checkCurrentServer = function()
         return false
     end
 
-    -- 2. Claim check & Conflict Resolution
+    -- 2. Scan claims & Check Conflict
     local claimedJobs = fetchJobs()
     local claimData = claimedJobs[CurrentJobId]
 
@@ -389,31 +386,32 @@ checkCurrentServer = function()
             jobIdHop()
             return false
         else
-            -- Check if another account attempted to claim at nearly the same time
-            -- Refresh claim timestamp to maintain active lease
+            -- Owned by current account -> Refresh lease
             registerJob()
             UpdateUI("Owned By Account", Color3.fromRGB(100, 255, 100))
             return true
         end
     end
 
-    -- 3. Attempt to Claim the server
+    -- 3. Claim the server immediately if it meets requirements
+    UpdateUI("Scanning & Claiming...", Color3.fromRGB(255, 180, 50))
     local regSuccess = registerJob()
+
     if regSuccess then
-        -- Anti-Race Verification: Pause briefly and confirm claim was registered first
+        -- Anti-Race Verification step
         task.wait(0.5)
         local postClaimJobs = fetchJobs()
         local confirmedClaim = postClaimJobs[CurrentJobId]
 
         if confirmedClaim and confirmedClaim.userId ~= LocalPlayer.UserId then
-            -- Lost race condition
+            -- Race condition lost -> Hop away
             isHopping = true
             UpdateUI("Claim Race Lost", Color3.fromRGB(255, 80, 80))
             jobIdHop()
             return false
         end
 
-        print("Claimed server successfully")
+        print("Successfully scanned and claimed server!")
         UpdateUI("Claimed Server", Color3.fromRGB(100, 255, 100))
         return true
     end
@@ -464,16 +462,18 @@ Players.PlayerRemoving:Connect(function(child)
 end)
 
 ----------------------------------------------------------------
--- CONTINUOUS SCANNING & HEARTBEAT THREAD
+-- IMMEDIATE ENTRY SCAN & CONTINUOUS HEARTBEAT
 ----------------------------------------------------------------
 
 task.spawn(function()
-    -- Initial Check
-    checkCurrentServer()
-    task.wait(1)
-    checkPlayerCount()
+    -- IMMEDIATELY SCAN & CLAIM UPON JOINING
+    local initialClaimResult = checkCurrentServer()
+    
+    if initialClaimResult then
+        checkPlayerCount()
+    end
 
-    -- Continuous loop: Scans server state and re-asserts ownership every 3 seconds
+    -- CONTINUOUS SCANNING LOOP (Every 3 seconds)
     while true do
         task.wait(3)
         if not isHopping then
