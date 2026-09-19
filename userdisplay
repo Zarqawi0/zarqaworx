@@ -14,7 +14,9 @@ if not playerGui then
 	return
 end
 
+-- Default state: Naka-enable ang 3D rendering sa simula
 local is3DEnabled = true
+RunService:Set3dRenderingEnabled(true)
 
 -- Function para i-censor ang 50% ng pangalan
 local function maskName(name)
@@ -101,8 +103,8 @@ displayNameLabel.Parent = mainFrame
 task.spawn(function()
 	pcall(function()
 		local content, isReady = Players:GetUserThumbnailAsync(
-			LocalPlayer.UserId, 
-			Enum.ThumbnailType.HeadShot, 
+			LocalPlayer.UserId,
+			Enum.ThumbnailType.HeadShot,
 			Enum.ThumbnailSize.Size150x150
 		)
 		if isReady then
