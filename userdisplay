@@ -57,10 +57,10 @@ screenGui.Name = "TightProfileGUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
--- Tight Container Frame (Centered)
+-- Scaled Up Main Frame (Centered)
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 0, 0, 48)
+mainFrame.Size = UDim2.new(0, 0, 0, 72) -- Increased height from 48 to 72
 mainFrame.AutomaticSize = Enum.AutomaticSize.X
 mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -71,15 +71,15 @@ mainFrame.Draggable = true
 mainFrame.Parent = screenGui
 
 local frameCorner = Instance.new("UICorner")
-frameCorner.CornerRadius = UDim.new(0, 8)
+frameCorner.CornerRadius = UDim.new(0, 12) -- Scaled corner radius from 8 to 12
 frameCorner.Parent = mainFrame
 
 -- UI Padding
 local padding = Instance.new("UIPadding")
-padding.PaddingLeft = UDim.new(0, 5)
-padding.PaddingRight = UDim.new(0, 10)
-padding.PaddingTop = UDim.new(0, 5)
-padding.PaddingBottom = UDim.new(0, 5)
+padding.PaddingLeft = UDim.new(0, 8) -- Scaled from 5 to 8
+padding.PaddingRight = UDim.new(0, 16) -- Scaled from 10 to 16
+padding.PaddingTop = UDim.new(0, 8) -- Scaled from 5 to 8
+padding.PaddingBottom = UDim.new(0, 8) -- Scaled from 5 to 8
 padding.Parent = mainFrame
 
 -- Layout
@@ -87,20 +87,20 @@ local listLayout = Instance.new("UIListLayout")
 listLayout.FillDirection = Enum.FillDirection.Horizontal
 listLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-listLayout.Padding = UDim.new(0, 6)
+listLayout.Padding = UDim.new(0, 10) -- Scaled spacing from 6 to 10
 listLayout.Parent = mainFrame
 
 -- Avatar Image
 local avatarImage = Instance.new("ImageLabel")
 avatarImage.Name = "AvatarImage"
-avatarImage.Size = UDim2.new(0, 38, 0, 38)
+avatarImage.Size = UDim2.new(0, 56, 0, 56) -- Increased size from 38x38 to 56x56
 avatarImage.BackgroundTransparency = 1
 avatarImage.BorderSizePixel = 0
 avatarImage.LayoutOrder = 1
 avatarImage.Parent = mainFrame
 
 local imgCorner = Instance.new("UICorner")
-imgCorner.CornerRadius = UDim.new(0, 6)
+imgCorner.CornerRadius = UDim.new(0, 10) -- Scaled corner radius from 6 to 10
 imgCorner.Parent = avatarImage
 
 -- Display Name Label
@@ -111,7 +111,7 @@ displayNameLabel.AutomaticSize = Enum.AutomaticSize.X
 displayNameLabel.BackgroundTransparency = 1
 displayNameLabel.Text = maskName(LocalPlayer.DisplayName or LocalPlayer.Name)
 displayNameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-displayNameLabel.TextSize = 14
+displayNameLabel.TextSize = 20 -- Scaled font size from 14 to 20
 displayNameLabel.Font = Enum.Font.GothamBold
 displayNameLabel.TextXAlignment = Enum.TextXAlignment.Left
 displayNameLabel.TextYAlignment = Enum.TextYAlignment.Center
