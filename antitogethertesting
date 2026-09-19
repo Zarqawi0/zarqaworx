@@ -1,5 +1,6 @@
--- V2.3.0
+-- V2.2.9
 -- Protected Player Aware & JSON File Claiming Server Hopper System
+-- Features: Immediate hop on 1-5 players, anti-race claim locking, continuous auto-scan
 
 task.wait(10)
 
@@ -23,9 +24,7 @@ local CurrentJobId = game.JobId
 ----------------------------------------------------------------
 
 local MAX_SERVER_INDEX = 299
-local MAX_TARGET_PLAYERS = 3
-local MAX_PLAYERS = 5
-local MAX_CLAIM_PLAYERS = 4
+local MAX_TARGET_PLAYERS = 0 -- Target low/empty servers (0 players)
 local PROTECTED_USERNAME = "amine100a"
 
 local isHopping = false
@@ -46,14 +45,15 @@ if isfolder and makefolder then
     end
 end
 
--- Equivalent to registerJob() from API
+-- Enhanced Job Registration with sub-second timestamps to solve race conditions
 local function registerJob()
     if writefile then
         local data = HttpService:JSONEncode({
             userId = LocalPlayer.UserId,
             username = LocalPlayer.Name,
             jobId = CurrentJobId,
-            updatedAt = os.time()
+            updatedAt = os.time(),
+            preciseTime = os.clock() -- Sub-second precision tie-breaker
         })
         local success = pcall(writefile, MY_FILE_PATH, data)
         return success
@@ -61,7 +61,7 @@ local function registerJob()
     return false
 end
 
--- Equivalent to fetchJobs() from API
+-- Fetch active server claims from filesystem
 local function fetchJobs()
     local claimedJobs = {}
     
@@ -73,9 +73,12 @@ local function fetchJobs()
                 if readSuccess and content then
                     local decodeSuccess, parsed = pcall(HttpService.JSONDecode, HttpService, content)
                     if decodeSuccess and parsed and parsed.jobId and parsed.userId then
-                        -- Ignore stale claims older than 10 minutes
+                        -- Ignore stale claims older than 10 minutes (600s)
                         if parsed.updatedAt and (os.time() - parsed.updatedAt) < 600 then
-                            claimedJobs[parsed.jobId] = parsed.userId
+                            -- Store full metadata to resolve conflicts
+                            if not claimedJobs[parsed.jobId] or (parsed.updatedAt < claimedJobs[parsed.jobId].updatedAt) then
+                                claimedJobs[parsed.jobId] = parsed
+                            end
                         end
                     end
                 end
@@ -132,7 +135,7 @@ local PlayersLabel = Instance.new("TextLabel")
 PlayersLabel.Size = UDim2.new(1, -16, 0, 18)
 PlayersLabel.Position = UDim2.new(0, 8, 0, 25)
 PlayersLabel.BackgroundTransparency = 1
-PlayersLabel.Text = "Players: 0 / 5"
+PlayersLabel.Text = "Players: 0"
 PlayersLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 PlayersLabel.TextSize = 13
 PlayersLabel.Font = Enum.Font.SourceSansBold
@@ -145,9 +148,10 @@ PlayersLabel.Parent = MainFrame
 
 local function RefreshPlayerCount()
     local count = #Players:GetPlayers()
-    PlayersLabel.Text = string.format("Players: %d / %d", count, MAX_PLAYERS)
+    PlayersLabel.Text = string.format("Players: %d", count)
 
-    if count > MAX_CLAIM_PLAYERS then
+    -- Any player count between 1 and 5 (excluding self) triggers red status
+    if count >= 1 and count <= 5 then
         PlayersLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
     else
         PlayersLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
@@ -251,7 +255,7 @@ findServer = function()
             if totalScanned > (MAX_SERVER_INDEX + 1) then break end
 
             local playingCount = tonumber(server.playing)
-            local validPlayerCount = playingCount ~= nil and playingCount >= 0 and playingCount <= MAX_TARGET_PLAYERS
+            local validPlayerCount = playingCount ~= nil and playingCount <= MAX_TARGET_PLAYERS
             local notCurrentServer = server.id ~= CurrentJobId
             local notVisited = not visitedServers[server.id]
             local notOwned = claimedJobs[server.id] == nil
@@ -295,7 +299,7 @@ jobIdHop = function()
     local serverId = findServer()
 
     if not serverId then
-        print("No suitable server")
+        print("No suitable server found")
         UpdateUI("No Server Found", Color3.fromRGB(255, 150, 50))
         task.wait(1)
         if isHopping then
@@ -341,15 +345,16 @@ checkPlayerCount = function()
         return true
     end
 
-    if count <= MAX_PLAYERS then
-        UpdateUI("Staying (Valid Count)", Color3.fromRGB(100, 255, 100))
-        return true
+    -- IMMEDIATELY HOP IF PLAYERS ARE BETWEEN 1 AND 5
+    if count >= 1 and count <= 5 then
+        isHopping = true
+        UpdateUI("1-5 Players (Hopping)", Color3.fromRGB(255, 80, 80))
+        jobIdHop()
+        return false
     end
 
-    isHopping = true
-    UpdateUI("Server Full (>5)", Color3.fromRGB(255, 80, 80))
-    jobIdHop()
-    return false
+    UpdateUI("Staying (Valid Count)", Color3.fromRGB(100, 255, 100))
+    return true
 end
 
 ----------------------------------------------------------------
@@ -364,33 +369,52 @@ checkCurrentServer = function()
     local count = RefreshPlayerCount()
     local protectedPresent = IsProtectedPlayerPresent()
 
-    if (not protectedPresent) and (count > MAX_PLAYERS) then
+    -- 1. Check Player Count criteria (Immediate Hop for 1-5 players unless protected is present)
+    if (not protectedPresent) and (count >= 1 and count <= 5) then
         isHopping = true
-        UpdateUI("Server Full (>5)", Color3.fromRGB(255, 80, 80))
+        UpdateUI("1-5 Players (Hopping)", Color3.fromRGB(255, 80, 80))
         jobIdHop()
         return false
     end
 
+    -- 2. Claim check & Conflict Resolution
     local claimedJobs = fetchJobs()
-    local ownerId = claimedJobs[CurrentJobId]
+    local claimData = claimedJobs[CurrentJobId]
 
-    if ownerId and ownerId ~= LocalPlayer.UserId then
-        isHopping = true
-        UpdateUI("Job ID Claimed", Color3.fromRGB(255, 80, 80))
-        jobIdHop()
-        return true
+    if claimData then
+        -- Job is owned by someone else
+        if claimData.userId ~= LocalPlayer.UserId then
+            isHopping = true
+            UpdateUI("Job ID Claimed", Color3.fromRGB(255, 80, 80))
+            jobIdHop()
+            return false
+        else
+            -- Check if another account attempted to claim at nearly the same time
+            -- Refresh claim timestamp to maintain active lease
+            registerJob()
+            UpdateUI("Owned By Account", Color3.fromRGB(100, 255, 100))
+            return true
+        end
     end
 
-    if ownerId and ownerId == LocalPlayer.UserId then
-        print("Server belongs to this account")
-        UpdateUI("Owned By Account", Color3.fromRGB(100, 255, 100))
-        return true
-    end
-
+    -- 3. Attempt to Claim the server
     local regSuccess = registerJob()
     if regSuccess then
-        print("Claimed server")
-        UpdateUI("Claimed server", Color3.fromRGB(100, 255, 100))
+        -- Anti-Race Verification: Pause briefly and confirm claim was registered first
+        task.wait(0.5)
+        local postClaimJobs = fetchJobs()
+        local confirmedClaim = postClaimJobs[CurrentJobId]
+
+        if confirmedClaim and confirmedClaim.userId ~= LocalPlayer.UserId then
+            -- Lost race condition
+            isHopping = true
+            UpdateUI("Claim Race Lost", Color3.fromRGB(255, 80, 80))
+            jobIdHop()
+            return false
+        end
+
+        print("Claimed server successfully")
+        UpdateUI("Claimed Server", Color3.fromRGB(100, 255, 100))
         return true
     end
 
@@ -440,12 +464,20 @@ Players.PlayerRemoving:Connect(function(child)
 end)
 
 ----------------------------------------------------------------
--- INITIALIZATION SEQUENCE
+-- CONTINUOUS SCANNING & HEARTBEAT THREAD
 ----------------------------------------------------------------
 
-checkCurrentServer()
-
 task.spawn(function()
+    -- Initial Check
+    checkCurrentServer()
     task.wait(1)
     checkPlayerCount()
+
+    -- Continuous loop: Scans server state and re-asserts ownership every 3 seconds
+    while true do
+        task.wait(3)
+        if not isHopping then
+            checkCurrentServer()
+        end
+    end
 end)
