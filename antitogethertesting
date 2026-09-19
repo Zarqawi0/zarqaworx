@@ -1,5 +1,5 @@
--- V2.3.2
--- Features: 0-299 Index Scan, Pick 5 Random Pool (0-3 Players Target), Claim Current Server (0-4 Players), Anti-Collision JSON Claiming
+-- V2.3.8
+-- Features: Direct First-Match Picker (0-299 Index, 0-3 Players Target), Claim Current Server (0-4 Players), Anti-Collision JSON Claiming
 
 task.wait(10)
 
@@ -169,13 +169,6 @@ local function UpdateUI(statusText, color)
     RefreshPlayerCount()
 end
 
-local function ShuffleTable(tbl)
-    for i = #tbl, 2, -1 do
-        local j = math.random(1, i)
-        tbl[i], tbl[j] = tbl[j], tbl[i]
-    end
-end
-
 local function IsProtectedPlayerPresent()
     for _, player in ipairs(Players:GetPlayers()) do
         if player.Name == PROTECTED_USERNAME then
@@ -240,7 +233,6 @@ findServer = function()
     end
 
     local cursor = nil
-    local pool300 = {}
     local totalScanned = 0
 
     repeat
@@ -252,14 +244,14 @@ findServer = function()
             if totalScanned > (MAX_SERVER_INDEX + 1) then break end
 
             local playingCount = tonumber(server.playing)
-            -- FILTER RULE 1: ONLY SEARCH SERVERS WITH 0 TO 3 PLAYERS
             local validPlayerCount = playingCount ~= nil and playingCount >= 0 and playingCount <= MAX_SEARCH_PLAYERS
             local notCurrentServer = server.id ~= CurrentJobId
             local notVisited = not visitedServers[server.id]
             local notOwned = claimedJobs[server.id] == nil
 
+            -- DIRECT MATCH: Pick the very first server that meets all criteria
             if validPlayerCount and notCurrentServer and notVisited and notOwned then
-                table.insert(pool300, server)
+                return server.id
             end
         end
 
@@ -267,23 +259,12 @@ findServer = function()
         task.wait(0.1)
     until not cursor or totalScanned >= (MAX_SERVER_INDEX + 1)
 
-    if #pool300 == 0 then
-        if next(visitedServers) then visitedServers = {} end
-        return nil
+    -- Reset visited cache if no servers were found
+    if next(visitedServers) then
+        visitedServers = {}
     end
 
-    -- FILTER RULE 2: PICK 5 RANDOM SERVERS FROM POOL (0-299)
-    ShuffleTable(pool300)
-
-    local random5Pool = {}
-    local pickCount = math.min(5, #pool300)
-
-    for i = 1, pickCount do
-        table.insert(random5Pool, pool300[i])
-    end
-
-    local selectedServer = random5Pool[math.random(1, #random5Pool)]
-    return selectedServer.id
+    return nil
 end
 
 ----------------------------------------------------------------
@@ -344,7 +325,6 @@ checkPlayerCount = function()
         return true
     end
 
-    -- CLAIM RULE: HOP IF PLAYER COUNT REACHES 5 OR MORE (> 4)
     if count > MAX_CLAIM_PLAYERS then
         isHopping = true
         UpdateUI("Server Full (>=5)", Color3.fromRGB(255, 80, 80))
@@ -368,7 +348,6 @@ checkCurrentServer = function()
     local count = RefreshPlayerCount()
     local protectedPresent = IsProtectedPlayerPresent()
 
-    -- CLAIM RULE: HOP IF CURRENT SERVER HAS 5 OR MORE PLAYERS
     if (not protectedPresent) and (count > MAX_CLAIM_PLAYERS) then
         isHopping = true
         UpdateUI("Server Full (>=5)", Color3.fromRGB(255, 80, 80))
@@ -376,7 +355,6 @@ checkCurrentServer = function()
         return false
     end
 
-    -- JSON FILE CLAIM CHECK
     local claimedJobs = fetchJobs()
     local claimData = claimedJobs[CurrentJobId]
 
@@ -393,7 +371,6 @@ checkCurrentServer = function()
         end
     end
 
-    -- CLAIM RULE: ACCEPTS AND CLAIMS IF CURRENT SERVER HAS 0 TO 4 PLAYERS
     UpdateUI("Scanning & Claiming...", Color3.fromRGB(255, 180, 50))
     local regSuccess = registerJob()
 
