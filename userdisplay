@@ -57,10 +57,10 @@ screenGui.Name = "TightProfileGUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
--- Scaled Up Main Frame (Centered)
+-- Main Frame
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 0, 0, 88) -- Increased height to 88px
+mainFrame.Size = UDim2.new(0, 0, 0, 88)
 mainFrame.AutomaticSize = Enum.AutomaticSize.X
 mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -71,13 +71,13 @@ mainFrame.Draggable = true
 mainFrame.Parent = screenGui
 
 local frameCorner = Instance.new("UICorner")
-frameCorner.CornerRadius = UDim.new(0, 14) -- Corner radius increased to 14
+frameCorner.CornerRadius = UDim.new(0, 14)
 frameCorner.Parent = mainFrame
 
 -- UI Padding
 local padding = Instance.new("UIPadding")
 padding.PaddingLeft = UDim.new(0, 10)
-padding.PaddingRight = UDim.new(0, 20)
+padding.PaddingRight = UDim.new(0, 24) -- Expanded right padding for the larger text
 padding.PaddingTop = UDim.new(0, 10)
 padding.PaddingBottom = UDim.new(0, 10)
 padding.Parent = mainFrame
@@ -87,13 +87,13 @@ local listLayout = Instance.new("UIListLayout")
 listLayout.FillDirection = Enum.FillDirection.Horizontal
 listLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-listLayout.Padding = UDim.new(0, 12)
+listLayout.Padding = UDim.new(0, 14) -- Increased spacing between avatar and text
 listLayout.Parent = mainFrame
 
 -- Avatar Image
 local avatarImage = Instance.new("ImageLabel")
 avatarImage.Name = "AvatarImage"
-avatarImage.Size = UDim2.new(0, 68, 0, 68) -- Increased size to 68x68px
+avatarImage.Size = UDim2.new(0, 68, 0, 68)
 avatarImage.BackgroundTransparency = 1
 avatarImage.BorderSizePixel = 0
 avatarImage.LayoutOrder = 1
@@ -111,14 +111,14 @@ displayNameLabel.AutomaticSize = Enum.AutomaticSize.X
 displayNameLabel.BackgroundTransparency = 1
 displayNameLabel.Text = maskName(LocalPlayer.DisplayName or LocalPlayer.Name)
 displayNameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-displayNameLabel.TextSize = 24 -- Increased text size to 24pt
+displayNameLabel.TextSize = 32 -- Increased text size to 32pt
 displayNameLabel.Font = Enum.Font.GothamBold
 displayNameLabel.TextXAlignment = Enum.TextXAlignment.Left
 displayNameLabel.TextYAlignment = Enum.TextYAlignment.Center
 displayNameLabel.LayoutOrder = 2
 displayNameLabel.Parent = mainFrame
 
--- Fetch Avatar Headshot asynchronously (using higher res 420x420 for clean scaling)
+-- Fetch Avatar Headshot asynchronously
 task.defer(function()
 	local success, content, isReady = pcall(function()
 		return Players:GetUserThumbnailAsync(
