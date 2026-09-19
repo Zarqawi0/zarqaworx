@@ -1,6 +1,6 @@
--- V2.3.1
+-- V2.3.2
 -- Protected Player Aware & JSON File Claiming Server Hopper System
--- Features: Immediate scan/claim on join, immediate hop on 1-5 players, anti-race claim locking
+-- Features: 0-299 index scan, 5-random pool selection for 0-3 players, immediate claim & hop
 
 task.wait(10)
 
@@ -24,7 +24,7 @@ local CurrentJobId = game.JobId
 ----------------------------------------------------------------
 
 local MAX_SERVER_INDEX = 299
-local MAX_TARGET_PLAYERS = 0 -- Target low/empty servers (0 players)
+local MAX_TARGET_PLAYERS = 3 -- Target servers with 0 to 3 players
 local PROTECTED_USERNAME = "amine100a"
 
 local isHopping = false
@@ -253,7 +253,7 @@ findServer = function()
             if totalScanned > (MAX_SERVER_INDEX + 1) then break end
 
             local playingCount = tonumber(server.playing)
-            local validPlayerCount = playingCount ~= nil and playingCount <= MAX_TARGET_PLAYERS
+            local validPlayerCount = playingCount ~= nil and playingCount >= 0 and playingCount <= MAX_TARGET_PLAYERS
             local notCurrentServer = server.id ~= CurrentJobId
             local notVisited = not visitedServers[server.id]
             local notOwned = claimedJobs[server.id] == nil
