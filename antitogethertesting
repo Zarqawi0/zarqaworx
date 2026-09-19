@@ -1,5 +1,5 @@
--- V2.2.7
--- JobId Claim System + Pure Local JSON Storage Verification
+-- V2.2.9
+-- Pure JSON File Claiming & Always-Check System
 
 task.wait(10)
 
@@ -7,7 +7,6 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
-local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -20,21 +19,20 @@ local PlaceId = game.PlaceId
 local CurrentJobId = game.JobId
 
 ----------------------------------------------------------------
--- SHARED LOCAL FILE SYSTEM (CROSS-INSTANCE AWARENESS)
+-- SHARED LOCAL FILE SYSTEM
 ----------------------------------------------------------------
 
 local FOLDER_NAME = "JobIdClaims"
 local MY_FILE_PATH = string.format("%s/%d.json", FOLDER_NAME, LocalPlayer.UserId)
 
--- Create shared folder if it doesn't exist
 if isfolder and makefolder then
     if not isfolder(FOLDER_NAME) then
         makefolder(FOLDER_NAME)
     end
 end
 
--- Write current JobId to local storage so other local instances can read it
-local function RegisterMyJobId()
+-- Save the Job ID in JSON file and mark it as claimed by this user
+local function ClaimTheServer()
     if writefile then
         local data = HttpService:JSONEncode({
             userId = LocalPlayer.UserId,
@@ -45,7 +43,7 @@ local function RegisterMyJobId()
     end
 end
 
--- Read all local claim files and return mapping of claimed JobIds to userIds
+-- Read all local claim files to check if other players claimed Job IDs
 local function GetClaimDataFromStorage()
     local claimedJobs = {}
     
@@ -69,8 +67,6 @@ local function GetClaimDataFromStorage()
     
     return claimedJobs
 end
-
-RegisterMyJobId()
 
 local visitedServers = {}
 
@@ -172,33 +168,6 @@ local function ShuffleTable(tbl)
 end
 
 ----------------------------------------------------------------
--- JSON-BASED CLAIM EVALUATION SYSTEM
-----------------------------------------------------------------
-
-local function IsCurrentJobIdClaimedByMe()
-    if not CurrentJobId or CurrentJobId == "" then
-        return true
-    end
-
-    local currentPlayers = Players:GetPlayers()
-
-    if #currentPlayers > MAX_CLAIM_PLAYERS then
-        return false
-    end
-
-    local claimedJobs = GetClaimDataFromStorage()
-    local myUserId = LocalPlayer.UserId
-    local ownerId = claimedJobs[CurrentJobId]
-
-    -- If another player registered this JobId in JSON storage first, yield immediately
-    if ownerId and ownerId ~= myUserId then
-        return false
-    end
-
-    return true
-end
-
-----------------------------------------------------------------
 -- HTTP EXECUTOR COMPATIBILITY
 ----------------------------------------------------------------
 
@@ -235,28 +204,25 @@ end
 -- FORWARD DECLARATION
 ----------------------------------------------------------------
 
-local CheckAndHop
+local CheckCurrentServer
 
 ----------------------------------------------------------------
--- SERVER HOPPER (WITH CLAIMED JOBID FILTERING)
+-- HOP PIPELINE
 ----------------------------------------------------------------
 
 local isSearching = false
 
-local function HopToLowServer()
+local function Hop()
     if isSearching then return end
     isSearching = true
 
     UpdateUI("Searching 0-299...", Color3.fromRGB(255, 180, 50))
 
-    -- Fetch all JobIds currently claimed in JSON storage
-    local claimedJobs = GetClaimDataFromStorage()
-
     local cursor = nil
     local pool300 = {}
     local totalScanned = 0
 
-    -- STEP 1: Find 0-3 player servers up to index 299, SKIPPING claimed JobIds
+    -- STEP 1: Find 0 to 3 player count server up to candidate indexes 0-299
     repeat
         local data = fetchServers(cursor)
         if not data or not data.data then break end
@@ -269,9 +235,8 @@ local function HopToLowServer()
             local validPlayerCount = playingCount ~= nil and playingCount >= 0 and playingCount <= MAX_TARGET_PLAYERS
             local notCurrentServer = server.id ~= CurrentJobId
             local notVisited = not visitedServers[server.id]
-            local notClaimedByOtherScript = claimedJobs[server.id] == nil
 
-            if validPlayerCount and notCurrentServer and notVisited and notClaimedByOtherScript then
+            if validPlayerCount and notCurrentServer and notVisited then
                 table.insert(pool300, server)
             end
         end
@@ -285,14 +250,14 @@ local function HopToLowServer()
         UpdateUI("No Servers Found", Color3.fromRGB(255, 150, 50))
         task.wait(1.5)
         isSearching = false
-        task.defer(CheckAndHop)
+        task.defer(CheckCurrentServer)
         return
     end
 
     -- STEP 2: Shuffle entire pool
     ShuffleTable(pool300)
 
-    -- STEP 3: Pick 5 random from shuffled pool
+    -- STEP 3: Pick 5 random
     local random5Pool = {}
     local pickCount = math.min(5, #pool300)
 
@@ -301,12 +266,42 @@ local function HopToLowServer()
     end
 
     -- STEP 4: Pick 1 randomly from those 5
-    local selectedServer = random5Pool[math.random(1, #random5Pool)]
+    local candidates = { unpack(random5Pool) }
+    ShuffleTable(candidates)
+
+    -- STEP 5: Always check JSON file to ignore the Job ID that is claimed already
+    local selectedServer = nil
+    local claimedJobs = GetClaimDataFromStorage()
+
+    for _, targetCandidate in ipairs(candidates) do
+        if claimedJobs[targetCandidate.id] == nil then
+            selectedServer = targetCandidate
+            break
+        end
+    end
+
+    -- Fallback: If all 5 chosen servers were claimed, search remaining candidates in pool300
+    if not selectedServer then
+        for _, candidate in ipairs(pool300) do
+            if claimedJobs[candidate.id] == nil then
+                selectedServer = candidate
+                break
+            end
+        end
+    end
+
+    if not selectedServer then
+        UpdateUI("All Candidate Jobs Claimed", Color3.fromRGB(255, 150, 50))
+        task.wait(1.5)
+        isSearching = false
+        task.defer(CheckCurrentServer)
+        return
+    end
 
     visitedServers[selectedServer.id] = os.time()
 
-    -- STEP 5: Teleport
-    UpdateUI("Teleporting...", Color3.fromRGB(100, 255, 100))
+    -- STEP 6: Join / Teleport
+    UpdateUI("Joining Server...", Color3.fromRGB(100, 255, 100))
 
     local teleportSuccess = pcall(function()
         TeleportService:TeleportToPlaceInstance(PlaceId, selectedServer.id, LocalPlayer)
@@ -316,7 +311,7 @@ local function HopToLowServer()
         UpdateUI("Teleport Failed", Color3.fromRGB(255, 80, 80))
         task.wait(1)
         isSearching = false
-        task.defer(CheckAndHop)
+        task.defer(CheckCurrentServer)
     end
 end
 
@@ -327,34 +322,41 @@ end
 TeleportService.TeleportInitFailed:Connect(function()
     isSearching = false
     UpdateUI("Teleport Canceled", Color3.fromRGB(255, 80, 80))
-    task.defer(CheckAndHop)
+    task.defer(CheckCurrentServer)
 end)
 
 ----------------------------------------------------------------
--- SERVER EVALUATION
+-- CHECK CURRENT SERVER EVALUATION FLOW
 ----------------------------------------------------------------
 
-CheckAndHop = function()
+CheckCurrentServer = function()
     local count = RefreshPlayerCount()
 
     if isSearching then return end
 
+    -- Path 1: 5 Above Player Count -> HOP
     if count > MAX_CLAIM_PLAYERS then
         UpdateUI("Server Full (5+)", Color3.fromRGB(255, 80, 80))
-        task.defer(HopToLowServer)
+        task.defer(Hop)
         return
     end
 
-    local isOwner = IsCurrentJobIdClaimedByMe()
+    -- Path 2: Check the Job ID in JSON file if the other player claimed the Job ID
+    local claimedJobs = GetClaimDataFromStorage()
+    local myUserId = LocalPlayer.UserId
+    local ownerId = claimedJobs[CurrentJobId]
 
-    if isOwner then
-        RegisterMyJobId()
-        UpdateUI("Claimed (" .. string.sub(tostring(CurrentJobId), 1, 6) .. ")", Color3.fromRGB(100, 255, 100))
-    else
-        UpdateUI("Yielding JobId...", Color3.fromRGB(255, 80, 80))
+    -- If the Job ID IS claimed -> HOP
+    if ownerId and ownerId ~= myUserId then
+        UpdateUI("Job ID Claimed -> Hopping", Color3.fromRGB(255, 80, 80))
         task.wait(0.2)
-        task.defer(HopToLowServer)
+        task.defer(Hop)
+        return
     end
+
+    -- Path 3: If 0 to 4 Player Count AND Job ID is 'NOT' claimed -> CLAIM THE SERVER & STAY
+    ClaimTheServer()
+    UpdateUI("Staying (Claimed)", Color3.fromRGB(100, 255, 100))
 end
 
 ----------------------------------------------------------------
@@ -362,21 +364,21 @@ end
 ----------------------------------------------------------------
 
 task.wait(1)
-CheckAndHop()
+CheckCurrentServer()
 
 Players.PlayerAdded:Connect(function()
     task.wait(0.3)
-    CheckAndHop()
+    CheckCurrentServer()
 end)
 
 Players.PlayerRemoving:Connect(function()
     task.wait(0.3)
-    CheckAndHop()
+    CheckCurrentServer()
 end)
 
 task.spawn(function()
     while true do
-        CheckAndHop()
+        CheckCurrentServer()
         task.wait(2)
     end
 end)
