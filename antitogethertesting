@@ -1,6 +1,6 @@
--- V2.3.2
+-- V2.3.5
 -- Protected Player Aware & JSON File Claiming Server Hopper System
--- Features: 0-299 index scan, 5-random pool selection for 0-3 players, immediate claim & hop
+-- Features: Claims on 0-4 players, hops on >=5 players, anti-collision JSON file claims
 
 task.wait(10)
 
@@ -24,7 +24,8 @@ local CurrentJobId = game.JobId
 ----------------------------------------------------------------
 
 local MAX_SERVER_INDEX = 299
-local MAX_TARGET_PLAYERS = 3 -- Target servers with 0 to 3 players
+local MAX_TARGET_PLAYERS = 4 -- Search target: 0 to 4 players
+local MAX_CLAIM_PLAYERS = 4  -- Claim limit: 0 to 4 players (Hops if count >= 5)
 local PROTECTED_USERNAME = "amine100a"
 
 local isHopping = false
@@ -149,7 +150,7 @@ local function RefreshPlayerCount()
     local count = #Players:GetPlayers()
     PlayersLabel.Text = string.format("Players: %d", count)
 
-    if count >= 1 and count <= 5 then
+    if count > MAX_CLAIM_PLAYERS then
         PlayersLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
     else
         PlayersLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
@@ -253,9 +254,11 @@ findServer = function()
             if totalScanned > (MAX_SERVER_INDEX + 1) then break end
 
             local playingCount = tonumber(server.playing)
+            -- Condition 1: Must be between 0 and 4 players
             local validPlayerCount = playingCount ~= nil and playingCount >= 0 and playingCount <= MAX_TARGET_PLAYERS
             local notCurrentServer = server.id ~= CurrentJobId
             local notVisited = not visitedServers[server.id]
+            -- Condition 3: Server must NOT be claimed by another player in JSON files
             local notOwned = claimedJobs[server.id] == nil
 
             if validPlayerCount and notCurrentServer and notVisited and notOwned then
@@ -272,6 +275,7 @@ findServer = function()
         return nil
     end
 
+    -- Picks 5 random servers from the scanned pool of 0-299
     ShuffleTable(pool300)
 
     local random5Pool = {}
@@ -343,9 +347,10 @@ checkPlayerCount = function()
         return true
     end
 
-    if count >= 1 and count <= 5 then
+    -- Condition 2: Hop if player count is 5 or above (> 4)
+    if count > MAX_CLAIM_PLAYERS then
         isHopping = true
-        UpdateUI("1-5 Players (Hopping)", Color3.fromRGB(255, 80, 80))
+        UpdateUI("Server Full (>=5)", Color3.fromRGB(255, 80, 80))
         jobIdHop()
         return false
     end
@@ -366,45 +371,45 @@ checkCurrentServer = function()
     local count = RefreshPlayerCount()
     local protectedPresent = IsProtectedPlayerPresent()
 
-    -- 1. Check Player Count criteria (Immediate Hop for 1-5 players unless protected is present)
-    if (not protectedPresent) and (count >= 1 and count <= 5) then
+    -- Condition 2: Hop if 5 or more players exist
+    if (not protectedPresent) and (count > MAX_CLAIM_PLAYERS) then
         isHopping = true
-        UpdateUI("1-5 Players (Hopping)", Color3.fromRGB(255, 80, 80))
+        UpdateUI("Server Full (>=5)", Color3.fromRGB(255, 80, 80))
         jobIdHop()
         return false
     end
 
-    -- 2. Scan claims & Check Conflict
+    -- Condition 3: Check JSON files to see if Player 1 claimed this server
     local claimedJobs = fetchJobs()
     local claimData = claimedJobs[CurrentJobId]
 
     if claimData then
-        -- Job is owned by someone else
+        -- Server belongs to someone else -> Hop away immediately
         if claimData.userId ~= LocalPlayer.UserId then
             isHopping = true
             UpdateUI("Job ID Claimed", Color3.fromRGB(255, 80, 80))
             jobIdHop()
             return false
         else
-            -- Owned by current account -> Refresh lease
+            -- Belongs to this account -> Maintain ownership
             registerJob()
             UpdateUI("Owned By Account", Color3.fromRGB(100, 255, 100))
             return true
         end
     end
 
-    -- 3. Claim the server immediately if it meets requirements
+    -- Condition 1: Claim the server if count is 0 to 4 players and unclaimed
     UpdateUI("Scanning & Claiming...", Color3.fromRGB(255, 180, 50))
     local regSuccess = registerJob()
 
     if regSuccess then
-        -- Anti-Race Verification step
+        -- Anti-Race verification (prevents simultaneous claims)
         task.wait(0.5)
         local postClaimJobs = fetchJobs()
         local confirmedClaim = postClaimJobs[CurrentJobId]
 
         if confirmedClaim and confirmedClaim.userId ~= LocalPlayer.UserId then
-            -- Race condition lost -> Hop away
+            -- Another player claimed it first -> Hop
             isHopping = true
             UpdateUI("Claim Race Lost", Color3.fromRGB(255, 80, 80))
             jobIdHop()
@@ -462,18 +467,18 @@ Players.PlayerRemoving:Connect(function(child)
 end)
 
 ----------------------------------------------------------------
--- IMMEDIATE ENTRY SCAN & CONTINUOUS HEARTBEAT
+-- INITIALIZATION & HEARTBEAT
 ----------------------------------------------------------------
 
 task.spawn(function()
-    -- IMMEDIATELY SCAN & CLAIM UPON JOINING
+    -- Scan and claim on join
     local initialClaimResult = checkCurrentServer()
     
     if initialClaimResult then
         checkPlayerCount()
     end
 
-    -- CONTINUOUS SCANNING LOOP (Every 3 seconds)
+    -- Continuous loop every 3 seconds to re-verify status & claims
     while true do
         task.wait(3)
         if not isHopping then
