@@ -1,5 +1,5 @@
--- V2.2.8
--- JobId Claim System + Cross-Instance Skip via Shared Local Storage
+-- V2.2.6
+-- JobId Claim System + Pure Local JSON Storage Verification
 
 task.wait(10)
 
@@ -45,8 +45,8 @@ local function RegisterMyJobId()
     end
 end
 
--- Read all local claim files and return a set of claimed JobIds
-local function GetClaimedJobIdsFromStorage()
+-- Read all local claim files and return mapping of claimed JobIds to userIds
+local function GetClaimDataFromStorage()
     local claimedJobs = {}
     
     if listfiles and readfile then
@@ -56,10 +56,10 @@ local function GetClaimedJobIdsFromStorage()
                 local readSuccess, content = pcall(readfile, filePath)
                 if readSuccess and content then
                     local decodeSuccess, parsed = pcall(HttpService.JSONDecode, HttpService, content)
-                    if decodeSuccess and parsed and parsed.jobId then
+                    if decodeSuccess and parsed and parsed.jobId and parsed.userId then
                         -- Ignore stale claims older than 10 minutes
                         if parsed.updatedAt and (os.time() - parsed.updatedAt) < 600 then
-                            claimedJobs[parsed.jobId] = true
+                            claimedJobs[parsed.jobId] = parsed.userId
                         end
                     end
                 end
@@ -71,22 +71,6 @@ local function GetClaimedJobIdsFromStorage()
 end
 
 RegisterMyJobId()
-
--- Shared in-game Workspace folder for same-server tie-breaking
-local claimFolder = Workspace:FindFirstChild("JobIdClaims")
-if not claimFolder then
-    claimFolder = Instance.new("Folder")
-    claimFolder.Name = "JobIdClaims"
-    claimFolder.Parent = Workspace
-end
-
-local myClaimTag = claimFolder:FindFirstChild(tostring(LocalPlayer.UserId))
-if not myClaimTag then
-    myClaimTag = Instance.new("StringValue")
-    myClaimTag.Name = tostring(LocalPlayer.UserId)
-    myClaimTag.Value = tostring(CurrentJobId)
-    myClaimTag.Parent = claimFolder
-end
 
 local visitedServers = {}
 
@@ -159,7 +143,7 @@ local function RefreshPlayerCount()
     local count = #Players:GetPlayers()
     PlayersLabel.Text = string.format("Players: %d / 5", count)
 
-    if count >= 5 then
+    if count > MAX_CLAIM_PLAYERS then
         PlayersLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
     else
         PlayersLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
@@ -188,7 +172,7 @@ local function ShuffleTable(tbl)
 end
 
 ----------------------------------------------------------------
--- JOBID CLAIM EVALUATION SYSTEM
+-- JSON-BASED CLAIM EVALUATION SYSTEM
 ----------------------------------------------------------------
 
 local function IsCurrentJobIdClaimedByMe()
@@ -198,40 +182,20 @@ local function IsCurrentJobIdClaimedByMe()
 
     local currentPlayers = Players:GetPlayers()
 
-    if #currentPlayers > MAX_CLAIM_PLAYERS + 1 then
-        print("[JobId System] Server player count exceeds 4. Rejecting claim.")
+    if #currentPlayers > MAX_CLAIM_PLAYERS then
         return false
     end
 
-    local lowestUserId = LocalPlayer.UserId
-    local lowestUserObj = LocalPlayer
+    local claimedJobs = GetClaimDataFromStorage()
+    local myUserId = LocalPlayer.UserId
+    local ownerId = claimedJobs[CurrentJobId]
 
-    for _, player in ipairs(currentPlayers) do
-        if player and player.UserId then
-            local playerTag = claimFolder:FindFirstChild(tostring(player.UserId))
-            
-            if playerTag and playerTag.Value == tostring(CurrentJobId) then
-                if player.UserId < lowestUserId then
-                    lowestUserId = player.UserId
-                    lowestUserObj = player
-                end
-            end
-        end
+    -- If another player registered this JobId in JSON storage first, yield immediately
+    if ownerId and ownerId ~= myUserId then
+        return false
     end
 
-    local holdsClaim = (LocalPlayer.UserId == lowestUserId)
-
-    if not holdsClaim then
-        print(string.format(
-            "[JobId System] Higher UserId detected (%d). Yielding JobId %s to Player: %s (%d)",
-            LocalPlayer.UserId,
-            tostring(CurrentJobId),
-            lowestUserObj.Name,
-            lowestUserId
-        ))
-    end
-
-    return holdsClaim
+    return true
 end
 
 ----------------------------------------------------------------
@@ -285,8 +249,8 @@ local function HopToLowServer()
 
     UpdateUI("Searching 0-299...", Color3.fromRGB(255, 180, 50))
 
-    -- Fetch all JobIds currently claimed by other active instances
-    local claimedJobIds = GetClaimedJobIdsFromStorage()
+    -- Fetch all JobIds currently claimed in JSON storage
+    local claimedJobs = GetClaimDataFromStorage()
 
     local cursor = nil
     local pool300 = {}
@@ -305,7 +269,7 @@ local function HopToLowServer()
             local validPlayerCount = playingCount ~= nil and playingCount >= 0 and playingCount <= MAX_TARGET_PLAYERS
             local notCurrentServer = server.id ~= CurrentJobId
             local notVisited = not visitedServers[server.id]
-            local notClaimedByOtherScript = not claimedJobIds[server.id]
+            local notClaimedByOtherScript = claimedJobs[server.id] == nil
 
             if validPlayerCount and notCurrentServer and notVisited and notClaimedByOtherScript then
                 table.insert(pool300, server)
@@ -375,7 +339,7 @@ CheckAndHop = function()
 
     if isSearching then return end
 
-    if count >= 5 then
+    if count > MAX_CLAIM_PLAYERS then
         UpdateUI("Server Full (5+)", Color3.fromRGB(255, 80, 80))
         task.defer(HopToLowServer)
         return
@@ -388,7 +352,7 @@ CheckAndHop = function()
         UpdateUI("Claimed (" .. string.sub(tostring(CurrentJobId), 1, 6) .. ")", Color3.fromRGB(100, 255, 100))
     else
         UpdateUI("Yielding JobId...", Color3.fromRGB(255, 80, 80))
-        task.wait(0.3)
+        task.wait(0.2)
         task.defer(HopToLowServer)
     end
 end
@@ -400,25 +364,19 @@ end
 task.wait(1)
 CheckAndHop()
 
-claimFolder.ChildAdded:Connect(function()
-    task.wait(0.5)
-    CheckAndHop()
-end)
-
 Players.PlayerAdded:Connect(function()
-    task.wait(0.5)
+    task.wait(0.3)
     CheckAndHop()
 end)
 
 Players.PlayerRemoving:Connect(function()
-    task.wait(0.5)
+    task.wait(0.3)
     CheckAndHop()
 end)
 
 task.spawn(function()
     while true do
-        RegisterMyJobId()
         CheckAndHop()
-        task.wait(3)
+        task.wait(2)
     end
 end)
