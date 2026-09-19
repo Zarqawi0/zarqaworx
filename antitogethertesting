@@ -1,4 +1,4 @@
--- V2.2.9
+-- V2.2.7
 -- Pure JSON File Claiming & Always-Check System
 
 task.wait(10)
