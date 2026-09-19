@@ -1,10 +1,11 @@
-task.wait(5)
+task.wait(20)
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 
 local LocalPlayer = Players.LocalPlayer
+
 while not LocalPlayer or not LocalPlayer.UserId do
     task.wait(0.1)
     LocalPlayer = Players.LocalPlayer
@@ -14,14 +15,13 @@ local PlaceId = game.PlaceId
 local CurrentJobId = game.JobId
 
 ----------------------------------------------------------------
--- CONFIGURATION
+-- INITIALIZE SERVICES, VARIABLES (Matching Diagram Setup)
 ----------------------------------------------------------------
 
-local MAX_SERVER_INDEX = 299     -- Scan indices 0 to 299 (up to 10 pages of 100 limit)
-local TARGET_MAX_PLAYERS = 3     -- Target servers with 0 to 3 players
-local MAX_ALLOWED_PLAYERS = 4    -- 5 or more players triggers an immediate hop
-local FOLDER_NAME = "JobIdClaims"
-local MY_FILE_PATH = string.format("%s/%d.json", FOLDER_NAME, LocalPlayer.UserId)
+local MAX_SERVER_INDEX = 299       -- Indices 0 to 299 (up to 10 pages)
+local TARGET_MAX_PLAYERS = 3       -- Hop target filter: 0 to 3 players
+local MAX_PLAYERS = 4              -- Server threshold (count > 4, i.e. 5+ players, triggers hop)
+local PROTECTED_USERNAME = "amine100a"
 
 local isHopping = false
 local LastHopMethod = nil
@@ -29,25 +29,17 @@ local LastAttemptedJobId = nil
 local visitedServers = {}
 
 ----------------------------------------------------------------
--- HTTP EXECUTOR COMPATIBILITY
-----------------------------------------------------------------
-
-local requestFunc = nil
-if syn and syn.request then requestFunc = syn.request
-elseif http and http.request then requestFunc = http.request
-elseif http_request then requestFunc = http_request
-elseif fluxus and fluxus.request then requestFunc = fluxus.request
-elseif request then requestFunc = request
-else error("No supported HTTP request function found!") end
-
-----------------------------------------------------------------
 -- FILE SYSTEM / CLAIMING SYSTEM (API FUNCTIONS)
 ----------------------------------------------------------------
+
+local FOLDER_NAME = "JobIdClaims"
+local MY_FILE_PATH = string.format("%s/%d.json", FOLDER_NAME, LocalPlayer.UserId)
 
 if isfolder and makefolder and not isfolder(FOLDER_NAME) then
     makefolder(FOLDER_NAME)
 end
 
+-- registerJob(username, jobId)
 local function registerJob()
     if writefile then
         local data = HttpService:JSONEncode({
@@ -61,6 +53,7 @@ local function registerJob()
     return false
 end
 
+-- fetchJobs()
 local function fetchJobs()
     local claimedJobs = {}
     if listfiles and readfile then
@@ -85,8 +78,16 @@ local function fetchJobs()
 end
 
 ----------------------------------------------------------------
--- FETCH ROBLOX SERVERS
+-- HTTP EXECUTOR COMPATIBILITY & FETCH SERVERS
 ----------------------------------------------------------------
+
+local requestFunc = nil
+if syn and syn.request then requestFunc = syn.request
+elseif http and http.request then requestFunc = http.request
+elseif http_request then requestFunc = http_request
+elseif fluxus and fluxus.request then requestFunc = fluxus.request
+elseif request then requestFunc = request
+else error("No supported HTTP request function found!") end
 
 local function fetchServers(cursor)
     local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
@@ -106,15 +107,35 @@ local function fetchServers(cursor)
 end
 
 ----------------------------------------------------------------
+-- HELPER FUNCTIONS
+----------------------------------------------------------------
+
+local function IsProtectedPlayerPresent()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player.Name == PROTECTED_USERNAME then
+            return true
+        end
+    end
+    return false
+end
+
+----------------------------------------------------------------
+-- FORWARD DECLARATIONS
+----------------------------------------------------------------
+
+local checkPlayerCount
+local checkCurrentServer
+local jobIdHop
+local findServer
+
+----------------------------------------------------------------
 -- FIND SERVER PROCESS (findServer)
 ----------------------------------------------------------------
 
-local jobIdHop
-
-local function findServer()
+findServer = function()
     -- Fetch registered jobs from API
     local claimedJobs = fetchJobs()
-    if not claimedJobs then 
+    if not claimedJobs then
         return nil -- Return nil if failed to get jobs (matches flowchart)
     end
 
@@ -133,11 +154,11 @@ local function findServer()
 
             local playing = tonumber(server.playing)
             
-            -- Server Conditions:
+            -- Checks:
             -- 1. Not current server (jobId)
-            -- 2. Player count <= TARGET_MAX_PLAYERS (0 to 3)
-            -- 3. Not owned by any user (from API)
-            -- 4. Not visited
+            -- 2. Player count <= TARGET_MAX_PLAYERS (0 to 3 players requirement)
+            -- 3. Not full
+            -- 4. Not owned by any user (from API claim scan)
             local validPlayers = playing and playing >= 0 and playing <= TARGET_MAX_PLAYERS
             local isNotCurrent = server.id ~= CurrentJobId
             local isNotVisited = not visitedServers[server.id]
@@ -155,7 +176,7 @@ local function findServer()
     -- Found a valid server?
     if #pool300 == 0 then
         if next(visitedServers) then visitedServers = {} end
-        return nil -- Return nil if no valid server found (matches flowchart)
+        return nil -- Return nil if no valid server found
     end
 
     -- Randomly pick 5 eligible servers from index 0-299 pool and select 1
@@ -221,51 +242,84 @@ jobIdHop = function()
 end
 
 ----------------------------------------------------------------
--- SERVER CHECK LOGIC
+-- CHECK PLAYER COUNT PROCESS (checkPlayerCount)
 ----------------------------------------------------------------
 
-local function checkCurrentServer()
-    if isHopping then return end
-
-    local count = #Players:GetPlayers()
-
-    -- Rule: If 5 or more players, hop immediately
-    if count > MAX_ALLOWED_PLAYERS then
-        print("Server full (" .. count .. " players). Hopping immediately...")
-        isHopping = true
-        jobIdHop()
-        return
+checkPlayerCount = function()
+    -- Is hopping == true?
+    if isHopping then
+        return false -- Return false (Do nothing)
     end
 
-    -- Rule: Check if server is claimed already
+    local count = #Players:GetPlayers()
+    local protectedPresent = IsProtectedPlayerPresent()
+
+    -- Is protected player present?
+    if protectedPresent then
+        return true -- Return true (Stay in server)
+    end
+
+    -- Is player count > MAX_PLAYERS (5)?
+    if count > MAX_PLAYERS then
+        isHopping = true
+        jobIdHop()
+        return false
+    end
+
+    return true -- Return true (Stay in server)
+end
+
+----------------------------------------------------------------
+-- CHECK CURRENT SERVER PROCESS (checkCurrentServer)
+----------------------------------------------------------------
+
+checkCurrentServer = function()
+    -- Is hopping == true?
+    if isHopping then
+        return false
+    end
+
+    local count = #Players:GetPlayers()
+    local protectedPresent = IsProtectedPlayerPresent()
+
+    -- Protected player absent AND player count > 5?
+    if (not protectedPresent) and (count > MAX_PLAYERS) then
+        isHopping = true
+        jobIdHop()
+        return false
+    end
+
+    -- Fetch registered jobs from API
     local claimedJobs = fetchJobs()
     if claimedJobs then
         local ownerId = claimedJobs[CurrentJobId]
 
-        -- If another player claimed it, hop immediately
+        -- Is current server owned by another user?
         if ownerId and ownerId ~= LocalPlayer.UserId then
-            print("Server claimed by user " .. tostring(ownerId) .. ". Hopping immediately...")
             isHopping = true
             jobIdHop()
-            return
+            return true -- Matches Return true in flowchart
         end
 
-        -- If this account owns it, stay
+        -- Is current server already owned by this account?
         if ownerId and ownerId == LocalPlayer.UserId then
             print("Server belongs to this account")
-            return
+            return true
         end
     end
 
-    -- Claim the server if eligible
+    -- Try to register this server to API (registerJob)
     local regSuccess = registerJob()
     if regSuccess then
-        print("Registration successful")
+        print("Claimed server")
+        return true
     end
+
+    return false
 end
 
 ----------------------------------------------------------------
--- TELEPORTINITFAILED EVENT (Matches Image)
+-- TELEPORTINITFAILED EVENT
 ----------------------------------------------------------------
 
 TeleportService.TeleportInitFailed:Connect(function()
@@ -273,24 +327,46 @@ TeleportService.TeleportInitFailed:Connect(function()
     LastAttemptedJobId = nil
     task.wait(0.5)
     if isHopping then
-        jobIdHop() -- Run jobIdHop() if still hopping
+        jobIdHop()
     end
 end)
 
 ----------------------------------------------------------------
--- PLAYER LISTENERS & INITIALIZATION
+-- PLAYER LISTENERS (ChildAdded / ChildRemoved)
 ----------------------------------------------------------------
 
-Players.PlayerAdded:Connect(function()
+Players.PlayerAdded:Connect(function(child)
+    if not child:IsA("Player") then return end
     if isHopping then return end
-    checkCurrentServer()
+
+    if child.Name == PROTECTED_USERNAME then
+        print("Protected player joined (do nothing)")
+    else
+        checkPlayerCount()
+    end
 end)
 
-Players.PlayerRemoving:Connect(function()
+Players.PlayerRemoving:Connect(function(child)
+    if not child:IsA("Player") then return end
     if isHopping then return end
-    task.wait(0.1)
-    checkCurrentServer()
+
+    if child.Name == PROTECTED_USERNAME then
+        print("Protected player left")
+        task.wait(0.1)
+    end
+
+    checkPlayerCount()
 end)
 
--- Initial run upon loading in
+----------------------------------------------------------------
+-- MAIN INITIALIZATION SEQUENCE (Flowchart Start Execution)
+----------------------------------------------------------------
+
+-- Run checkCurrentServer()
 checkCurrentServer()
+
+-- Wait 1 second (then run checkPlayerCount())
+task.spawn(function()
+    task.wait(1)
+    checkPlayerCount()
+end)
