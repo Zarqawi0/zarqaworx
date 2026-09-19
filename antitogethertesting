@@ -1,5 +1,5 @@
--- V2.2.5
--- JobId Claim System + 300 Pool Shuffle -> Pick 5 -> Pick 1 Pipeline
+-- V2.2.8
+-- JobId Claim System + Cross-Instance Skip via Shared Local Storage
 
 task.wait(10)
 
@@ -19,7 +19,60 @@ end
 local PlaceId = game.PlaceId
 local CurrentJobId = game.JobId
 
--- Shared workspace folder so script instances on the same JobId recognize each other
+----------------------------------------------------------------
+-- SHARED LOCAL FILE SYSTEM (CROSS-INSTANCE AWARENESS)
+----------------------------------------------------------------
+
+local FOLDER_NAME = "JobIdClaims"
+local MY_FILE_PATH = string.format("%s/%d.json", FOLDER_NAME, LocalPlayer.UserId)
+
+-- Create shared folder if it doesn't exist
+if isfolder and makefolder then
+    if not isfolder(FOLDER_NAME) then
+        makefolder(FOLDER_NAME)
+    end
+end
+
+-- Write current JobId to local storage so other local instances can read it
+local function RegisterMyJobId()
+    if writefile then
+        local data = HttpService:JSONEncode({
+            userId = LocalPlayer.UserId,
+            jobId = CurrentJobId,
+            updatedAt = os.time()
+        })
+        pcall(writefile, MY_FILE_PATH, data)
+    end
+end
+
+-- Read all local claim files and return a set of claimed JobIds
+local function GetClaimedJobIdsFromStorage()
+    local claimedJobs = {}
+    
+    if listfiles and readfile then
+        local success, files = pcall(listfiles, FOLDER_NAME)
+        if success and files then
+            for _, filePath in ipairs(files) do
+                local readSuccess, content = pcall(readfile, filePath)
+                if readSuccess and content then
+                    local decodeSuccess, parsed = pcall(HttpService.JSONDecode, HttpService, content)
+                    if decodeSuccess and parsed and parsed.jobId then
+                        -- Ignore stale claims older than 10 minutes
+                        if parsed.updatedAt and (os.time() - parsed.updatedAt) < 600 then
+                            claimedJobs[parsed.jobId] = true
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    return claimedJobs
+end
+
+RegisterMyJobId()
+
+-- Shared in-game Workspace folder for same-server tie-breaking
 local claimFolder = Workspace:FindFirstChild("JobIdClaims")
 if not claimFolder then
     claimFolder = Instance.new("Folder")
@@ -27,7 +80,6 @@ if not claimFolder then
     claimFolder.Parent = Workspace
 end
 
--- Register player's UserId under the current JobId
 local myClaimTag = claimFolder:FindFirstChild(tostring(LocalPlayer.UserId))
 if not myClaimTag then
     myClaimTag = Instance.new("StringValue")
@@ -36,7 +88,6 @@ if not myClaimTag then
     myClaimTag.Parent = claimFolder
 end
 
--- [JobId] = timestamp
 local visitedServers = {}
 
 ----------------------------------------------------------------
@@ -223,7 +274,7 @@ end
 local CheckAndHop
 
 ----------------------------------------------------------------
--- SERVER HOPPER (EXACT SELECTION PIPELINE)
+-- SERVER HOPPER (WITH CLAIMED JOBID FILTERING)
 ----------------------------------------------------------------
 
 local isSearching = false
@@ -234,11 +285,14 @@ local function HopToLowServer()
 
     UpdateUI("Searching 0-299...", Color3.fromRGB(255, 180, 50))
 
+    -- Fetch all JobIds currently claimed by other active instances
+    local claimedJobIds = GetClaimedJobIdsFromStorage()
+
     local cursor = nil
     local pool300 = {}
     local totalScanned = 0
 
-    -- STEP 1: Find ONLY 0-3 players up to 300 candidates (indexes 0-299)
+    -- STEP 1: Find 0-3 player servers up to index 299, SKIPPING claimed JobIds
     repeat
         local data = fetchServers(cursor)
         if not data or not data.data then break end
@@ -251,8 +305,9 @@ local function HopToLowServer()
             local validPlayerCount = playingCount ~= nil and playingCount >= 0 and playingCount <= MAX_TARGET_PLAYERS
             local notCurrentServer = server.id ~= CurrentJobId
             local notVisited = not visitedServers[server.id]
+            local notClaimedByOtherScript = not claimedJobIds[server.id]
 
-            if validPlayerCount and notCurrentServer and notVisited then
+            if validPlayerCount and notCurrentServer and notVisited and notClaimedByOtherScript then
                 table.insert(pool300, server)
             end
         end
@@ -312,7 +367,7 @@ TeleportService.TeleportInitFailed:Connect(function()
 end)
 
 ----------------------------------------------------------------
--- SERVER EVALUATION & FLOWCHART EXECUTION
+-- SERVER EVALUATION
 ----------------------------------------------------------------
 
 CheckAndHop = function()
@@ -329,6 +384,7 @@ CheckAndHop = function()
     local isOwner = IsCurrentJobIdClaimedByMe()
 
     if isOwner then
+        RegisterMyJobId()
         UpdateUI("Claimed (" .. string.sub(tostring(CurrentJobId), 1, 6) .. ")", Color3.fromRGB(100, 255, 100))
     else
         UpdateUI("Yielding JobId...", Color3.fromRGB(255, 80, 80))
@@ -361,6 +417,7 @@ end)
 
 task.spawn(function()
     while true do
+        RegisterMyJobId()
         CheckAndHop()
         task.wait(3)
     end
