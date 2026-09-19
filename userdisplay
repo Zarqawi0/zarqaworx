@@ -1,7 +1,11 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
--- Siguraduhin na loaded ang game at LocalPlayer
+-- Force 3D Rendering OFF immediately when executed
+RunService:Set3dRenderingEnabled(false)
+local is3DEnabled = false
+
+-- Ensure game and LocalPlayer are loaded
 if not game:IsLoaded() then
 	game.Loaded:Wait()
 end
@@ -14,11 +18,7 @@ if not playerGui then
 	return
 end
 
--- Default state: Naka-enable ang 3D rendering sa simula
-local is3DEnabled = true
-RunService:Set3dRenderingEnabled(true)
-
--- Function para i-censor ang 50% ng pangalan
+-- Function to mask 50% of the display name
 local function maskName(name)
 	local length = #name
 	if length <= 1 then
@@ -32,13 +32,13 @@ local function maskName(name)
 	return visiblePart .. maskedPart
 end
 
--- ScreenGui
+-- ScreenGui Setup
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "TightProfileGUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
--- Tight Container Frame (Centered like crosshair)
+-- Tight Container Frame (Centered)
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
 mainFrame.Size = UDim2.new(0, 0, 0, 48)
@@ -84,7 +84,7 @@ local imgCorner = Instance.new("UICorner")
 imgCorner.CornerRadius = UDim.new(0, 6)
 imgCorner.Parent = avatarImage
 
--- Display Name Label (May Privacy Masking)
+-- Display Name Label
 local displayNameLabel = Instance.new("TextLabel")
 displayNameLabel.Name = "DisplayNameLabel"
 displayNameLabel.Size = UDim2.new(0, 0, 1, 0)
