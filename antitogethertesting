@@ -1,7 +1,7 @@
 -- V2.3.9
 -- Features: 1 Request Per Scan Loop, Continuous Cursor Pagination (0-3 Players Search Target)
 
-task.wait(20)
+task.wait(0.1)
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
