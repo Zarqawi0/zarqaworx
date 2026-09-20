@@ -1,5 +1,5 @@
--- V2.3.4
--- Features: Direct First-Match Picker (0-299 Index, 0-3 Players Target), Claim Current Server (0-4 Players), Anti-Collision JSON Claiming
+-- V2.3.9
+-- Features: Direct First-Match Picker (0-299 Index, 0-3 Players Target), Claim Current Server (0-4 Players), Anti-Collision JSON Claiming, Auto Rejoin / Auto Leave Prompt Handling
 
 task.wait(20)
 
@@ -7,6 +7,7 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
+local GuiService = game:GetService("GuiService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -272,9 +273,7 @@ end
 ----------------------------------------------------------------
 
 jobIdHop = function()
-    if isHopping == false then
-        return false
-    end
+    isHopping = true
 
     local serverId = findServer()
 
@@ -393,6 +392,51 @@ checkCurrentServer = function()
 
     return false
 end
+
+----------------------------------------------------------------
+-- AUTO PRESS "OKAY" & "LEAVE" / PROMPT DISMISSAL
+----------------------------------------------------------------
+
+task.spawn(function()
+    local robloxPromptGui = CoreGui:WaitForChild("RobloxPromptGui", 10)
+    if not robloxPromptGui then return end
+
+    local promptOverlay = robloxPromptGui:WaitForChild("promptOverlay", 10)
+    if not promptOverlay then return end
+
+    promptOverlay.ChildAdded:Connect(function(child)
+        if child.Name == "ErrorPrompt" then
+            task.wait(0.2)
+            
+            -- Attempt to automatically dismiss/click buttons if virtual clickers exist
+            local buttonArea = child:FindFirstChild("ButtonArea", true)
+            if buttonArea then
+                for _, btn in ipairs(buttonArea:GetChildren()) do
+                    if btn:IsA("GuiButton") or btn:IsA("TextButton") then
+                        if getconnections then
+                            for _, connection in ipairs(getconnections(btn.MouseButton1Click)) do
+                                connection:Fire()
+                            end
+                        end
+                    end
+                end
+            end
+
+            -- Force a new server hop if kicked or teleport failed
+            isHopping = true
+            jobIdHop()
+        end
+    end)
+end)
+
+GuiService.ErrorMessageChanged:Connect(function(msg)
+    if msg and #msg > 0 then
+        print("GuiService Error Detected:", msg)
+        task.wait(0.5)
+        isHopping = true
+        jobIdHop()
+    end
+end)
 
 ----------------------------------------------------------------
 -- TELEPORT FAILURE EVENT
