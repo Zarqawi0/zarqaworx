@@ -1,5 +1,5 @@
--- V2.5.0
--- Optimized: Cleaned unnecessary state, removed protected username, 0-3 Search / 0-5 Stay (Hop >= 6)
+-- V2.5.1
+-- Fixed: Claim server on 0 to 6 players, hop on 7 or above
 
 task.wait(10)
 
@@ -23,7 +23,7 @@ local CurrentJobId = game.JobId
 
 local MAX_SERVER_INDEX = 299  -- Index range: 0 to 299 (300 servers max depth)
 local MAX_SEARCH_PLAYERS = 3  -- SEARCH TARGET: Strictly 0 to 3 players
-local MAX_CLAIM_PLAYERS = 5   -- CLAIM TARGET: 0 to 5 players allowed (Hops if >= 6)
+local MAX_CLAIM_PLAYERS = 6   -- CLAIM TARGET: 0 to 6 players allowed (Hops if >= 7)
 
 local isHopping = false
 local visitedServers = {}
@@ -262,7 +262,7 @@ checkPlayerCount = function()
 
     if RefreshPlayerCount() > MAX_CLAIM_PLAYERS then
         isHopping = true
-        UpdateUI("Server Full (>=6)", Color3.fromRGB(255, 80, 80))
+        UpdateUI("Server Full (>=7)", Color3.fromRGB(255, 80, 80))
         jobIdHop()
         return false
     end
@@ -278,7 +278,7 @@ end
 checkCurrentServer = function()
     if RefreshPlayerCount() > MAX_CLAIM_PLAYERS then
         isHopping = true
-        UpdateUI("Server Full (>=6)", Color3.fromRGB(255, 80, 80))
+        UpdateUI("Server Full (>=7)", Color3.fromRGB(255, 80, 80))
         jobIdHop()
         return false
     end
