@@ -1,7 +1,8 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
--- Ensure game and LocalPlayer are loaded before doing operations
+-- Ensure game and LocalPlayer are loaded
 if not game:IsLoaded() then
 	game.Loaded:Wait()
 end
@@ -14,7 +15,7 @@ if not playerGui then
 	return
 end
 
--- Track rendering state (starts disabled as per your original code)
+-- Track rendering state (starts disabled)
 local isRenderingEnabled = false
 RunService:Set3dRenderingEnabled(isRenderingEnabled)
 
@@ -33,20 +34,19 @@ screenGui.Name = "TightProfileGUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
--- Main Button Frame (Changed to TextButton to handle clicks natively)
+-- Main Button Frame
 local mainFrame = Instance.new("TextButton")
 mainFrame.Name = "MainFrame"
-mainFrame.Text = "" -- Empty text since it's used as a container
-mainFrame.AutoButtonColor = false -- Disables default button color overlay
+mainFrame.Text = "" 
+mainFrame.AutoButtonColor = false 
 mainFrame.Size = UDim2.new(0, 0, 0, 88)
 mainFrame.AutomaticSize = Enum.AutomaticSize.X
 mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 32)
-mainFrame.BackgroundTransparency = 0.3 -- Visual hint that rendering is OFF
+mainFrame.BackgroundTransparency = 0.3
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
-mainFrame.Draggable = true
 mainFrame.Parent = screenGui
 
 local frameCorner = Instance.new("UICorner")
@@ -76,6 +76,7 @@ avatarImage.Size = UDim2.new(0, 68, 0, 68)
 avatarImage.BackgroundTransparency = 1
 avatarImage.BorderSizePixel = 0
 avatarImage.LayoutOrder = 1
+avatarImage.Active = false -- Lets clicks pass through to mainFrame
 avatarImage.Parent = mainFrame
 
 local imgCorner = Instance.new("UICorner")
@@ -95,6 +96,7 @@ displayNameLabel.Font = Enum.Font.GothamBold
 displayNameLabel.TextXAlignment = Enum.TextXAlignment.Left
 displayNameLabel.TextYAlignment = Enum.TextYAlignment.Center
 displayNameLabel.LayoutOrder = 2
+displayNameLabel.Active = false -- Lets clicks pass through to mainFrame
 displayNameLabel.Parent = mainFrame
 
 -- Fetch Avatar Headshot asynchronously
@@ -112,17 +114,51 @@ task.defer(function()
 	end
 end)
 
--- Click Listener to Toggle 3D Rendering
-mainFrame.Activated:Connect(function()
-	isRenderingEnabled = not isRenderingEnabled
-	RunService:Set3dRenderingEnabled(isRenderingEnabled)
-	
-	-- Visual feedback: Highlight UI when 3D rendering is active
-	if isRenderingEnabled then
-		mainFrame.BackgroundColor3 = Color3.fromRGB(45, 120, 210) -- Blue accent when ON
-		mainFrame.BackgroundTransparency = 0
-	else
-		mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 32) -- Dark grey when OFF
-		mainFrame.BackgroundTransparency = 0.3
+----------------------------------------------------
+-- CUSTOM DRAG + CLICK LOGIC
+----------------------------------------------------
+local dragging = false
+local dragStart = nil
+local startPos = nil
+local hasDragged = false
+
+mainFrame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		hasDragged = false
+		dragStart = input.Position
+		startPos = mainFrame.Position
+		
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - dragStart
+		
+		if delta.Magnitude > 5 then
+			hasDragged = true
+		end
+		
+		mainFrame.Position = UDim2.new(
+			startPos.X.Scale, startPos.X.Offset + delta.X,
+			startPos.Y.Scale, startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+-- Click Handler (Toggles rendering without changing any UI colors)
+mainFrame.InputEnded:Connect(function(input)
+	if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+		if not hasDragged then
+			isRenderingEnabled = not isRenderingEnabled
+			RunService:Set3dRenderingEnabled(isRenderingEnabled)
+		end
+		hasDragged = false
 	end
 end)
