@@ -1,7 +1,7 @@
--- V2.3.5
--- Features: 1 Request Per Scan Loop, Continuous Cursor Pagination (0-3 Players Search Target)
+-- V2.2.6
+-- Fix: Reset isHopping flag on checkCurrentServer to allow claiming servers with 0-4 players.
 
-task.wait(0.1)
+task.wait(10)
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
@@ -23,8 +23,8 @@ local CurrentJobId = game.JobId
 ----------------------------------------------------------------
 
 local MAX_SERVER_INDEX = 299  -- Index range limit: 0 to 299 (300 servers maximum scan depth)
-local MAX_SEARCH_PLAYERS = 3  -- SEARCH TARGET: Strictly 0 to 3 players
-local MAX_CLAIM_PLAYERS = 4   -- CLAIM TARGET: 0 to 4 players allowed to claim/stay
+local MAX_SEARCH_PLAYERS = 3  -- SEARCH TARGET: Strictly 0 to 3 players when looking for a new server
+local MAX_CLAIM_PLAYERS = 4   -- CLAIM TARGET: 0 to 4 players allowed to claim/stay (Hops if >= 5)
 local PROTECTED_USERNAME = "amine100a"
 
 local isHopping = false
@@ -191,7 +191,7 @@ elseif request then requestFunc = request
 else error("No supported HTTP request function found!") end
 
 ----------------------------------------------------------------
--- FETCH ROBLOX SERVERS (1 SINGLE HTTP REQUEST PER CALL)
+-- FETCH ROBLOX SERVERS
 ----------------------------------------------------------------
 
 local function fetchServers(cursor)
@@ -221,7 +221,7 @@ local jobIdHop
 local findServer
 
 ----------------------------------------------------------------
--- FIND SERVER PROCESS (1 REQUEST PER LOOP WITH CURSOR)
+-- FIND SERVER PROCESS
 ----------------------------------------------------------------
 
 findServer = function()
@@ -236,7 +236,6 @@ findServer = function()
     local totalScanned = 0
 
     while totalScanned < (MAX_SERVER_INDEX + 1) do
-        -- Perform EXACTLY 1 request per loop turn
         local data = fetchServers(currentCursor)
         
         if data and data.data then
@@ -245,31 +244,25 @@ findServer = function()
                 if totalScanned > (MAX_SERVER_INDEX + 1) then break end
 
                 local playingCount = tonumber(server.playing)
-                -- STRICT SEARCH CONDITION: 0 to 3 players
                 local validPlayerCount = playingCount ~= nil and playingCount >= 0 and playingCount <= MAX_SEARCH_PLAYERS
                 local notCurrentServer = server.id ~= CurrentJobId
                 local notVisited = not visitedServers[server.id]
                 local notOwned = claimedJobs[server.id] == nil
 
-                -- FIRST MATCH FOUND: Return immediately
                 if validPlayerCount and notCurrentServer and notVisited and notOwned then
                     return server.id
                 end
             end
 
             currentCursor = data.nextPageCursor
-            -- If no next page exists, end the search
             if not currentCursor then break end
         else
-            -- If HTTP request fails, break loop to prevent infinite retry without pause
             break
         end
 
-        -- Yield execution to maintain 1 request per loop cycle cleanly
         task.wait(0.2)
     end
 
-    -- Reset visited cache if reaching end of scan with no matches
     if next(visitedServers) then
         visitedServers = {}
     end
@@ -335,6 +328,7 @@ checkPlayerCount = function()
         return true
     end
 
+    -- ONLY HOP IF PLAYER COUNT IS 5 OR MORE (>=5)
     if count > MAX_CLAIM_PLAYERS then
         isHopping = true
         UpdateUI("Server Full (>=5)", Color3.fromRGB(255, 80, 80))
@@ -351,19 +345,19 @@ end
 ----------------------------------------------------------------
 
 checkCurrentServer = function()
-    if isHopping == true then
-        return false
-    end
-
     local count = RefreshPlayerCount()
     local protectedPresent = IsProtectedPlayerPresent()
 
+    -- HOP ONLY IF PLAYERS >= 5 (AND PROTECTED USER IS NOT HERE)
     if (not protectedPresent) and (count > MAX_CLAIM_PLAYERS) then
         isHopping = true
         UpdateUI("Server Full (>=5)", Color3.fromRGB(255, 80, 80))
         jobIdHop()
         return false
     end
+
+    -- IF WE ARE IN A VALID SERVER (0-4 PLAYERS), CANCEL HOPPING STATE
+    isHopping = false
 
     local claimedJobs = fetchJobs()
     local claimData = claimedJobs[CurrentJobId]
