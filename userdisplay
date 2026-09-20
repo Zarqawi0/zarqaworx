@@ -14,8 +14,9 @@ if not playerGui then
 	return
 end
 
--- Initialize 3D Rendering OFF
-RunService:Set3dRenderingEnabled(false)
+-- Track rendering state (starts disabled as per your original code)
+local isRenderingEnabled = false
+RunService:Set3dRenderingEnabled(isRenderingEnabled)
 
 -- Function to mask 50% of the display name
 local function maskName(name)
@@ -32,14 +33,17 @@ screenGui.Name = "TightProfileGUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
--- Main Frame
-local mainFrame = Instance.new("Frame")
+-- Main Button Frame (Changed to TextButton to handle clicks natively)
+local mainFrame = Instance.new("TextButton")
 mainFrame.Name = "MainFrame"
+mainFrame.Text = "" -- Empty text since it's used as a container
+mainFrame.AutoButtonColor = false -- Disables default button color overlay
 mainFrame.Size = UDim2.new(0, 0, 0, 88)
 mainFrame.AutomaticSize = Enum.AutomaticSize.X
 mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 32)
+mainFrame.BackgroundTransparency = 0.3 -- Visual hint that rendering is OFF
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
 mainFrame.Draggable = true
@@ -52,7 +56,7 @@ frameCorner.Parent = mainFrame
 -- UI Padding
 local padding = Instance.new("UIPadding")
 padding.PaddingLeft = UDim.new(0, 10)
-padding.PaddingRight = UDim.new(0, 24) -- Expanded right padding for the larger text
+padding.PaddingRight = UDim.new(0, 24)
 padding.PaddingTop = UDim.new(0, 10)
 padding.PaddingBottom = UDim.new(0, 10)
 padding.Parent = mainFrame
@@ -62,7 +66,7 @@ local listLayout = Instance.new("UIListLayout")
 listLayout.FillDirection = Enum.FillDirection.Horizontal
 listLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-listLayout.Padding = UDim.new(0, 14) -- Increased spacing between avatar and text
+listLayout.Padding = UDim.new(0, 14)
 listLayout.Parent = mainFrame
 
 -- Avatar Image
@@ -86,7 +90,7 @@ displayNameLabel.AutomaticSize = Enum.AutomaticSize.X
 displayNameLabel.BackgroundTransparency = 1
 displayNameLabel.Text = maskName(LocalPlayer.DisplayName or LocalPlayer.Name)
 displayNameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-displayNameLabel.TextSize = 32 -- Increased text size to 32pt
+displayNameLabel.TextSize = 32
 displayNameLabel.Font = Enum.Font.GothamBold
 displayNameLabel.TextXAlignment = Enum.TextXAlignment.Left
 displayNameLabel.TextYAlignment = Enum.TextYAlignment.Center
@@ -105,5 +109,20 @@ task.defer(function()
 	
 	if success and isReady then
 		avatarImage.Image = content
+	end
+end)
+
+-- Click Listener to Toggle 3D Rendering
+mainFrame.Activated:Connect(function()
+	isRenderingEnabled = not isRenderingEnabled
+	RunService:Set3dRenderingEnabled(isRenderingEnabled)
+	
+	-- Visual feedback: Highlight UI when 3D rendering is active
+	if isRenderingEnabled then
+		mainFrame.BackgroundColor3 = Color3.fromRGB(45, 120, 210) -- Blue accent when ON
+		mainFrame.BackgroundTransparency = 0
+	else
+		mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 32) -- Dark grey when OFF
+		mainFrame.BackgroundTransparency = 0.3
 	end
 end)
