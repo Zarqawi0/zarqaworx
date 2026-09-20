@@ -14,33 +14,8 @@ if not playerGui then
 	return
 end
 
--- State Management
-local is3DEnabled = false
-local renderConnection = nil
-
--- Throttles execution rate when 3D rendering is disabled to prevent CPU maxing out
-local function update3DRendering(enabled)
-	is3DEnabled = enabled
-	RunService:Set3dRenderingEnabled(enabled)
-	
-	if not enabled then
-		-- Cap rendering loops to ~30 FPS to drop CPU usage while 3D is off
-		if not renderConnection then
-			renderConnection = RunService.RenderStepped:Connect(function()
-				task.wait(1 / 30)
-			end)
-		end
-	else
-		-- Clean up throttler when 3D rendering is restored
-		if renderConnection then
-			renderConnection:Disconnect()
-			renderConnection = nil
-		end
-	end
-end
-
 -- Initialize 3D Rendering OFF
-update3DRendering(false)
+RunService:Set3dRenderingEnabled(false)
 
 -- Function to mask 50% of the display name
 local function maskName(name)
@@ -130,12 +105,5 @@ task.defer(function()
 	
 	if success and isReady then
 		avatarImage.Image = content
-	end
-end)
-
--- Toggle 3D Rendering on UI Click
-mainFrame.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		update3DRendering(not is3DEnabled)
 	end
 end)
