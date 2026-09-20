@@ -1,7 +1,9 @@
--- V3.7.0
--- Fully Conflict-Free Multi-Account Target Hopper & Instant Claim Guard
+-- V4.0.0
+-- Fixed Initial Server Claim Evaluation on First Join
 
-task.wait(10)
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
@@ -31,7 +33,7 @@ local TELEPORT_COOLDOWN = 5     -- Rate-limit guard: Minimum seconds between tel
 local isHopping = false
 local visitedServers = {}
 local retryDelay = 1            -- Initial delay for exponential backoff
-local lastTeleportAttempt = 0   -- Timestamp of last teleport call
+local lastTeleportAttempt = os.time() -- Set initial attempt to current time to prevent instant throttle block
 
 -- File System Path Setup
 local FOLDER_NAME = "JobIdClaims"
@@ -88,9 +90,9 @@ local function claimServer(targetJobId)
     return nil
 end
 
-local function fetchJobs()
+local function fetchJobs(forceRefresh)
     local currentTime = os.time()
-    if (currentTime - lastCacheUpdate) < 3 and next(cachedClaimedJobs) ~= nil then
+    if not forceRefresh and (currentTime - lastCacheUpdate) < 3 and next(cachedClaimedJobs) ~= nil then
         return cachedClaimedJobs
     end
 
@@ -129,15 +131,18 @@ local function fetchJobs()
 end
 
 ----------------------------------------------------------------
--- STATUS UI
+-- STATUS UI (WITH DUPLICATE CLEANUP)
 ----------------------------------------------------------------
+
+local parentGui = (pcall(function() return CoreGui end) and CoreGui) or LocalPlayer:WaitForChild("PlayerGui")
+if parentGui:FindFirstChild("ServerFinderUI") then
+    parentGui.ServerFinderUI:Destroy()
+end
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ServerFinderUI"
 ScreenGui.ResetOnSpawn = false
-
-local uiParent = pcall(function() ScreenGui.Parent = CoreGui end)
-if not uiParent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+ScreenGui.Parent = parentGui
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 180, 0, 48)
@@ -157,7 +162,7 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(1, -16, 0, 18)
 StatusLabel.Position = UDim2.new(0, 8, 0, 5)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "Status: Initializing..."
+StatusLabel.Text = "Status: Checking Server..."
 StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 StatusLabel.TextSize = 13
 StatusLabel.Font = Enum.Font.SourceSansBold
@@ -196,7 +201,7 @@ local requestFunc = (syn and syn.request) or (http and http.request) or http_req
 if not requestFunc then error("No supported HTTP request function found!") end
 
 local function fetchServers(cursor)
-    local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
+    local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100&excludeFullGames=true", PlaceId)
     if cursor then url = url .. "&cursor=" .. cursor end
 
     local success, response = pcall(requestFunc, { Url = url, Method = "GET" })
@@ -244,7 +249,6 @@ local function findServer()
         if #validServers > 0 then
             local selectedId = validServers[math.random(1, #validServers)]
             
-            -- Pre-reserve in local memory cache to prevent cross-thread race conditions
             cachedClaimedJobs[selectedId] = {
                 userId = LocalPlayer.UserId,
                 username = LocalPlayer.Name,
@@ -268,10 +272,8 @@ end
 jobIdHop = function()
     if isHopping then return false end
     
-    -- Lock state immediately BEFORE throttling yield to block incoming event threads
     isHopping = true
 
-    -- Rate-limit guard delay
     local now = os.time()
     local timeSinceLastHop = now - lastTeleportAttempt
     if timeSinceLastHop < TELEPORT_COOLDOWN then
@@ -302,7 +304,7 @@ jobIdHop = function()
     if not teleportSuccess then
         isHopping = false
         task.wait(retryDelay)
-        retryDelay = math.min(retryDelay * 2, 10) -- Exponential backoff for synchronous errors
+        retryDelay = math.min(retryDelay * 2, 10)
         return jobIdHop()
     end
 
@@ -320,7 +322,7 @@ checkCurrentServer = function()
     end
 
     -- 2. Claim & Ownership Verification (0-4 players)
-    local claimedJobs = fetchJobs()
+    local claimedJobs = fetchJobs(true) -- Force immediate refresh from disk
     local claimInfo = claimedJobs[CurrentJobId]
 
     if claimInfo and claimInfo.userId ~= LocalPlayer.UserId then
@@ -329,16 +331,15 @@ checkCurrentServer = function()
         return false
     end
 
-    -- Claim current server if unclaimed or renew timestamp if owned
     claimServer(CurrentJobId)
     isHopping = false
-    retryDelay = 1 -- Reset exponential backoff counter on confirmed stay
-    UpdateUI(claimInfo and "Owned By Account" or "Claimed Server (0-4)", Color3.fromRGB(100, 255, 100))
+    retryDelay = 1
+    UpdateUI("Server Claimed", Color3.fromRGB(100, 255, 100))
     return true
 end
 
 ----------------------------------------------------------------
--- LISTENERS & HEARTBEAT LOOP
+-- LISTENERS & STARTUP INITIALIZATION
 ----------------------------------------------------------------
 
 TeleportService.TeleportInitFailed:Connect(function()
@@ -356,9 +357,18 @@ Players.PlayerRemoving:Connect(function()
     if not isHopping then checkCurrentServer() end
 end)
 
--- Initial run & background Heartbeat (Every 3 Seconds)
-checkCurrentServer()
+-- Forced Initial Evaluation on Join
+task.spawn(function()
+    UpdateUI("Verifying Server...", Color3.fromRGB(255, 200, 50))
+    task.wait(1) -- Brief pause to ensure all local player files finish writing
+    local canStay = checkCurrentServer()
+    
+    if canStay then
+        print("[Claim Guard] Current server verified and successfully claimed!")
+    end
+end)
 
+-- Background Heartbeat Loop (Runs every 3 seconds after join check)
 task.spawn(function()
     while task.wait(HEARTBEAT_INTERVAL) do
         checkCurrentServer()
