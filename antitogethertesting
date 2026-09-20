@@ -1,5 +1,5 @@
 -- V2.3.9
--- Features: Direct First-Match Picker (0-299 Index, 0-3 Players Target), Claim Current Server (0-4 Players), Anti-Collision JSON Claiming, Auto Rejoin / Auto Leave Prompt Handling
+-- Features: 1 Request Per Scan Loop, Continuous Cursor Pagination (0-3 Players Search Target)
 
 task.wait(20)
 
@@ -7,7 +7,6 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
-local GuiService = game:GetService("GuiService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -23,9 +22,9 @@ local CurrentJobId = game.JobId
 -- CONFIGURATION & CONSTANTS
 ----------------------------------------------------------------
 
-local MAX_SERVER_INDEX = 299  -- Index range: 0 to 299 (300 servers)
-local MAX_SEARCH_PLAYERS = 3  -- SEARCH TARGET: Strictly 0 to 3 players when looking for a new server
-local MAX_CLAIM_PLAYERS = 4   -- CLAIM TARGET: 0 to 4 players allowed to claim/stay (Hops if >= 5)
+local MAX_SERVER_INDEX = 299  -- Index range limit: 0 to 299 (300 servers maximum scan depth)
+local MAX_SEARCH_PLAYERS = 3  -- SEARCH TARGET: Strictly 0 to 3 players
+local MAX_CLAIM_PLAYERS = 4   -- CLAIM TARGET: 0 to 4 players allowed to claim/stay
 local PROTECTED_USERNAME = "amine100a"
 
 local isHopping = false
@@ -192,7 +191,7 @@ elseif request then requestFunc = request
 else error("No supported HTTP request function found!") end
 
 ----------------------------------------------------------------
--- FETCH ROBLOX SERVERS
+-- FETCH ROBLOX SERVERS (1 SINGLE HTTP REQUEST PER CALL)
 ----------------------------------------------------------------
 
 local function fetchServers(cursor)
@@ -222,45 +221,55 @@ local jobIdHop
 local findServer
 
 ----------------------------------------------------------------
--- FIND SERVER PROCESS (findServer)
+-- FIND SERVER PROCESS (1 REQUEST PER LOOP WITH CURSOR)
 ----------------------------------------------------------------
 
 findServer = function()
-    UpdateUI("Searching 0-299...", Color3.fromRGB(255, 180, 50))
+    UpdateUI("Searching 0-3 Players...", Color3.fromRGB(255, 180, 50))
 
     local claimedJobs = fetchJobs()
     if not claimedJobs then
         return nil
     end
 
-    local cursor = nil
+    local currentCursor = nil
     local totalScanned = 0
 
-    repeat
-        local data = fetchServers(cursor)
-        if not data or not data.data then break end
+    while totalScanned < (MAX_SERVER_INDEX + 1) do
+        -- Perform EXACTLY 1 request per loop turn
+        local data = fetchServers(currentCursor)
+        
+        if data and data.data then
+            for _, server in ipairs(data.data) do
+                totalScanned = totalScanned + 1
+                if totalScanned > (MAX_SERVER_INDEX + 1) then break end
 
-        for _, server in ipairs(data.data) do
-            totalScanned = totalScanned + 1
-            if totalScanned > (MAX_SERVER_INDEX + 1) then break end
+                local playingCount = tonumber(server.playing)
+                -- STRICT SEARCH CONDITION: 0 to 3 players
+                local validPlayerCount = playingCount ~= nil and playingCount >= 0 and playingCount <= MAX_SEARCH_PLAYERS
+                local notCurrentServer = server.id ~= CurrentJobId
+                local notVisited = not visitedServers[server.id]
+                local notOwned = claimedJobs[server.id] == nil
 
-            local playingCount = tonumber(server.playing)
-            local validPlayerCount = playingCount ~= nil and playingCount >= 0 and playingCount <= MAX_SEARCH_PLAYERS
-            local notCurrentServer = server.id ~= CurrentJobId
-            local notVisited = not visitedServers[server.id]
-            local notOwned = claimedJobs[server.id] == nil
-
-            -- DIRECT MATCH: Pick the very first server that meets all criteria
-            if validPlayerCount and notCurrentServer and notVisited and notOwned then
-                return server.id
+                -- FIRST MATCH FOUND: Return immediately
+                if validPlayerCount and notCurrentServer and notVisited and notOwned then
+                    return server.id
+                end
             end
+
+            currentCursor = data.nextPageCursor
+            -- If no next page exists, end the search
+            if not currentCursor then break end
+        else
+            -- If HTTP request fails, break loop to prevent infinite retry without pause
+            break
         end
 
-        cursor = data.nextPageCursor
-        task.wait(0.1)
-    until not cursor or totalScanned >= (MAX_SERVER_INDEX + 1)
+        -- Yield execution to maintain 1 request per loop cycle cleanly
+        task.wait(0.2)
+    end
 
-    -- Reset visited cache if no servers were found
+    -- Reset visited cache if reaching end of scan with no matches
     if next(visitedServers) then
         visitedServers = {}
     end
@@ -269,16 +278,18 @@ findServer = function()
 end
 
 ----------------------------------------------------------------
--- JOBID HOP PROCESS (jobIdHop)
+-- JOBID HOP PROCESS
 ----------------------------------------------------------------
 
 jobIdHop = function()
-    isHopping = true
+    if isHopping == false then
+        return false
+    end
 
     local serverId = findServer()
 
     if not serverId then
-        print("No suitable server found")
+        print("No suitable server found (0-3 players)")
         UpdateUI("No Server Found", Color3.fromRGB(255, 150, 50))
         task.wait(1)
         if isHopping then
@@ -309,7 +320,7 @@ jobIdHop = function()
 end
 
 ----------------------------------------------------------------
--- CHECK PLAYER COUNT PROCESS (checkPlayerCount)
+-- CHECK PLAYER COUNT PROCESS
 ----------------------------------------------------------------
 
 checkPlayerCount = function()
@@ -392,51 +403,6 @@ checkCurrentServer = function()
 
     return false
 end
-
-----------------------------------------------------------------
--- AUTO PRESS "OKAY" & "LEAVE" / PROMPT DISMISSAL
-----------------------------------------------------------------
-
-task.spawn(function()
-    local robloxPromptGui = CoreGui:WaitForChild("RobloxPromptGui", 10)
-    if not robloxPromptGui then return end
-
-    local promptOverlay = robloxPromptGui:WaitForChild("promptOverlay", 10)
-    if not promptOverlay then return end
-
-    promptOverlay.ChildAdded:Connect(function(child)
-        if child.Name == "ErrorPrompt" then
-            task.wait(0.2)
-            
-            -- Attempt to automatically dismiss/click buttons if virtual clickers exist
-            local buttonArea = child:FindFirstChild("ButtonArea", true)
-            if buttonArea then
-                for _, btn in ipairs(buttonArea:GetChildren()) do
-                    if btn:IsA("GuiButton") or btn:IsA("TextButton") then
-                        if getconnections then
-                            for _, connection in ipairs(getconnections(btn.MouseButton1Click)) do
-                                connection:Fire()
-                            end
-                        end
-                    end
-                end
-            end
-
-            -- Force a new server hop if kicked or teleport failed
-            isHopping = true
-            jobIdHop()
-        end
-    end)
-end)
-
-GuiService.ErrorMessageChanged:Connect(function(msg)
-    if msg and #msg > 0 then
-        print("GuiService Error Detected:", msg)
-        task.wait(0.5)
-        isHopping = true
-        jobIdHop()
-    end
-end)
 
 ----------------------------------------------------------------
 -- TELEPORT FAILURE EVENT
