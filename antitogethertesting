@@ -1,4 +1,4 @@
--- V2.3.9
+-- V2.3.5
 -- Features: 1 Request Per Scan Loop, Continuous Cursor Pagination (0-3 Players Search Target)
 
 task.wait(0.1)
