@@ -1,5 +1,5 @@
--- V2.8.0
--- Anti-False Hop & Stale Claim Override Server Hopper
+-- V3.1.0
+-- Strict 0-3 Target Hopper with Instant Guard & 3-Second Heartbeat Claim System
 
 task.wait(10)
 
@@ -23,10 +23,10 @@ local CurrentJobId = game.JobId
 ----------------------------------------------------------------
 
 local MAX_SERVER_INDEX = 299
-local MAX_TARGET_PLAYERS = 3 -- Target servers with 0 to 3 players when scanning
-local MAX_CLAIM_PLAYERS = 4  -- Only claim if player count is <= 4
-local MAX_ALLOWED_PLAYERS = 4 -- Max allowed players before hopping (5+ triggers hop)
-local CLAIM_EXPIRATION_TIME = 30 -- Override claims older than 30 seconds if active here
+local MAX_TARGET_PLAYERS = 3 -- Strict limit: Only 0, 1, 2, or 3 players allowed
+local MAX_CLAIM_PLAYERS = 4  -- Server claim cutoff threshold for active server
+local MAX_ALLOWED_PLAYERS = 4 -- 5+ players triggers hop on active server
+local HEARTBEAT_INTERVAL = 3 -- Heartbeat checks & claim refreshes every 3 seconds
 local PROTECTED_USERNAME = "amine100a"
 
 local isHopping = false
@@ -231,7 +231,7 @@ local jobIdHop
 local findServer
 
 ----------------------------------------------------------------
--- FIND SERVER PROCESS
+-- FIND SERVER PROCESS (STRICT 0-3 PLAYER TARGETING)
 ----------------------------------------------------------------
 
 findServer = function()
@@ -266,14 +266,13 @@ findServer = function()
             local playingCount = tonumber(server.playing)
             local maxServerPlayers = tonumber(server.maxPlayers) or (MAX_ALLOWED_PLAYERS + 1)
 
-            local notCurrentServer = server.id ~= CurrentJobId
-            local isTargetCount = playingCount ~= nil and playingCount >= 0 and playingCount <= MAX_TARGET_PLAYERS
-            local playerCountValid = playingCount ~= nil and playingCount <= MAX_ALLOWED_PLAYERS
-            local notFull = playingCount ~= nil and playingCount < maxServerPlayers
-            local notOwned = claimedJobs[server.id] == nil
+            local notCurrentServer = (server.id ~= CurrentJobId)
+            local isUnder4Players = (playingCount ~= nil and playingCount >= 0 and playingCount <= MAX_TARGET_PLAYERS)
+            local notFull = (playingCount ~= nil and playingCount < maxServerPlayers)
+            local notOwned = (claimedJobs[server.id] == nil)
             local notVisited = not visitedServers[server.id]
 
-            if notCurrentServer and isTargetCount and playerCountValid and notFull and notOwned and notVisited then
+            if notCurrentServer and isUnder4Players and notFull and notOwned and notVisited then
                 table.insert(validServersInBatch, server)
             end
         end
@@ -300,7 +299,7 @@ findServer = function()
 end
 
 ----------------------------------------------------------------
--- JOBID HOP PROCESS (WITH AUTO RESET ON NO SERVER FOUND)
+-- JOBID HOP PROCESS
 ----------------------------------------------------------------
 
 jobIdHop = function()
@@ -311,10 +310,9 @@ jobIdHop = function()
     local serverId = findServer()
 
     if not serverId then
-        print("No suitable server found. Resetting hop state to attempt re-claiming current server.")
+        print("No suitable server found (0-3 players / Unclaimed). Retrying scan...")
         UpdateUI("No Server Found", Color3.fromRGB(255, 150, 50))
         
-        -- Reset hopping flag so the account can reclaim the current server if valid
         isHopping = false
         task.wait(1)
         checkCurrentServer()
@@ -343,8 +341,9 @@ jobIdHop = function()
 end
 
 ----------------------------------------------------------------
--- CHECK PLAYER COUNT PROCESS
+-- SERVER MONITORING (INSTANT SURGE GUARD)
 ----------------------------------------------------------------
+-- Acts as your instant guard against player surges (hopping as soon as player count hits 5)
 
 checkPlayerCount = function()
     if isHopping == true then
@@ -358,19 +357,20 @@ checkPlayerCount = function()
         return true
     end
 
-    if count <= MAX_ALLOWED_PLAYERS then
-        UpdateUI("Staying (0-4 Players)", Color3.fromRGB(100, 255, 100))
-        return true
+    -- Trigger immediate hop if player surge reaches 5 or more
+    if count > MAX_ALLOWED_PLAYERS then
+        isHopping = true
+        UpdateUI("Server Full (>=5)", Color3.fromRGB(255, 80, 80))
+        jobIdHop()
+        return false
     end
 
-    isHopping = true
-    UpdateUI("Server Full (>=5)", Color3.fromRGB(255, 80, 80))
-    jobIdHop()
-    return false
+    UpdateUI("Staying (0-4 Players)", Color3.fromRGB(100, 255, 100))
+    return true
 end
 
 ----------------------------------------------------------------
--- CHECK & CLAIM CURRENT SERVER
+-- THE HEARTBEAT & CHECK CURRENT SERVER
 ----------------------------------------------------------------
 
 checkCurrentServer = function()
@@ -389,28 +389,16 @@ checkCurrentServer = function()
         local claimInfo = claimedJobs[CurrentJobId]
 
         if claimInfo and claimInfo.userId ~= LocalPlayer.UserId then
-            -- Override claim if the owner hasn't updated in >30 seconds or if you are alone
-            local claimAge = os.time() - (claimInfo.updatedAt or 0)
-            if claimAge > CLAIM_EXPIRATION_TIME or count == 1 then
-                print("Claim on current server is stale or account is alone. Overwriting claim...")
-                local regSuccess = registerJob()
-                if regSuccess then
-                    isHopping = false
-                    UpdateUI("Claimed Server (0-4)", Color3.fromRGB(100, 255, 100))
-                    return true
-                end
-            else
-                isHopping = true
-                UpdateUI("Already Claimed (Hopping)", Color3.fromRGB(255, 80, 80))
-                print("Server owned by " .. tostring(claimInfo.username) .. ". Hopping away...")
-                jobIdHop()
-                return true
-            end
+            isHopping = true
+            UpdateUI("Already Claimed (Hopping)", Color3.fromRGB(255, 80, 80))
+            print("Server claimed by " .. tostring(claimInfo.username) .. ". Hopping...")
+            jobIdHop()
+            return true
         end
 
         if claimInfo and claimInfo.userId == LocalPlayer.UserId then
             isHopping = false
-            registerJob()
+            registerJob() -- Heartbeat update: refresh claim timestamp
             UpdateUI("Owned By Account", Color3.fromRGB(100, 255, 100))
             return true
         end
@@ -420,7 +408,7 @@ checkCurrentServer = function()
         local regSuccess = registerJob()
         if regSuccess then
             isHopping = false
-            print("Successfully claimed current server Job ID: " .. tostring(CurrentJobId))
+            print("Successfully claimed Job ID: " .. tostring(CurrentJobId))
             UpdateUI("Claimed Server (0-4)", Color3.fromRGB(100, 255, 100))
             return true
         end
@@ -442,7 +430,7 @@ TeleportService.TeleportInitFailed:Connect(function()
 end)
 
 ----------------------------------------------------------------
--- PLAYER EVENT LISTENERS
+-- PLAYER EVENT LISTENERS (SERVER MONITORING ACTIVATION)
 ----------------------------------------------------------------
 
 Players.PlayerAdded:Connect(function(child)
@@ -453,6 +441,7 @@ Players.PlayerAdded:Connect(function(child)
         print("Protected player joined (do nothing)")
         UpdateUI("Protected Joined", Color3.fromRGB(100, 255, 100))
     else
+        -- Server Monitoring guard: immediately checks for player surges on join
         checkPlayerCount()
     end
 end)
@@ -465,13 +454,12 @@ Players.PlayerRemoving:Connect(function(child)
         task.wait(0.1)
         checkPlayerCount()
     else
-        -- When players leave (e.g. down to 1 player), immediately try to re-evaluate/claim
         checkCurrentServer()
     end
 end)
 
 ----------------------------------------------------------------
--- INITIALIZATION & CONTINUOUS CLAIM SCAN LOOP
+-- INITIALIZATION & 3-SECOND HEARTBEAT LOOP
 ----------------------------------------------------------------
 
 checkCurrentServer()
@@ -481,8 +469,10 @@ task.spawn(function()
     checkPlayerCount()
 end)
 
+-- The Heartbeat: Periodic health check every 3 seconds to keep server claim file active
+-- and enforce ownership across your multi-account system.
 task.spawn(function()
-    while task.wait(5) do
+    while task.wait(HEARTBEAT_INTERVAL) do
         checkCurrentServer()
     end
 end)
