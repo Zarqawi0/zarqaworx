@@ -1,5 +1,5 @@
--- V3.1.0
--- Strict 0-3 Target Hopper with Instant Guard & 3-Second Heartbeat Claim System
+-- V3.4.0
+-- Highly Optimized Multi-Account Target Hopper & Instant Claim Guard
 
 task.wait(10)
 
@@ -22,57 +22,52 @@ local CurrentJobId = game.JobId
 -- CONFIGURATION & CONSTANTS
 ----------------------------------------------------------------
 
-local MAX_SERVER_INDEX = 299
-local MAX_TARGET_PLAYERS = 3 -- Strict limit: Only 0, 1, 2, or 3 players allowed
-local MAX_CLAIM_PLAYERS = 4  -- Server claim cutoff threshold for active server
-local MAX_ALLOWED_PLAYERS = 4 -- 5+ players triggers hop on active server
-local HEARTBEAT_INTERVAL = 3 -- Heartbeat checks & claim refreshes every 3 seconds
-local PROTECTED_USERNAME = "amine100a"
+local MAX_SERVER_INDEX = 299    -- Scan limit: 0-299 index (300 total)
+local MAX_TARGET_PLAYERS = 3   -- Hop target server limit (0 to 3 players)
+local MAX_ALLOWED_PLAYERS = 4  -- Server capacity limit (0-4 stay, 5+ hop)
+local HEARTBEAT_INTERVAL = 3   -- Periodic sync interval in seconds
 
 local isHopping = false
-local LastHopMethod = nil
-local LastAttemptedJobId = nil
 local visitedServers = {}
 
-----------------------------------------------------------------
--- SHARED LOCAL FILE SYSTEM (JSON CLAIM SYSTEM)
-----------------------------------------------------------------
-
+-- File System Path Setup
 local FOLDER_NAME = "JobIdClaims"
 local MY_FILE_PATH = string.format("%s/%d.json", FOLDER_NAME, LocalPlayer.UserId)
 
-if isfolder and makefolder then
-    if not isfolder(FOLDER_NAME) then
-        makefolder(FOLDER_NAME)
-    end
+if isfolder and makefolder and not isfolder(FOLDER_NAME) then
+    makefolder(FOLDER_NAME)
 end
 
--- Auto-claim target Job ID and save to local JSON file
+----------------------------------------------------------------
+-- FILE SYSTEM CACHING (PREVENTS IO OVERHEAD)
+----------------------------------------------------------------
+
+local cachedClaimedJobs = {}
+local lastCacheUpdate = 0
+
+-- Claims target server to file
 local function claimServer(targetJobId)
     if writefile then
         local claimData = {
             userId = LocalPlayer.UserId,
             username = LocalPlayer.Name,
             jobId = targetJobId or CurrentJobId,
-            updatedAt = os.time(),
-            preciseTime = os.clock()
+            updatedAt = os.time()
         }
-        local success = pcall(writefile, MY_FILE_PATH, HttpService:JSONEncode(claimData))
-        return success, claimData
+        pcall(writefile, MY_FILE_PATH, HttpService:JSONEncode(claimData))
+        return claimData
     end
-    return false, nil
+    return nil
 end
 
--- Register/Claim current active Job ID
-local function registerJob()
-    local success = claimServer(CurrentJobId)
-    return success
-end
-
--- Fetch all active server claims from JSON files
+-- Reads active claims with a 3-second cache guard
 local function fetchJobs()
+    local currentTime = os.time()
+    if (currentTime - lastCacheUpdate) < 3 and next(cachedClaimedJobs) ~= nil then
+        return cachedClaimedJobs
+    end
+
     local claimedJobs = {}
-    
     if listfiles and readfile then
         local success, files = pcall(listfiles, FOLDER_NAME)
         if success and files then
@@ -81,8 +76,7 @@ local function fetchJobs()
                 if readSuccess and content then
                     local decodeSuccess, parsed = pcall(HttpService.JSONDecode, HttpService, content)
                     if decodeSuccess and parsed and parsed.jobId and parsed.userId then
-                        -- Discard stale claims (>10 minutes)
-                        if parsed.updatedAt and (os.time() - parsed.updatedAt) < 600 then
+                        if parsed.updatedAt and (currentTime - parsed.updatedAt) < 600 then
                             if not claimedJobs[parsed.jobId] or (parsed.updatedAt < claimedJobs[parsed.jobId].updatedAt) then
                                 claimedJobs[parsed.jobId] = parsed
                             end
@@ -90,11 +84,12 @@ local function fetchJobs()
                     end
                 end
             end
-            return claimedJobs
         end
     end
-    
-    return nil
+
+    cachedClaimedJobs = claimedJobs
+    lastCacheUpdate = currentTime
+    return claimedJobs
 end
 
 ----------------------------------------------------------------
@@ -105,16 +100,10 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ServerFinderUI"
 ScreenGui.ResetOnSpawn = false
 
-local successUI = pcall(function()
-    ScreenGui.Parent = CoreGui
-end)
-
-if not successUI then
-    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-end
+local uiParent = pcall(function() ScreenGui.Parent = CoreGui end)
+if not uiParent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 180, 0, 48)
 MainFrame.Position = UDim2.new(0.5, -90, 0.90, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 35, 15)
@@ -150,179 +139,102 @@ PlayersLabel.Font = Enum.Font.SourceSansBold
 PlayersLabel.TextXAlignment = Enum.TextXAlignment.Left
 PlayersLabel.Parent = MainFrame
 
-----------------------------------------------------------------
--- HELPER FUNCTIONS
-----------------------------------------------------------------
-
 local function RefreshPlayerCount()
     local count = #Players:GetPlayers()
     PlayersLabel.Text = string.format("Players: %d / %d", count, MAX_ALLOWED_PLAYERS + 1)
-
-    if count > MAX_ALLOWED_PLAYERS then
-        PlayersLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-    else
-        PlayersLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-    end
-
+    PlayersLabel.TextColor3 = (count > MAX_ALLOWED_PLAYERS) and Color3.fromRGB(255, 100, 100) or Color3.fromRGB(100, 255, 100)
     return count
 end
 
 local function UpdateUI(statusText, color)
-    if statusText then
-        StatusLabel.Text = "Status: " .. statusText
-    end
-
-    if color then
-        StatusLabel.TextColor3 = color
-    end
-
+    if statusText then StatusLabel.Text = "Status: " .. statusText end
+    if color then StatusLabel.TextColor3 = color end
     RefreshPlayerCount()
-end
-
-local function IsProtectedPlayerPresent()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player.Name == PROTECTED_USERNAME then
-            return true
-        end
-    end
-    return false
 end
 
 ----------------------------------------------------------------
 -- HTTP EXECUTOR COMPATIBILITY
 ----------------------------------------------------------------
 
-local requestFunc = nil
-if syn and syn.request then requestFunc = syn.request
-elseif http and http.request then requestFunc = http.request
-elseif http_request then requestFunc = http_request
-elseif fluxus and fluxus.request then requestFunc = fluxus.request
-elseif request then requestFunc = request
-else error("No supported HTTP request function found!") end
-
-----------------------------------------------------------------
--- FETCH ROBLOX SERVERS
-----------------------------------------------------------------
+local requestFunc = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+if not requestFunc then error("No supported HTTP request function found!") end
 
 local function fetchServers(cursor)
     local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
     if cursor then url = url .. "&cursor=" .. cursor end
 
-    local success, response = pcall(function()
-        return requestFunc({ Url = url, Method = "GET" })
-    end)
-
+    local success, response = pcall(requestFunc, { Url = url, Method = "GET" })
     if success and response and response.Body then
-        local successDecode, decoded = pcall(function()
-            return HttpService:JSONDecode(response.Body)
-        end)
+        local successDecode, decoded = pcall(HttpService.JSONDecode, HttpService, response.Body)
         if successDecode then return decoded end
     end
     return nil
 end
 
 ----------------------------------------------------------------
--- FORWARD DECLARATIONS
+-- CORE CONTROLLER FUNCTIONS
 ----------------------------------------------------------------
 
-local checkPlayerCount
 local checkCurrentServer
 local jobIdHop
-local findServer
 
-----------------------------------------------------------------
--- FIND SERVER PROCESS (STRICT 0-3 PLAYER TARGETING)
-----------------------------------------------------------------
-
-findServer = function()
+local function findServer()
     UpdateUI("Searching 0-3 Players...", Color3.fromRGB(255, 180, 50))
-
     local claimedJobs = fetchJobs()
-    if not claimedJobs then
-        return nil
-    end
-
+    
     local cursor = nil
     local totalScanned = 0
-    local maxPages = 10
     local pageCount = 0
 
-    while pageCount < maxPages do
+    while pageCount < 10 do
         pageCount = pageCount + 1
         local data = fetchServers(cursor)
-        
-        if not data or not data.data then 
-            break 
-        end
+        if not data or not data.data then break end
 
-        local validServersInBatch = {}
+        local validServers = {}
 
         for _, server in ipairs(data.data) do
+            if totalScanned > MAX_SERVER_INDEX then break end
             totalScanned = totalScanned + 1
-            if totalScanned > (MAX_SERVER_INDEX + 1) then 
-                break 
-            end
 
             local playingCount = tonumber(server.playing)
-            local maxServerPlayers = tonumber(server.maxPlayers) or (MAX_ALLOWED_PLAYERS + 1)
-
-            local notCurrentServer = (server.id ~= CurrentJobId)
-            local isUnder4Players = (playingCount ~= nil and playingCount >= 0 and playingCount <= MAX_TARGET_PLAYERS)
-            local notFull = (playingCount ~= nil and playingCount < maxServerPlayers)
-            local notOwned = (claimedJobs[server.id] == nil)
-            local notVisited = not visitedServers[server.id]
-
-            if notCurrentServer and isUnder4Players and notFull and notOwned and notVisited then
-                table.insert(validServersInBatch, server)
+            if playingCount and playingCount >= 0 and playingCount <= MAX_TARGET_PLAYERS then
+                if server.id ~= CurrentJobId and not claimedJobs[server.id] and not visitedServers[server.id] then
+                    table.insert(validServers, server.id)
+                end
             end
         end
 
-        if #validServersInBatch > 0 then
-            local selectedServer = validServersInBatch[math.random(1, #validServersInBatch)]
-            claimServer(selectedServer.id)
-            return selectedServer.id
+        if #validServers > 0 then
+            local selectedId = validServers[math.random(1, #validServers)]
+            claimServer(selectedId) -- Immediate pre-claim
+            return selectedId
         end
 
         cursor = data.nextPageCursor
-        if not cursor or totalScanned >= (MAX_SERVER_INDEX + 1) then
-            break
-        end
-
+        if not cursor or totalScanned > MAX_SERVER_INDEX then break end
         task.wait(0.1)
     end
 
-    if next(visitedServers) then 
-        visitedServers = {} 
-    end
-
+    if next(visitedServers) then visitedServers = {} end
     return nil
 end
 
-----------------------------------------------------------------
--- JOBID HOP PROCESS
-----------------------------------------------------------------
-
 jobIdHop = function()
-    if isHopping == false then
-        return false
-    end
+    if isHopping then return false end
+    isHopping = true
 
     local serverId = findServer()
 
     if not serverId then
-        print("No suitable server found (0-3 players / Unclaimed). Retrying scan...")
         UpdateUI("No Server Found", Color3.fromRGB(255, 150, 50))
-        
         isHopping = false
         task.wait(1)
         checkCurrentServer()
         return false
     end
 
-    LastHopMethod = "jobid"
-    LastAttemptedJobId = serverId
     visitedServers[serverId] = os.time()
-
     UpdateUI("Teleporting...", Color3.fromRGB(100, 255, 100))
 
     local teleportSuccess = pcall(function()
@@ -330,147 +242,62 @@ jobIdHop = function()
     end)
 
     if not teleportSuccess then
-        LastAttemptedJobId = nil
+        isHopping = false
         task.wait(0.5)
-        if isHopping then
-            return jobIdHop()
-        end
+        return jobIdHop()
     end
 
     return true
 end
-
-----------------------------------------------------------------
--- SERVER MONITORING (INSTANT SURGE GUARD)
-----------------------------------------------------------------
--- Acts as your instant guard against player surges (hopping as soon as player count hits 5)
-
-checkPlayerCount = function()
-    if isHopping == true then
-        return false
-    end
-
-    local count = RefreshPlayerCount()
-
-    if IsProtectedPlayerPresent() then
-        UpdateUI("Protected Present", Color3.fromRGB(100, 255, 100))
-        return true
-    end
-
-    -- Trigger immediate hop if player surge reaches 5 or more
-    if count > MAX_ALLOWED_PLAYERS then
-        isHopping = true
-        UpdateUI("Server Full (>=5)", Color3.fromRGB(255, 80, 80))
-        jobIdHop()
-        return false
-    end
-
-    UpdateUI("Staying (0-4 Players)", Color3.fromRGB(100, 255, 100))
-    return true
-end
-
-----------------------------------------------------------------
--- THE HEARTBEAT & CHECK CURRENT SERVER
-----------------------------------------------------------------
 
 checkCurrentServer = function()
     local count = RefreshPlayerCount()
-    local protectedPresent = IsProtectedPlayerPresent()
 
-    if (not protectedPresent) and (count > MAX_ALLOWED_PLAYERS) then
-        isHopping = true
+    -- 1. Surge Guard Check (5+ players)
+    if count > MAX_ALLOWED_PLAYERS then
         UpdateUI("Server Full (>=5)", Color3.fromRGB(255, 80, 80))
         jobIdHop()
         return false
     end
 
+    -- 2. Claim & Ownership Verification (0-4 players)
     local claimedJobs = fetchJobs()
-    if claimedJobs then
-        local claimInfo = claimedJobs[CurrentJobId]
+    local claimInfo = claimedJobs[CurrentJobId]
 
-        if claimInfo and claimInfo.userId ~= LocalPlayer.UserId then
-            isHopping = true
-            UpdateUI("Already Claimed (Hopping)", Color3.fromRGB(255, 80, 80))
-            print("Server claimed by " .. tostring(claimInfo.username) .. ". Hopping...")
-            jobIdHop()
-            return true
-        end
-
-        if claimInfo and claimInfo.userId == LocalPlayer.UserId then
-            isHopping = false
-            registerJob() -- Heartbeat update: refresh claim timestamp
-            UpdateUI("Owned By Account", Color3.fromRGB(100, 255, 100))
-            return true
-        end
+    if claimInfo and claimInfo.userId ~= LocalPlayer.UserId then
+        UpdateUI("Already Claimed (Hopping)", Color3.fromRGB(255, 80, 80))
+        jobIdHop()
+        return false
     end
 
-    if count <= MAX_CLAIM_PLAYERS then
-        local regSuccess = registerJob()
-        if regSuccess then
-            isHopping = false
-            print("Successfully claimed Job ID: " .. tostring(CurrentJobId))
-            UpdateUI("Claimed Server (0-4)", Color3.fromRGB(100, 255, 100))
-            return true
-        end
-    end
-
-    return false
+    -- Claim current server if unclaimed or renew timestamp if owned
+    claimServer(CurrentJobId)
+    isHopping = false
+    UpdateUI(claimInfo and "Owned By Account" or "Claimed Server (0-4)", Color3.fromRGB(100, 255, 100))
+    return true
 end
 
 ----------------------------------------------------------------
--- TELEPORT EVENT LISTENERS
+-- LISTENERS & HEARTBEAT LOOP
 ----------------------------------------------------------------
 
 TeleportService.TeleportInitFailed:Connect(function()
-    print("Teleport error")
-    LastAttemptedJobId = nil
     isHopping = false
     task.wait(0.5)
     checkCurrentServer()
 end)
 
-----------------------------------------------------------------
--- PLAYER EVENT LISTENERS (SERVER MONITORING ACTIVATION)
-----------------------------------------------------------------
-
-Players.PlayerAdded:Connect(function(child)
-    if not child:IsA("Player") then return end
-    if isHopping == true then return end
-
-    if child.Name == PROTECTED_USERNAME then
-        print("Protected player joined (do nothing)")
-        UpdateUI("Protected Joined", Color3.fromRGB(100, 255, 100))
-    else
-        -- Server Monitoring guard: immediately checks for player surges on join
-        checkPlayerCount()
-    end
+Players.PlayerAdded:Connect(function()
+    if not isHopping then checkCurrentServer() end
 end)
 
-Players.PlayerRemoving:Connect(function(child)
-    if not child:IsA("Player") then return end
-
-    if child.Name == PROTECTED_USERNAME then
-        print("Protected player left")
-        task.wait(0.1)
-        checkPlayerCount()
-    else
-        checkCurrentServer()
-    end
+Players.PlayerRemoving:Connect(function()
+    if not isHopping then checkCurrentServer() end
 end)
 
-----------------------------------------------------------------
--- INITIALIZATION & 3-SECOND HEARTBEAT LOOP
-----------------------------------------------------------------
-
+-- Initial run & background Heartbeat (Every 3 Seconds)
 checkCurrentServer()
 
-task.spawn(function()
-    task.wait(1)
-    checkPlayerCount()
-end)
-
--- The Heartbeat: Periodic health check every 3 seconds to keep server claim file active
--- and enforce ownership across your multi-account system.
 task.spawn(function()
     while task.wait(HEARTBEAT_INTERVAL) do
         checkCurrentServer()
