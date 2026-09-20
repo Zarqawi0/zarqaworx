@@ -1,5 +1,5 @@
--- V3.4.0
--- Highly Optimized Multi-Account Target Hopper & Instant Claim Guard
+-- V3.5.0
+-- Highly Optimized Target Hopper with Exponential Backoff, Auto-Cleanup, and Pre-Reservation
 
 task.wait(10)
 
@@ -29,6 +29,7 @@ local HEARTBEAT_INTERVAL = 3   -- Periodic sync interval in seconds
 
 local isHopping = false
 local visitedServers = {}
+local retryDelay = 1           -- Initial delay for exponential backoff
 
 -- File System Path Setup
 local FOLDER_NAME = "JobIdClaims"
@@ -37,6 +38,34 @@ local MY_FILE_PATH = string.format("%s/%d.json", FOLDER_NAME, LocalPlayer.UserId
 if isfolder and makefolder and not isfolder(FOLDER_NAME) then
     makefolder(FOLDER_NAME)
 end
+
+----------------------------------------------------------------
+-- AUTO-CLEANING STALE CLAIM FILES
+----------------------------------------------------------------
+
+local function cleanupStaleFiles()
+    if listfiles and delfile and readfile then
+        local success, files = pcall(listfiles, FOLDER_NAME)
+        if success and files then
+            local currentTime = os.time()
+            for _, filePath in ipairs(files) do
+                local readSuccess, content = pcall(readfile, filePath)
+                if readSuccess and content then
+                    local decodeSuccess, parsed = pcall(HttpService.JSONDecode, HttpService, content)
+                    if decodeSuccess and parsed and parsed.updatedAt then
+                        -- Delete claim files older than 15 minutes (900 seconds)
+                        if (currentTime - parsed.updatedAt) > 900 then
+                            pcall(delfile, filePath)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Run stale file cleanup asynchronously on load
+task.spawn(cleanupStaleFiles)
 
 ----------------------------------------------------------------
 -- FILE SYSTEM CACHING (PREVENTS IO OVERHEAD)
@@ -207,7 +236,17 @@ local function findServer()
 
         if #validServers > 0 then
             local selectedId = validServers[math.random(1, #validServers)]
-            claimServer(selectedId) -- Immediate pre-claim
+            
+            -- SERVER QUEUE RESERVATION TIME (Prevent Race Conditions)
+            -- Pre-reserve in local cache immediately before disk write/teleport
+            cachedClaimedJobs[selectedId] = {
+                userId = LocalPlayer.UserId,
+                username = LocalPlayer.Name,
+                jobId = selectedId,
+                updatedAt = os.time()
+            }
+            
+            claimServer(selectedId)
             return selectedId
         end
 
@@ -247,6 +286,8 @@ jobIdHop = function()
         return jobIdHop()
     end
 
+    -- Reset backoff delay on successful teleport trigger
+    retryDelay = 1
     return true
 end
 
@@ -281,9 +322,11 @@ end
 -- LISTENERS & HEARTBEAT LOOP
 ----------------------------------------------------------------
 
+-- EXPONENTIAL BACKOFF ON TELEPORT FAILURES
 TeleportService.TeleportInitFailed:Connect(function()
     isHopping = false
-    task.wait(0.5)
+    task.wait(retryDelay)
+    retryDelay = math.min(retryDelay * 2, 10) -- Double delay up to 10s max
     checkCurrentServer()
 end)
 
