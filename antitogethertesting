@@ -1,5 +1,5 @@
--- V3.5.0
--- Highly Optimized Target Hopper with Exponential Backoff, Auto-Cleanup, and Pre-Reservation
+-- V3.7.0
+-- Fully Conflict-Free Multi-Account Target Hopper & Instant Claim Guard
 
 task.wait(10)
 
@@ -22,14 +22,16 @@ local CurrentJobId = game.JobId
 -- CONFIGURATION & CONSTANTS
 ----------------------------------------------------------------
 
-local MAX_SERVER_INDEX = 299    -- Scan limit: 0-299 index (300 total)
-local MAX_TARGET_PLAYERS = 3   -- Hop target server limit (0 to 3 players)
-local MAX_ALLOWED_PLAYERS = 4  -- Server capacity limit (0-4 stay, 5+ hop)
-local HEARTBEAT_INTERVAL = 3   -- Periodic sync interval in seconds
+local MAX_SERVER_INDEX = 299     -- Scan limit: 0-299 index (300 total)
+local MAX_TARGET_PLAYERS = 3    -- Hop target server limit (0 to 3 players)
+local MAX_ALLOWED_PLAYERS = 4   -- Server capacity limit (0-4 stay, 5+ hop)
+local HEARTBEAT_INTERVAL = 3    -- Periodic sync interval in seconds
+local TELEPORT_COOLDOWN = 5     -- Rate-limit guard: Minimum seconds between teleports
 
 local isHopping = false
 local visitedServers = {}
-local retryDelay = 1           -- Initial delay for exponential backoff
+local retryDelay = 1            -- Initial delay for exponential backoff
+local lastTeleportAttempt = 0   -- Timestamp of last teleport call
 
 -- File System Path Setup
 local FOLDER_NAME = "JobIdClaims"
@@ -53,7 +55,6 @@ local function cleanupStaleFiles()
                 if readSuccess and content then
                     local decodeSuccess, parsed = pcall(HttpService.JSONDecode, HttpService, content)
                     if decodeSuccess and parsed and parsed.updatedAt then
-                        -- Delete claim files older than 15 minutes (900 seconds)
                         if (currentTime - parsed.updatedAt) > 900 then
                             pcall(delfile, filePath)
                         end
@@ -64,17 +65,15 @@ local function cleanupStaleFiles()
     end
 end
 
--- Run stale file cleanup asynchronously on load
 task.spawn(cleanupStaleFiles)
 
 ----------------------------------------------------------------
--- FILE SYSTEM CACHING (PREVENTS IO OVERHEAD)
+-- FILE SYSTEM CACHING (WITH RESERVATION PRESERVATION)
 ----------------------------------------------------------------
 
 local cachedClaimedJobs = {}
 local lastCacheUpdate = 0
 
--- Claims target server to file
 local function claimServer(targetJobId)
     if writefile then
         local claimData = {
@@ -89,7 +88,6 @@ local function claimServer(targetJobId)
     return nil
 end
 
--- Reads active claims with a 3-second cache guard
 local function fetchJobs()
     local currentTime = os.time()
     if (currentTime - lastCacheUpdate) < 3 and next(cachedClaimedJobs) ~= nil then
@@ -112,6 +110,15 @@ local function fetchJobs()
                         end
                     end
                 end
+            end
+        end
+    end
+
+    -- Preserve recent local pre-reservations when updating cache from disk
+    for jobId, memoryClaim in pairs(cachedClaimedJobs) do
+        if memoryClaim.userId == LocalPlayer.UserId and (currentTime - memoryClaim.updatedAt) < 30 then
+            if not claimedJobs[jobId] then
+                claimedJobs[jobId] = memoryClaim
             end
         end
     end
@@ -158,7 +165,7 @@ StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 StatusLabel.Parent = MainFrame
 
 local PlayersLabel = Instance.new("TextLabel")
-PlayersLabel.Size = UDim2.new(1, -16, 0, 18)
+PlayersLabel.Size = UDim2.new(1, -16, 0, 25)
 PlayersLabel.Position = UDim2.new(0, 8, 0, 25)
 PlayersLabel.BackgroundTransparency = 1
 PlayersLabel.Text = "Players: 0 / 5"
@@ -237,8 +244,7 @@ local function findServer()
         if #validServers > 0 then
             local selectedId = validServers[math.random(1, #validServers)]
             
-            -- SERVER QUEUE RESERVATION TIME (Prevent Race Conditions)
-            -- Pre-reserve in local cache immediately before disk write/teleport
+            -- Pre-reserve in local memory cache to prevent cross-thread race conditions
             cachedClaimedJobs[selectedId] = {
                 userId = LocalPlayer.UserId,
                 username = LocalPlayer.Name,
@@ -261,7 +267,20 @@ end
 
 jobIdHop = function()
     if isHopping then return false end
+    
+    -- Lock state immediately BEFORE throttling yield to block incoming event threads
     isHopping = true
+
+    -- Rate-limit guard delay
+    local now = os.time()
+    local timeSinceLastHop = now - lastTeleportAttempt
+    if timeSinceLastHop < TELEPORT_COOLDOWN then
+        local waitTime = TELEPORT_COOLDOWN - timeSinceLastHop
+        UpdateUI(string.format("Throttling (%ds)...", waitTime), Color3.fromRGB(255, 180, 50))
+        task.wait(waitTime)
+    end
+
+    lastTeleportAttempt = os.time()
 
     local serverId = findServer()
 
@@ -282,12 +301,11 @@ jobIdHop = function()
 
     if not teleportSuccess then
         isHopping = false
-        task.wait(0.5)
+        task.wait(retryDelay)
+        retryDelay = math.min(retryDelay * 2, 10) -- Exponential backoff for synchronous errors
         return jobIdHop()
     end
 
-    -- Reset backoff delay on successful teleport trigger
-    retryDelay = 1
     return true
 end
 
@@ -314,6 +332,7 @@ checkCurrentServer = function()
     -- Claim current server if unclaimed or renew timestamp if owned
     claimServer(CurrentJobId)
     isHopping = false
+    retryDelay = 1 -- Reset exponential backoff counter on confirmed stay
     UpdateUI(claimInfo and "Owned By Account" or "Claimed Server (0-4)", Color3.fromRGB(100, 255, 100))
     return true
 end
@@ -322,11 +341,10 @@ end
 -- LISTENERS & HEARTBEAT LOOP
 ----------------------------------------------------------------
 
--- EXPONENTIAL BACKOFF ON TELEPORT FAILURES
 TeleportService.TeleportInitFailed:Connect(function()
     isHopping = false
     task.wait(retryDelay)
-    retryDelay = math.min(retryDelay * 2, 10) -- Double delay up to 10s max
+    retryDelay = math.min(retryDelay * 2, 10)
     checkCurrentServer()
 end)
 
