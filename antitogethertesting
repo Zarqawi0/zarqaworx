@@ -1,5 +1,5 @@
--- V2.2.6
--- Fix: Reset isHopping flag on checkCurrentServer to allow claiming servers with 0-4 players.
+-- V2.4.2
+-- Updated Config: MAX_CLAIM_PLAYERS = 5 (Hops only when player count reaches 6 or more)
 
 task.wait(10)
 
@@ -24,7 +24,7 @@ local CurrentJobId = game.JobId
 
 local MAX_SERVER_INDEX = 299  -- Index range limit: 0 to 299 (300 servers maximum scan depth)
 local MAX_SEARCH_PLAYERS = 3  -- SEARCH TARGET: Strictly 0 to 3 players when looking for a new server
-local MAX_CLAIM_PLAYERS = 4   -- CLAIM TARGET: 0 to 4 players allowed to claim/stay (Hops if >= 5)
+local MAX_CLAIM_PLAYERS = 5   -- CLAIM TARGET: 0 to 5 players allowed to claim/stay (Hops if >= 6)
 local PROTECTED_USERNAME = "amine100a"
 
 local isHopping = false
@@ -221,7 +221,7 @@ local jobIdHop
 local findServer
 
 ----------------------------------------------------------------
--- FIND SERVER PROCESS
+-- FIND SERVER PROCESS (IGNORE CLAIMED & FULL SERVERS)
 ----------------------------------------------------------------
 
 findServer = function()
@@ -244,14 +244,25 @@ findServer = function()
                 if totalScanned > (MAX_SERVER_INDEX + 1) then break end
 
                 local playingCount = tonumber(server.playing)
-                local validPlayerCount = playingCount ~= nil and playingCount >= 0 and playingCount <= MAX_SEARCH_PLAYERS
-                local notCurrentServer = server.id ~= CurrentJobId
-                local notVisited = not visitedServers[server.id]
-                local notOwned = claimedJobs[server.id] == nil
+                local maxPlayers = tonumber(server.maxPlayers) or 0
 
-                if validPlayerCount and notCurrentServer and notVisited and notOwned then
-                    return server.id
+                -- 1. IGNORE FULL SERVERS OR SERVERS WITH > 3 PLAYERS
+                if playingCount == nil or playingCount > MAX_SEARCH_PLAYERS or (maxPlayers > 0 and playingCount >= maxPlayers) then
+                    continue
                 end
+
+                -- 2. IGNORE CURRENT & ALREADY VISITED SERVERS
+                if server.id == CurrentJobId or visitedServers[server.id] then
+                    continue
+                end
+
+                -- 3. IGNORE CLAIMED SERVERS (FROM LOCAL API/FILE SYSTEM)
+                if claimedJobs[server.id] ~= nil then
+                    continue
+                end
+
+                -- FIRST VALID MATCH FOUND
+                return server.id
             end
 
             currentCursor = data.nextPageCursor
@@ -328,10 +339,10 @@ checkPlayerCount = function()
         return true
     end
 
-    -- ONLY HOP IF PLAYER COUNT IS 5 OR MORE (>=5)
+    -- HOPS ONLY WHEN PLAYERS COUNT IS 6 OR MORE (>=6)
     if count > MAX_CLAIM_PLAYERS then
         isHopping = true
-        UpdateUI("Server Full (>=5)", Color3.fromRGB(255, 80, 80))
+        UpdateUI("Server Full (>=6)", Color3.fromRGB(255, 80, 80))
         jobIdHop()
         return false
     end
@@ -348,15 +359,14 @@ checkCurrentServer = function()
     local count = RefreshPlayerCount()
     local protectedPresent = IsProtectedPlayerPresent()
 
-    -- HOP ONLY IF PLAYERS >= 5 (AND PROTECTED USER IS NOT HERE)
+    -- HOPS ONLY WHEN PLAYERS COUNT IS 6 OR MORE (>=6)
     if (not protectedPresent) and (count > MAX_CLAIM_PLAYERS) then
         isHopping = true
-        UpdateUI("Server Full (>=5)", Color3.fromRGB(255, 80, 80))
+        UpdateUI("Server Full (>=6)", Color3.fromRGB(255, 80, 80))
         jobIdHop()
         return false
     end
 
-    -- IF WE ARE IN A VALID SERVER (0-4 PLAYERS), CANCEL HOPPING STATE
     isHopping = false
 
     local claimedJobs = fetchJobs()
