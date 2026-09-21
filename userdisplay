@@ -1,6 +1,4 @@
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 
 -- Ensure game and LocalPlayer are loaded
 if not game:IsLoaded() then
@@ -14,10 +12,6 @@ if not playerGui then
 	warn("PlayerGui not found!")
 	return
 end
-
--- Track rendering state (starts disabled)
-local isRenderingEnabled = false
-RunService:Set3dRenderingEnabled(isRenderingEnabled)
 
 -- Function to mask 50% of the display name
 local function maskName(name)
@@ -34,31 +28,28 @@ screenGui.Name = "TightProfileGUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
--- Main Button Frame
-local mainFrame = Instance.new("TextButton")
+-- Main Display Frame (Darker background)
+local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Text = "" 
-mainFrame.AutoButtonColor = false 
-mainFrame.Size = UDim2.new(0, 0, 0, 88)
+mainFrame.Size = UDim2.new(0, 0, 0, 60)
 mainFrame.AutomaticSize = Enum.AutomaticSize.X
 mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 32)
-mainFrame.BackgroundTransparency = 0.3
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 16) -- Darkened UI color
+mainFrame.BackgroundTransparency = 0.2
 mainFrame.BorderSizePixel = 0
-mainFrame.Active = true
 mainFrame.Parent = screenGui
 
 local frameCorner = Instance.new("UICorner")
-frameCorner.CornerRadius = UDim.new(0, 14)
+frameCorner.CornerRadius = UDim.new(0, 10)
 frameCorner.Parent = mainFrame
 
 -- UI Padding
 local padding = Instance.new("UIPadding")
 padding.PaddingLeft = UDim.new(0, 10)
-padding.PaddingRight = UDim.new(0, 24)
-padding.PaddingTop = UDim.new(0, 10)
-padding.PaddingBottom = UDim.new(0, 10)
+padding.PaddingRight = UDim.new(0, 16)
+padding.PaddingTop = UDim.new(0, 8)
+padding.PaddingBottom = UDim.new(0, 8)
 padding.Parent = mainFrame
 
 -- Layout
@@ -66,21 +57,20 @@ local listLayout = Instance.new("UIListLayout")
 listLayout.FillDirection = Enum.FillDirection.Horizontal
 listLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-listLayout.Padding = UDim.new(0, 14)
+listLayout.Padding = UDim.new(0, 10)
 listLayout.Parent = mainFrame
 
 -- Avatar Image
 local avatarImage = Instance.new("ImageLabel")
 avatarImage.Name = "AvatarImage"
-avatarImage.Size = UDim2.new(0, 68, 0, 68)
+avatarImage.Size = UDim2.new(0, 44, 0, 44)
 avatarImage.BackgroundTransparency = 1
 avatarImage.BorderSizePixel = 0
 avatarImage.LayoutOrder = 1
-avatarImage.Active = false -- Lets clicks pass through to mainFrame
 avatarImage.Parent = mainFrame
 
 local imgCorner = Instance.new("UICorner")
-imgCorner.CornerRadius = UDim.new(0, 12)
+imgCorner.CornerRadius = UDim.new(0, 8)
 imgCorner.Parent = avatarImage
 
 -- Display Name Label
@@ -91,12 +81,11 @@ displayNameLabel.AutomaticSize = Enum.AutomaticSize.X
 displayNameLabel.BackgroundTransparency = 1
 displayNameLabel.Text = maskName(LocalPlayer.DisplayName or LocalPlayer.Name)
 displayNameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-displayNameLabel.TextSize = 32
+displayNameLabel.TextSize = 24
 displayNameLabel.Font = Enum.Font.GothamBold
 displayNameLabel.TextXAlignment = Enum.TextXAlignment.Left
 displayNameLabel.TextYAlignment = Enum.TextYAlignment.Center
 displayNameLabel.LayoutOrder = 2
-displayNameLabel.Active = false -- Lets clicks pass through to mainFrame
 displayNameLabel.Parent = mainFrame
 
 -- Fetch Avatar Headshot asynchronously
@@ -111,54 +100,5 @@ task.defer(function()
 	
 	if success and isReady then
 		avatarImage.Image = content
-	end
-end)
-
-----------------------------------------------------
--- CUSTOM DRAG + CLICK LOGIC
-----------------------------------------------------
-local dragging = false
-local dragStart = nil
-local startPos = nil
-local hasDragged = false
-
-mainFrame.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		hasDragged = false
-		dragStart = input.Position
-		startPos = mainFrame.Position
-		
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
-		end)
-	end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-		local delta = input.Position - dragStart
-		
-		if delta.Magnitude > 5 then
-			hasDragged = true
-		end
-		
-		mainFrame.Position = UDim2.new(
-			startPos.X.Scale, startPos.X.Offset + delta.X,
-			startPos.Y.Scale, startPos.Y.Offset + delta.Y
-		)
-	end
-end)
-
--- Click Handler (Toggles rendering without changing any UI colors)
-mainFrame.InputEnded:Connect(function(input)
-	if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
-		if not hasDragged then
-			isRenderingEnabled = not isRenderingEnabled
-			RunService:Set3dRenderingEnabled(isRenderingEnabled)
-		end
-		hasDragged = false
 	end
 end)
