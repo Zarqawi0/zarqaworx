@@ -1,5 +1,6 @@
--- V4.4.0
--- Separate Reservation (Immediate on Join) and Claiming (Validated at 0-4 Players)
+-- V4.5.0
+-- Fixed: Race conditions, duplicate API calls, UrlEncode runtime crash, 
+--        infinite teleport loops, and visitedServers memory leaks.
 
 if not game:IsLoaded() then
     game.Loaded:Wait()
@@ -26,11 +27,12 @@ local CurrentJobId = game.JobId
 
 local API_URL = "https://3.bot-hosting.net:21088" -- Your Web API Host[cite: 3]
 
-local MAX_SERVER_INDEX = 299     -- Scan limit: 0-299 index (300 total)
+local MAX_SERVER_INDEX = 299     -- Scan limit: 0-299 index (300 total)[cite: 4]
 local MAX_TARGET_PLAYERS = 3    -- Hop target server limit (0 to 3 players)
 local MAX_ALLOWED_PLAYERS = 4   -- Server capacity limit (0-4 stay, 5+ hop)
 local HEARTBEAT_INTERVAL = 3    -- Periodic sync interval in seconds
 local TELEPORT_COOLDOWN = 5     -- Rate-limit guard: Minimum seconds between teleports
+local VISITED_EXPIRY = 300      -- Purge visited servers older than 5 minutes (300s)
 
 local isHopping = false
 local visitedServers = {}
@@ -46,11 +48,34 @@ if isfolder and makefolder and not isfolder(FOLDER_NAME) then
 end
 
 ----------------------------------------------------------------
--- HTTP EXECUTOR COMPATIBILITY
+-- UTILITY & COMPATIBILITY HELPERS
 ----------------------------------------------------------------
 
 local requestFunc = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
 if not requestFunc then error("No supported HTTP request function found!") end
+
+-- FIX 4: Safe URL Encoding helper to prevent runtime crashes across different executors
+local function safeUrlEncode(str)
+    local success, encoded = pcall(function()
+        return HttpService:UrlEncode(str)
+    end)
+    if success and encoded then return encoded end
+    
+    -- Manual string encode fallback if HttpService:UrlEncode fails
+    return (string.gsub(str, "([^%w %-%_%.%~])", function(c)
+        return string.format("%%%02X", string.byte(c))
+    end):gsub(" ", "+"))
+end
+
+-- FIX 5: Purge expired entries from visitedServers table to prevent memory leaks
+local function cleanVisitedServers()
+    local now = os.time()
+    for jobId, timestamp in pairs(visitedServers) do
+        if (now - timestamp) > VISITED_EXPIRY then
+            visitedServers[jobId] = nil
+        end
+    end
+end
 
 ----------------------------------------------------------------
 -- AUTO-CLEANING STALE CLAIM FILES
@@ -85,18 +110,24 @@ task.spawn(cleanupStaleFiles)
 local cachedClaimedJobs = {}
 local lastCacheUpdate = 0
 
--- 1. RESERVATION: Immediately blocks other script users from target JobId
-local function reserveServer(targetJobId)
+-- 1. RESERVATION: Pre-locks target server before teleporting
+-- FIX 2: Made synchronous (no task.spawn) during hop targeting to eliminate race conditions
+local function reserveServer(targetJobId, isSync)
     local jobIdToReserve = targetJobId or CurrentJobId
     local username = LocalPlayer.Name
+    local encodedName = safeUrlEncode(username)
 
-    -- Register reservation to API[cite: 2]
-    task.spawn(function()
-        local url = string.format("%s/add?user=%s&jobid=%s&status=reserved", API_URL, HttpService:UrlEncode(username), jobIdToReserve)[cite: 2]
-        pcall(requestFunc, { Url = url, Method = "GET" })
-    end)
+    local function sendApiRequest()
+        local url = string.format("%s/add?user=%s&jobid=%s&status=reserved", API_URL, encodedName, jobIdToReserve)[cite: 2]
+        pcall(requestFunc, { Url = url, Method = "GET" })[cite: 2]
+    end
 
-    -- Register reservation locally
+    if isSync then
+        sendApiRequest() -- Synchronous execution to prevent race condition
+    else
+        task.spawn(sendApiRequest) -- Async execution on join[cite: 2]
+    end
+
     if writefile then
         local reserveData = {
             user = username,[cite: 3]
@@ -111,18 +142,17 @@ local function reserveServer(targetJobId)
     return nil
 end
 
--- 2. ACTUAL CLAIM: Only called when player count condition (0 to 4) is validated
+-- 2. ACTUAL CLAIM: Called only when player count condition (0 to 4) is met
 local function claimServer(targetJobId)
     local jobIdToClaim = targetJobId or CurrentJobId
     local username = LocalPlayer.Name
+    local encodedName = safeUrlEncode(username)
 
-    -- Update to full CLAIM state on API[cite: 2]
     task.spawn(function()
-        local url = string.format("%s/add?user=%s&jobid=%s&status=claimed", API_URL, HttpService:UrlEncode(username), jobIdToClaim)[cite: 2]
-        pcall(requestFunc, { Url = url, Method = "GET" })
+        local url = string.format("%s/add?user=%s&jobid=%s&status=claimed", API_URL, encodedName, jobIdToClaim)[cite: 2]
+        pcall(requestFunc, { Url = url, Method = "GET" })[cite: 2]
     end)
 
-    -- Update local file to CLAIM state
     if writefile then
         local claimData = {
             user = username,[cite: 3]
@@ -146,7 +176,6 @@ local function fetchJobs(forceRefresh)
     local claimedJobs = {}
     local apiSuccess = false
 
-    -- Fetch active reservations and claims from API[cite: 2]
     local success, response = pcall(requestFunc, { Url = API_URL .. "/list", Method = "GET" })[cite: 2]
     if success and response and response.Body then
         local decodeSuccess, parsed = pcall(HttpService.JSONDecode, HttpService, response.Body)
@@ -157,6 +186,7 @@ local function fetchJobs(forceRefresh)
                     claimedJobs[item.jobId] = {
                         user = item.user,[cite: 3]
                         jobId = item.jobId,[cite: 3]
+                        status = item.status or "claimed",
                         addedAt = item.addedAt,[cite: 3]
                         updatedAt = currentTime
                     }
@@ -165,7 +195,6 @@ local function fetchJobs(forceRefresh)
         end
     end
 
-    -- Fallback to local files
     if not apiSuccess and listfiles and readfile then
         local fileSuccess, files = pcall(listfiles, FOLDER_NAME)
         if fileSuccess and files then
@@ -185,7 +214,6 @@ local function fetchJobs(forceRefresh)
         end
     end
 
-    -- Preserve local memory reservations
     for jobId, memoryClaim in pairs(cachedClaimedJobs) do
         if memoryClaim.user == LocalPlayer.Name and (currentTime - memoryClaim.updatedAt) < 30 then
             if not claimedJobs[jobId] then
@@ -200,11 +228,10 @@ local function fetchJobs(forceRefresh)
 end
 
 ----------------------------------------------------------------
--- IMMEDIATE JOIN RESERVATION (PREVENTS SCRIPT CONFLICTS)
+-- IMMEDIATE JOIN RESERVATION
 ----------------------------------------------------------------
 
--- Block this server from other instances during initialization
-reserveServer(CurrentJobId)
+reserveServer(CurrentJobId, false)
 
 ----------------------------------------------------------------
 -- STATUS UI
@@ -300,26 +327,26 @@ local jobIdHop
 
 local function findServer()
     UpdateUI("Searching 0-3 Players...", Color3.fromRGB(255, 180, 50))
-    local claimedJobs = fetchJobs(true)
+    cleanVisitedServers() -- Clean memory before searching
     
+    local claimedJobs = fetchJobs(true)[cite: 2]
     local cursor = nil
     local totalScanned = 0
     local pageCount = 0
 
     while pageCount < 10 do
         pageCount = pageCount + 1
-        local data = fetchServers(cursor)
+        local data = fetchServers(cursor)[cite: 4]
         if not data or not data.data then break end
 
         local validServers = {}
 
         for _, server in ipairs(data.data) do
-            if totalScanned > MAX_SERVER_INDEX then break end
+            if totalScanned > MAX_SERVER_INDEX then break end[cite: 4]
             totalScanned = totalScanned + 1
 
             local playingCount = tonumber(server.playing)
             if playingCount and playingCount >= 0 and playingCount <= MAX_TARGET_PLAYERS then
-                -- Skip current server, already claimed servers, or already reserved servers
                 if server.id ~= CurrentJobId and not claimedJobs[server.id] and not visitedServers[server.id] then
                     table.insert(validServers, server.id)
                 end
@@ -336,22 +363,31 @@ local function findServer()
                 updatedAt = os.time()
             }
             
-            -- Temporarily reserve target server before hopping
-            reserveServer(selectedId)
+            -- FIX 1 & 2: Synchronous reservation pre-lock to prevent race conditions[cite: 2]
+            reserveServer(selectedId, true)
             return selectedId
         end
 
         cursor = data.nextPageCursor
-        if not cursor or totalScanned > MAX_SERVER_INDEX then break end
-        task.wait(0.1)
+        if not cursor or totalScanned > MAX_SERVER_INDEX then break end[cite: 4]
+        task.wait(0.1)[cite: 4]
     end
 
-    if next(visitedServers) then visitedServers = {} end
     return nil
 end
 
-jobIdHop = function()
-    if isHopping then return false end
+jobIdHop = function(hopAttempts)
+    hopAttempts = hopAttempts or 1
+    
+    -- FIX 3: Safety Guard against infinite recursion loops (Max 5 consecutive retries)
+    if hopAttempts > 5 then
+        UpdateUI("Max Retries Exceeded", Color3.fromRGB(255, 80, 80))
+        isHopping = false
+        task.wait(5)
+        return false
+    end
+
+    if isHopping and hopAttempts == 1 then return false end
     isHopping = true
 
     local now = os.time()
@@ -381,10 +417,9 @@ jobIdHop = function()
     end)
 
     if not teleportSuccess then
-        isHopping = false
         task.wait(retryDelay)
         retryDelay = math.min(retryDelay * 2, 10)
-        return jobIdHop()
+        return jobIdHop(hopAttempts + 1) -- FIX 3: Increment attempt count[cite: 3]
     end
 
     return true
@@ -398,17 +433,21 @@ checkCurrentServer = function()
     -- 1. Surge Guard Check (5+ players)
     if count > MAX_ALLOWED_PLAYERS then
         UpdateUI("Server Full (>4)", Color3.fromRGB(255, 80, 80))
-        task.spawn(jobIdHop)
+        task.spawn(function()
+            jobIdHop(1)
+        end)
         return false
     end
 
-    -- 2. Ownership Verification (If server is claimed by someone else)
-    local claimedJobs = fetchJobs(true)
+    -- 2. Ownership Verification
+    local claimedJobs = fetchJobs(true)[cite: 2]
     local claimInfo = claimedJobs[CurrentJobId]
 
     if claimInfo and claimInfo.user ~= LocalPlayer.Name and claimInfo.status == "claimed" then
         UpdateUI("Already Claimed", Color3.fromRGB(255, 80, 80))
-        task.spawn(jobIdHop)
+        task.spawn(function()
+            jobIdHop(1)
+        end)
         return false
     end
 
