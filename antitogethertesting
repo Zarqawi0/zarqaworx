@@ -1,5 +1,5 @@
--- V6.2.0
--- Implemented File-Level Lock Mechanism (.lock) to eliminate concurrent file-writing collisions
+-- V4.0.0
+-- Fixed Initial Server Claim Evaluation on First Join
 
 if not game:IsLoaded() then
     game.Loaded:Wait()
@@ -12,7 +12,7 @@ local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
 
-while not LocalPlayer or not LocalPlayer.UserId or not LocalPlayer.Name do
+while not LocalPlayer or not LocalPlayer.UserId do
     task.wait(0.1)
     LocalPlayer = Players.LocalPlayer
 end
@@ -29,70 +29,22 @@ local MAX_TARGET_PLAYERS = 3    -- Hop target server limit (0 to 3 players)
 local MAX_ALLOWED_PLAYERS = 4   -- Server capacity limit (0-4 stay, 5+ hop)
 local HEARTBEAT_INTERVAL = 3    -- Periodic sync interval in seconds
 local TELEPORT_COOLDOWN = 5     -- Rate-limit guard: Minimum seconds between teleports
-local LOCK_TIMEOUT = 5          -- Maximum seconds a lock file remains valid before breaking
 
 local isHopping = false
 local visitedServers = {}
 local retryDelay = 1            -- Initial delay for exponential backoff
-local lastTeleportAttempt = os.time()
+local lastTeleportAttempt = os.time() -- Set initial attempt to current time to prevent instant throttle block
 
 -- File System Path Setup
 local FOLDER_NAME = "JobIdClaims"
+local MY_FILE_PATH = string.format("%s/%d.json", FOLDER_NAME, LocalPlayer.UserId)
 
 if isfolder and makefolder and not isfolder(FOLDER_NAME) then
     makefolder(FOLDER_NAME)
 end
 
-local function getJobFilePath(jobId)
-    return string.format("%s/%s.json", FOLDER_NAME, jobId or CurrentJobId)
-end
-
-local function getLockFilePath(jobId)
-    return string.format("%s/%s.lock", FOLDER_NAME, jobId or CurrentJobId)
-end
-
 ----------------------------------------------------------------
--- FILE-LEVEL LOCKING MECHANISM
-----------------------------------------------------------------
-
-local function acquireServerLock(targetJobId)
-    if not writefile or not isfile or not readfile then return true end
-    local lockPath = getLockFilePath(targetJobId)
-    local currentTime = os.time()
-
-    -- Check if a lock file exists and is active
-    if isfile(lockPath) then
-        local readSuccess, content = pcall(readfile, lockPath)
-        if readSuccess and content then
-            local lockTime = tonumber(content)
-            if lockTime and (currentTime - lockTime) < LOCK_TIMEOUT then
-                -- Lock is actively held by another process; wait briefly and re-check
-                task.wait(0.2)
-                if isfile(lockPath) then
-                    local recheckSuccess, recheckContent = pcall(readfile, lockPath)
-                    if recheckSuccess and tonumber(recheckContent) and (currentTime - tonumber(recheckContent)) < LOCK_TIMEOUT then
-                        return false -- Lock acquisition failed
-                    end
-                end
-            end
-        end
-    end
-
-    -- Write lock file with current timestamp
-    pcall(writefile, lockPath, tostring(currentTime))
-    return true
-end
-
-local function releaseServerLock(targetJobId)
-    if not delfile or not isfile then return end
-    local lockPath = getLockFilePath(targetJobId)
-    if isfile(lockPath) then
-        pcall(delfile, lockPath)
-    end
-end
-
-----------------------------------------------------------------
--- AUTO-CLEANING STALE CLAIM & LOCK FILES
+-- AUTO-CLEANING STALE CLAIM FILES
 ----------------------------------------------------------------
 
 local function cleanupStaleFiles()
@@ -101,24 +53,12 @@ local function cleanupStaleFiles()
         if success and files then
             local currentTime = os.time()
             for _, filePath in ipairs(files) do
-                if filePath:sub(-5) == ".lock" then
-                    -- Clean up abandoned lock files older than LOCK_TIMEOUT
-                    local readSuccess, content = pcall(readfile, filePath)
-                    if readSuccess and content then
-                        local lockTime = tonumber(content)
-                        if lockTime and (currentTime - lockTime) > LOCK_TIMEOUT then
+                local readSuccess, content = pcall(readfile, filePath)
+                if readSuccess and content then
+                    local decodeSuccess, parsed = pcall(HttpService.JSONDecode, HttpService, content)
+                    if decodeSuccess and parsed and parsed.updatedAt then
+                        if (currentTime - parsed.updatedAt) > 900 then
                             pcall(delfile, filePath)
-                        end
-                    end
-                elseif filePath:sub(-5) == ".json" then
-                    -- Clean up claim files older than 15 minutes
-                    local readSuccess, content = pcall(readfile, filePath)
-                    if readSuccess and content then
-                        local decodeSuccess, parsed = pcall(HttpService.JSONDecode, HttpService, content)
-                        if decodeSuccess and parsed and parsed.updatedAt then
-                            if (currentTime - parsed.updatedAt) > 900 then
-                                pcall(delfile, filePath)
-                            end
                         end
                     end
                 end
@@ -130,65 +70,43 @@ end
 task.spawn(cleanupStaleFiles)
 
 ----------------------------------------------------------------
--- FILE SYSTEM CACHING & ATOMIC REGISTRATION
+-- FILE SYSTEM CACHING (WITH RESERVATION PRESERVATION)
 ----------------------------------------------------------------
 
 local cachedClaimedJobs = {}
+local lastCacheUpdate = 0
 
-local function writeJobClaim(targetJobId, claimStatus)
-    if not writefile then return nil end
-    local jobId = targetJobId or CurrentJobId
-    
-    -- Attempt to acquire file lock before writing
-    acquireServerLock(jobId)
-
-    local filePath = getJobFilePath(jobId)
-    local claimData = {
-        userId = LocalPlayer.UserId,
-        username = LocalPlayer.Name,
-        jobId = jobId,
-        status = claimStatus or "unclaimed",
-        updatedAt = os.time()
-    }
-    pcall(writefile, filePath, HttpService:JSONEncode(claimData))
-    cachedClaimedJobs[jobId] = claimData
-
-    -- Release lock immediately after writing
-    releaseServerLock(jobId)
-    return claimData
-end
-
-local function readJobClaim(targetJobId)
-    if not readfile or not isfile then return nil end
-    local filePath = getJobFilePath(targetJobId)
-    
-    if isfile(filePath) then
-        local readSuccess, content = pcall(readfile, filePath)
-        if readSuccess and content then
-            local decodeSuccess, parsed = pcall(HttpService.JSONDecode, HttpService, content)
-            if decodeSuccess and parsed then
-                if parsed.updatedAt and (os.time() - parsed.updatedAt) < 600 then
-                    return parsed
-                end
-            end
-        end
+local function claimServer(targetJobId)
+    if writefile then
+        local claimData = {
+            userId = LocalPlayer.UserId,
+            username = LocalPlayer.Name,
+            jobId = targetJobId or CurrentJobId,
+            updatedAt = os.time()
+        }
+        pcall(writefile, MY_FILE_PATH, HttpService:JSONEncode(claimData))
+        return claimData
     end
     return nil
 end
 
-local function fetchAllSavedJobs()
+local function fetchJobs(forceRefresh)
     local currentTime = os.time()
+    if not forceRefresh and (currentTime - lastCacheUpdate) < 3 and next(cachedClaimedJobs) ~= nil then
+        return cachedClaimedJobs
+    end
+
     local claimedJobs = {}
     if listfiles and readfile then
         local success, files = pcall(listfiles, FOLDER_NAME)
         if success and files then
             for _, filePath in ipairs(files) do
-                if filePath:sub(-5) == ".json" then
-                    local readSuccess, content = pcall(readfile, filePath)
-                    if readSuccess and content then
-                        local decodeSuccess, parsed = pcall(HttpService.JSONDecode, HttpService, content)
-                        if decodeSuccess and parsed and parsed.jobId then
-                            if parsed.updatedAt and (currentTime - parsed.updatedAt) < 600 then
+                local readSuccess, content = pcall(readfile, filePath)
+                if readSuccess and content then
+                    local decodeSuccess, parsed = pcall(HttpService.JSONDecode, HttpService, content)
+                    if decodeSuccess and parsed and parsed.jobId and parsed.userId then
+                        if parsed.updatedAt and (currentTime - parsed.updatedAt) < 600 then
+                            if not claimedJobs[parsed.jobId] or (parsed.updatedAt < claimedJobs[parsed.jobId].updatedAt) then
                                 claimedJobs[parsed.jobId] = parsed
                             end
                         end
@@ -197,11 +115,23 @@ local function fetchAllSavedJobs()
             end
         end
     end
+
+    -- Preserve recent local pre-reservations when updating cache from disk
+    for jobId, memoryClaim in pairs(cachedClaimedJobs) do
+        if memoryClaim.userId == LocalPlayer.UserId and (currentTime - memoryClaim.updatedAt) < 30 then
+            if not claimedJobs[jobId] then
+                claimedJobs[jobId] = memoryClaim
+            end
+        end
+    end
+
+    cachedClaimedJobs = claimedJobs
+    lastCacheUpdate = currentTime
     return claimedJobs
 end
 
 ----------------------------------------------------------------
--- STATUS UI
+-- STATUS UI (WITH DUPLICATE CLEANUP)
 ----------------------------------------------------------------
 
 local parentGui = (pcall(function() return CoreGui end) and CoreGui) or LocalPlayer:WaitForChild("PlayerGui")
@@ -291,7 +221,7 @@ local jobIdHop
 
 local function findServer()
     UpdateUI("Searching 0-3 Players...", Color3.fromRGB(255, 180, 50))
-    local allSaved = fetchAllSavedJobs()
+    local claimedJobs = fetchJobs()
     
     local cursor = nil
     local totalScanned = 0
@@ -310,9 +240,7 @@ local function findServer()
 
             local playingCount = tonumber(server.playing)
             if playingCount and playingCount >= 0 and playingCount <= MAX_TARGET_PLAYERS then
-                -- Skip any JobId that is already saved or locked
-                local isSaved = allSaved[server.id] ~= nil
-                if server.id ~= CurrentJobId and not isSaved and not visitedServers[server.id] then
+                if server.id ~= CurrentJobId and not claimedJobs[server.id] and not visitedServers[server.id] then
                     table.insert(validServers, server.id)
                 end
             end
@@ -321,8 +249,14 @@ local function findServer()
         if #validServers > 0 then
             local selectedId = validServers[math.random(1, #validServers)]
             
-            -- Lock and pre-reserve the selected JobId file as "unclaimed"
-            writeJobClaim(selectedId, "unclaimed")
+            cachedClaimedJobs[selectedId] = {
+                userId = LocalPlayer.UserId,
+                username = LocalPlayer.Name,
+                jobId = selectedId,
+                updatedAt = os.time()
+            }
+            
+            claimServer(selectedId)
             return selectedId
         end
 
@@ -378,57 +312,26 @@ jobIdHop = function()
 end
 
 checkCurrentServer = function()
-    -- Step 1: Acquire lock before evaluating existing records
-    acquireServerLock(CurrentJobId)
-
-    local existingRecord = readJobClaim(CurrentJobId)
-
-    -- If a record exists and belongs to ANOTHER player, release lock and hop immediately
-    if existingRecord and existingRecord.userId ~= LocalPlayer.UserId then
-        releaseServerLock(CurrentJobId)
-        UpdateUI("Server Already Saved (Hopping)", Color3.fromRGB(255, 80, 80))
-        jobIdHop()
-        return false
-    end
-
-    -- Write initial "unclaimed" record for local player
-    writeJobClaim(CurrentJobId, "unclaimed")
-
     local count = RefreshPlayerCount()
 
-    -- Step 2: Capacity Check (5+ players)
+    -- 1. Surge Guard Check (5+ players)
     if count > MAX_ALLOWED_PLAYERS then
-        releaseServerLock(CurrentJobId)
         UpdateUI("Server Full (>=5)", Color3.fromRGB(255, 80, 80))
         jobIdHop()
         return false
     end
 
-    -- Step 3: Multi-player conflict resolution (UserId tie-breaker for unclaimed servers)
-    local allPlayers = Players:GetPlayers()
-    if #allPlayers > 1 then
-        local myUserId = LocalPlayer.UserId
-        local hasHigherUserIdInServer = false
+    -- 2. Claim & Ownership Verification (0-4 players)
+    local claimedJobs = fetchJobs(true) -- Force immediate refresh from disk
+    local claimInfo = claimedJobs[CurrentJobId]
 
-        for _, plr in ipairs(allPlayers) do
-            if plr ~= LocalPlayer and plr.UserId < myUserId then
-                hasHigherUserIdInServer = true
-                break
-            end
-        end
-
-        if hasHigherUserIdInServer then
-            releaseServerLock(CurrentJobId)
-            UpdateUI("Higher UserId Present (Hopping)", Color3.fromRGB(255, 80, 80))
-            jobIdHop()
-            return false
-        end
+    if claimInfo and claimInfo.userId ~= LocalPlayer.UserId then
+        UpdateUI("Already Claimed (Hopping)", Color3.fromRGB(255, 80, 80))
+        jobIdHop()
+        return false
     end
 
-    -- Step 4: Mark status as "claimed" if all checks pass
-    writeJobClaim(CurrentJobId, "claimed")
-    releaseServerLock(CurrentJobId)
-
+    claimServer(CurrentJobId)
     isHopping = false
     retryDelay = 1
     UpdateUI("Server Claimed", Color3.fromRGB(100, 255, 100))
@@ -457,15 +360,15 @@ end)
 -- Forced Initial Evaluation on Join
 task.spawn(function()
     UpdateUI("Verifying Server...", Color3.fromRGB(255, 200, 50))
-    task.wait(1)
+    task.wait(1) -- Brief pause to ensure all local player files finish writing
     local canStay = checkCurrentServer()
     
     if canStay then
-        print("[Claim Guard] Server verified, locked, and successfully claimed!")
+        print("[Claim Guard] Current server verified and successfully claimed!")
     end
 end)
 
--- Background Heartbeat Loop
+-- Background Heartbeat Loop (Runs every 3 seconds after join check)
 task.spawn(function()
     while task.wait(HEARTBEAT_INTERVAL) do
         checkCurrentServer()
