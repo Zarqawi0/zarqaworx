@@ -1,5 +1,5 @@
--- V4.1.0
--- Fixed Incorrect Player Count Reporting & Endless Search State Loops
+-- V4.2.0
+-- Updated with Rarity Pausing & Adjusted Player Capacity Limit
 
 if not game:IsLoaded() then
     game.Loaded:Wait()
@@ -9,6 +9,7 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -26,14 +27,25 @@ local CurrentJobId = game.JobId
 
 local MAX_SERVER_INDEX = 299     -- Scan limit: 0-299 index (300 total)
 local MAX_TARGET_PLAYERS = 3    -- Hop target server limit (0 to 3 players)
-local MAX_ALLOWED_PLAYERS = 4   -- Server capacity limit (0-4 stay, 5+ hop)
+local MAX_ALLOWED_PLAYERS = 5   -- Server capacity limit (0-5 stay/claim, 6+ hop)
 local HEARTBEAT_INTERVAL = 3    -- Periodic sync interval in seconds
 local TELEPORT_COOLDOWN = 5     -- Rate-limit guard: Minimum seconds between teleports
+local PAUSE_DURATION = 360      -- 6 minutes pause in seconds for specific rarities
 
 local isHopping = false
+local isPaused = false
+local pauseEndTime = 0
+
 local visitedServers = {}
 local retryDelay = 1            -- Initial delay for exponential backoff
 local lastTeleportAttempt = os.time()
+
+-- Target Rarities to trigger pause
+local TARGET_RARITIES = {
+    ["Secret"] = true,
+    ["Eternal"] = true,
+    ["Divine"] = true
+}
 
 -- File System Path Setup
 local FOLDER_NAME = "JobIdClaims"
@@ -147,7 +159,6 @@ ScreenGui.Parent = parentGui
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 190, 0, 48)
 MainFrame.Position = UDim2.new(0.5, -95, 0.90, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 35, 15)
 MainFrame.BackgroundTransparency = 0.25
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -163,7 +174,6 @@ StatusLabel.Size = UDim2.new(1, -16, 0, 18)
 StatusLabel.Position = UDim2.new(0, 8, 0, 5)
 StatusLabel.BackgroundTransparency = 1
 StatusLabel.Text = "Status: Initializing..."
-StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 StatusLabel.TextSize = 13
 StatusLabel.Font = Enum.Font.SourceSansBold
 StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -174,7 +184,6 @@ PlayersLabel.Size = UDim2.new(1, -16, 0, 25)
 PlayersLabel.Position = UDim2.new(0, 8, 0, 25)
 PlayersLabel.BackgroundTransparency = 1
 PlayersLabel.Text = "Players: 0 / 0"
-PlayersLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 PlayersLabel.TextSize = 13
 PlayersLabel.Font = Enum.Font.SourceSansBold
 PlayersLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -182,23 +191,47 @@ PlayersLabel.Parent = MainFrame
 
 local function RefreshPlayerCount()
     local currentPlayers = #Players:GetPlayers()
-    -- Format shows: [Current connected players] / [Max allowed capacity limit]
     PlayersLabel.Text = string.format("Players: %d / %d (Max)", currentPlayers, MAX_ALLOWED_PLAYERS)
-    
-    if currentPlayers > MAX_ALLOWED_PLAYERS then
-        PlayersLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-    else
-        PlayersLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-    end
-    
     return currentPlayers
 end
 
-local function UpdateUI(statusText, color)
-    if statusText then StatusLabel.Text = "Status: " .. statusText end
-    if color then StatusLabel.TextColor3 = color end
+local function UpdateUI(statusText)
+    if isPaused then
+        local remaining = math.max(0, pauseEndTime - os.time())
+        StatusLabel.Text = string.format("Paused (%ds remaining)", remaining)
+    elseif statusText then 
+        StatusLabel.Text = "Status: " .. statusText 
+    end
     RefreshPlayerCount()
 end
+
+----------------------------------------------------------------
+-- EVENT LISTENER (PAUSE MECHANISM)
+----------------------------------------------------------------
+
+task.spawn(function()
+    local networkingFolder = ReplicatedStorage:WaitForChild("Packages", 10)
+        and ReplicatedStorage.Packages:WaitForChild("Networking", 10)
+    
+    if networkingFolder then
+        local Event = networkingFolder:WaitForChild("RE/EggWorld/FieldEggRedeemVerdict", 10)
+        if Event and Event:IsA("RemoteEvent") then
+            Event.OnClientEvent:Connect(function(data)
+                if type(data) == "table" and data.Rarity and TARGET_RARITIES[data.Rarity] then
+                    isPaused = true
+                    pauseEndTime = os.time() + PAUSE_DURATION
+                    UpdateUI(string.format("Found %s! Pausing...", data.Rarity))
+                    
+                    task.spawn(function()
+                        task.wait(PAUSE_DURATION)
+                        isPaused = false
+                        UpdateUI("Resuming Scanning...")
+                    end)
+                end
+            end)
+        end
+    end
+end)
 
 ----------------------------------------------------------------
 -- HTTP EXECUTOR COMPATIBILITY
@@ -227,7 +260,7 @@ local checkCurrentServer
 local jobIdHop
 
 local function findServer()
-    UpdateUI("Searching 0-3 Players...", Color3.fromRGB(255, 180, 50))
+    UpdateUI("Searching 0-3 Players...")
     local claimedJobs = fetchJobs(true)
     
     local cursor = nil
@@ -277,14 +310,14 @@ local function findServer()
 end
 
 jobIdHop = function()
-    if isHopping then return false end
+    if isHopping or isPaused then return false end
     isHopping = true
 
     local now = os.time()
     local timeSinceLastHop = now - lastTeleportAttempt
     if timeSinceLastHop < TELEPORT_COOLDOWN then
         local waitTime = TELEPORT_COOLDOWN - timeSinceLastHop
-        UpdateUI(string.format("Throttling (%ds)...", waitTime), Color3.fromRGB(255, 180, 50))
+        UpdateUI(string.format("Throttling (%ds)...", waitTime))
         task.wait(waitTime)
     end
 
@@ -293,14 +326,14 @@ jobIdHop = function()
     local serverId = findServer()
 
     if not serverId then
-        UpdateUI("No Server Found", Color3.fromRGB(255, 150, 50))
+        UpdateUI("No Server Found")
         isHopping = false
         task.wait(2)
         return false
     end
 
     visitedServers[serverId] = os.time()
-    UpdateUI("Teleporting...", Color3.fromRGB(100, 255, 100))
+    UpdateUI("Teleporting...")
 
     local teleportSuccess = pcall(function()
         TeleportService:TeleportToPlaceInstance(PlaceId, serverId, LocalPlayer)
@@ -317,30 +350,30 @@ jobIdHop = function()
 end
 
 checkCurrentServer = function()
-    if isHopping then return false end
+    if isHopping or isPaused then return false end
 
     local count = RefreshPlayerCount()
 
-    -- 1. Surge Guard Check (5+ players)
+    -- 1. Surge Guard Check (6+ players hop, 0-5 stay/claim)
     if count > MAX_ALLOWED_PLAYERS then
-        UpdateUI("Server Full (>4)", Color3.fromRGB(255, 80, 80))
+        UpdateUI("Server Full (>5)")
         task.spawn(jobIdHop)
         return false
     end
 
-    -- 2. Claim & Ownership Verification (0-4 players)
+    -- 2. Claim & Ownership Verification (0-5 players)
     local claimedJobs = fetchJobs(true)
     local claimInfo = claimedJobs[CurrentJobId]
 
     if claimInfo and claimInfo.userId ~= LocalPlayer.UserId then
-        UpdateUI("Already Claimed", Color3.fromRGB(255, 80, 80))
+        UpdateUI("Already Claimed")
         task.spawn(jobIdHop)
         return false
     end
 
     claimServer(CurrentJobId)
     retryDelay = 1
-    UpdateUI("Server Claimed", Color3.fromRGB(100, 255, 100))
+    UpdateUI("Server Claimed")
     return true
 end
 
@@ -357,21 +390,18 @@ end)
 
 Players.PlayerAdded:Connect(function()
     RefreshPlayerCount()
-    if not isHopping then checkCurrentServer() end
+    if not isHopping and not isPaused then checkCurrentServer() end
 end)
 
 Players.PlayerRemoving:Connect(function()
     RefreshPlayerCount()
-    if not isHopping then checkCurrentServer() end
+    if not isHopping and not isPaused then checkCurrentServer() end
 end)
 
 -- Initial Startup Check with Replication Guard
 task.spawn(function()
-    UpdateUI("Syncing Server...", Color3.fromRGB(255, 200, 50))
-    
-    -- Wait 2 seconds for local network/player list to fully replicate upon joining
+    UpdateUI("Syncing Server...")
     task.wait(2)
-    
     RefreshPlayerCount()
     checkCurrentServer()
 end)
@@ -380,7 +410,9 @@ end)
 task.spawn(function()
     while true do
         task.wait(HEARTBEAT_INTERVAL)
-        if not isHopping then
+        if isPaused then
+            UpdateUI()
+        elseif not isHopping then
             checkCurrentServer()
         end
     end
