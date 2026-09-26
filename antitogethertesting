@@ -27,7 +27,7 @@ local CurrentJobId = game.JobId
 
 local MAX_SERVER_INDEX = 299     -- Scan limit: 0-299 index (300 total)
 local MAX_TARGET_PLAYERS = 3    -- Hop target server limit (0 to 3 players)
-local MAX_ALLOWED_PLAYERS = 6   -- Server capacity limit (0-6 stay/claim, 7+ hop)
+local MAX_ALLOWED_PLAYERS = 6   -- Threshold: 0-6 stay/claim, 7+ triggers hop
 local HEARTBEAT_INTERVAL = 3    -- Periodic sync interval in seconds
 local TELEPORT_COOLDOWN = 5     -- Rate-limit guard: Minimum seconds between teleports
 local PAUSE_DURATION = 360      -- 6 minutes pause in seconds for specific rarities
@@ -183,7 +183,7 @@ local PlayersLabel = Instance.new("TextLabel")
 PlayersLabel.Size = UDim2.new(1, -16, 0, 25)
 PlayersLabel.Position = UDim2.new(0, 8, 0, 25)
 PlayersLabel.BackgroundTransparency = 1
-PlayersLabel.Text = "Players: 0 / 0"
+PlayersLabel.Text = "Players: 0 / 6 (Max)"
 PlayersLabel.TextSize = 13
 PlayersLabel.Font = Enum.Font.SourceSansBold
 PlayersLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -354,8 +354,8 @@ checkCurrentServer = function()
 
     local count = RefreshPlayerCount()
 
-    -- 1. Surge Guard Check (7+ players hop, 0-6 stay/claim)
-    if count > MAX_ALLOWED_PLAYERS then
+    -- 1. Surge Guard Check (Triggers hop at 7 or more players)
+    if count >= 7 then
         UpdateUI("Server Full (>=7)")
         task.spawn(jobIdHop)
         return false
