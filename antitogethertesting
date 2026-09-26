@@ -27,7 +27,7 @@ local CurrentJobId = game.JobId
 
 local MAX_SERVER_INDEX = 299     -- Scan limit: 0-299 index (300 total)
 local MAX_TARGET_PLAYERS = 3    -- Hop target server limit (0 to 3 players)
-local MAX_ALLOWED_PLAYERS = 5   -- Server capacity limit (0-5 stay/claim, 6+ hop)
+local MAX_ALLOWED_PLAYERS = 6   -- Server capacity limit (0-6 stay/claim, 7+ hop)
 local HEARTBEAT_INTERVAL = 3    -- Periodic sync interval in seconds
 local TELEPORT_COOLDOWN = 5     -- Rate-limit guard: Minimum seconds between teleports
 local PAUSE_DURATION = 360      -- 6 minutes pause in seconds for specific rarities
@@ -354,14 +354,14 @@ checkCurrentServer = function()
 
     local count = RefreshPlayerCount()
 
-    -- 1. Surge Guard Check (6+ players hop, 0-5 stay/claim)
+    -- 1. Surge Guard Check (7+ players hop, 0-6 stay/claim)
     if count > MAX_ALLOWED_PLAYERS then
-        UpdateUI("Server Full (>5)")
+        UpdateUI("Server Full (>=7)")
         task.spawn(jobIdHop)
         return false
     end
 
-    -- 2. Claim & Ownership Verification (0-5 players)
+    -- 2. Claim & Ownership Verification (0-6 players)
     local claimedJobs = fetchJobs(true)
     local claimInfo = claimedJobs[CurrentJobId]
 
